@@ -1,0 +1,25 @@
+mport { initializeApp } from 'firebase/app';
+
+const firebaseConfig = {
+  apiKey: "REPLACE_ME",
+  authDomain: "soccer-daily-8c24e.firebaseapp.com",
+  projectId: "soccer-daily-8c24e",
+  storageBucket: "soccer-daily-8c24e.firebasestorage.app",
+  messagingSenderId: "279471919880",
+  appId: "1:279471919880:web:254ef42b0e4e0477b092bd"
+};
+
+export const app = initializeApp(firebaseConfig);
+
+import { initializeApp } from 'firebase/app';
+
+const firebaseConfig = {
+  apiKey: "REPLACE_ME",
+  authDomain: "soccer-daily-8c24e.firebaseapp.com",
+  projectId: "soccer-daily-8c24e",
+  storageBucket: "soccer-daily-8c24e.firebasestorage.app",
+  messagingSenderId: "279471919880",
+  appId: "1:279471919880:web:254ef42b0e4e0477b092bd"
+};
+
+export const app = initializeApp(firebaseConfig);
