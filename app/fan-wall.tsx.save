@@ -1,11 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
+  Vi  Text,
   StyleSheet,
   TextInput,
   Pressable,
   ScrollView,
+  ActivityIndicator,
+  Alert,            
+  Share,
+} from 'react-native';
+import { router } from 'expo-router';
+import {
+  collection,
+  addDoc,
+  onSnapshot,     
+  query,
+  orderBy,
+  serverTimestamp,
+  doc,
+  deleteDoc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+ew,
+  Text,
+  StyleSheet,
+  TextInput,
+  Pressable,
+  ScrollVi  Text,
+  StyleSheet,
+  TextInput,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+  Alert,            
+  Share,
+} from 'react-native';
+import { router } from 'expo-router';
+import {
+  collection,
+  addDoc,
+  onSnapshot,     
+  query,
+  orderBy,
+  serverTimestamp,
+  doc,
+  deleteDoc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+ew,
   ActivityIndicator,
   Alert,
   Share,
@@ -169,7 +213,10 @@ export default function FanWallScreen() {
     setCommentPostId(null);
   };
 
-  const sharePost = async (post: FanPost) => {
+  const 
+
+
+sharePost = async (post: FanPost) => {
     try {
       await Share.share({
         message: `${post.text || ''}\n\nShared from Soccer Daily Fan Wall`,
@@ -278,17 +325,40 @@ export default function FanWallScreen() {
                       <Text style={styles.action}>💬 Comment {commentCount}</Text>
                     </Pressable>
 
-                    <Pressable onPress={() => startEdit(post)}>
-                      <Text style={styles.action}>✏️ Edit</Text>
-                    </Pressable>
-
-                    <Pressable onPress={() => deletePost(post)}>
-                      <Text style={styles.deleteAction}>🗑 Delete</Text>
-                    </Pressable>
-
                     <Pressable onPress={() => sharePost(post)}>
                       <Text style={styles.action}>↗ Share</Text>
                     </Pressable>
+
+                    <Pressable onPress={() => startEdit(post)}>
+  <Text style={styles.action}>✏️ Edit</Text>
+</Pressable>
+
+<Pressable onPress={() => deletePost(post)}>
+  <Text style={styles.deleteAction}>🗑 Delete</Text>
+</Pressable>       setCommentPostId(commentPostId === post.id ? null : post.id)
+                      }
+                    >
+                      <Text style={styles.action}>💬 Comment {commentCount}</Text>
+                    </Pressable>
+  
+                    <Pressable onPress={() => sharePost(post)}>
+                      <Text style={styles.action}>↗ Share</Text>
+                    </Pressable>
+  
+                    <Pressable onPress={() => startEdit(post)}>
+  <Text style={styles.action}>✏️️ ️ Edit</Text>
+</Pressable>      
+                  
+<Pressable onPress={() => deletePost(post)}>
+  <Text style={styles.deleteAction}>🗑  Delete</Text>
+</Pressable>      
+                  </View>
+                  
+                  {commentPostId === post.id ? (
+                    <View style={styles.commentBox}>
+                      <TextInput
+                        style={styles.commentInput}
+                        placeholder="Write a comm
                   </View>
 
                   {commentPostId === post.id ? (

@@ -121,6 +121,31 @@ export default function HomeScreen() {
       <Text style={styles.logo}>{txt.appName}</Text>
       <Text style={styles.tagline}>{txt.tagline}</Text>
 
+<View style={styles.heroCard}>
+  <Text style={styles.heroTitle}>⚽ Welcome to Soccer Daily</Text>
+
+  <Text style={styles.heroSubtitle}>
+    Live Scores • Breaking News • Soccer Daily TV • Predictions • Fan Community
+  </Text>
+
+  <View style={styles.heroStats}>
+    <View style={styles.statBox}>
+      <Text style={styles.statNumber}>120+</Text>
+      <Text style={styles.statLabel}>Matches</Text>
+    </View>
+
+    <View style={styles.statBox}>
+      <Text style={styles.statNumber}>24/7</Text>
+      <Text style={styles.statLabel}>News</Text>
+    </View>
+
+    <View style={styles.statBox}>
+      <Text style={styles.statNumber}>LIVE</Text>
+      <Text style={styles.statLabel}>TV</Text>
+    </View>
+  </View>
+</View>
+
       <Pressable style={styles.refresh} onPress={loadHome}>
         <Text style={styles.refreshText}>{txt.refreshHome}</Text>
       </Pressable>
@@ -302,4 +327,47 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 18 },
   chip: { color: 'white', backgroundColor: '#1C2C44', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 20, fontWeight: 'bold' },
   empty: { color: '#8FA3B8', fontSize: 16, marginBottom: 14 },
+
+heroCard: {
+  backgroundColor: '#123C69',
+  borderRadius: 22,
+  padding: 20,
+  marginBottom: 20,
+},
+
+homeHeroTitle: {
+  color: 'white',
+  fontSize: 28,
+  fontWeight: 'bold',
+},
+
+heroSubtitle: {
+  color: '#DDE7F0',
+  fontSize: 16,
+  marginTop: 8,
+  lineHeight: 24,
+},
+
+heroStats: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginTop: 22,
+},
+
+statBox: {
+  flex: 1,
+  alignItems: 'center',
+},
+
+statNumber: {
+  color: '#FFD166',
+  fontSize: 24,
+  fontWeight: 'bold',
+},
+
+statLabel: {
+  color: 'white',
+  marginTop: 6,
+},
 });
+

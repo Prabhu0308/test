@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { router } from 'expo-router';
@@ -30,11 +31,6 @@ export default function ProfileScreen() {
         <Text style={styles.cardText}>See top fans, points, and rankings</Text>
       </Pressable>
 
-      <Pressable style={styles.card} onPress={() => router.push('/leagues')}>
-        <Text style={styles.cardTitle}>🏆 League Tables</Text>
-        <Text style={styles.cardText}>View standings and top competitions</Text>
-      </Pressable>
-
       <Pressable style={styles.card} onPress={() => router.push('/prediction-history')}>
         <Text style={styles.cardTitle}>📊 Prediction History</Text>
         <Text style={styles.cardText}>View your picks, points, and accuracy</Text>
@@ -49,12 +45,7 @@ export default function ProfileScreen() {
         <Text style={styles.cardTitle}>💬 Fan Wall</Text>
         <Text style={styles.cardText}>Post, like, comment, edit, and delete fan posts</Text>
       </Pressable>
-<Pressable style={styles.card} onPress={() => router.push('/studio')}>
-  <Text style={styles.cardTitle}>🎬 Soccer Daily Studio</Text>
-  <Text style={styles.cardText}>
-    AI Script Writer, Teleprompter, Record & Upload Videos
-  </Text>
-</Pressable>	
+
       <Pressable style={styles.card} onPress={() => router.push('/login')}>
         <Text style={styles.cardTitle}>🔐 Login</Text>
         <Text style={styles.cardText}>Sign in or manage your account</Text>

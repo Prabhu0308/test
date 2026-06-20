@@ -1,7 +1,7 @@
 import { getAuth } from 'firebase/auth';
-import { addDoc, arrayUnion, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, arrayUnion, collection, deleteDoc, doc, getDocs, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { db } from '../../firebase/config';
 
 function getName(email: string) {
@@ -23,9 +23,11 @@ export default function FanWallScreen() {
   const [postText, setPostText] = useState('');
   const [commentText, setCommentText] = useState('');
   const [activePostId, setActivePostId] = useState('');
+  const [editingPostId, setEditingPostId] = useState('');
+  const [editText, setEditText] = useState('');
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [editingPost, setEditingPost] = useState('');
   async function loadPosts() {
     try {
       setLoading(true);
@@ -41,7 +43,7 @@ export default function FanWallScreen() {
     }
   }
 
-  async function createPost() {
+   async function createPost() {
     const user = getAuth().currentUser;
     if (!user) return Alert.alert('Please login first');
     if (!postText.trim()) return Alert.alert('Write something first');
@@ -57,9 +59,19 @@ export default function FanWallScreen() {
     });
 
     setPostText('');
-    loadPosts();
+   
   }
+async function saveEdit() {
+  if (!postText.trim()) return Alert.alert('Write something first');
 
+  await updateDoc(doc(db, 'fanPosts', editingPost), {
+    text: postText.trim(),
+    updatedAt: Date.now(),
+  });
+
+  setEditingPost('');
+  setPostText('');
+}
   async function likePost(post: any) {
     const user = getAuth().currentUser;
     if (!user) return Alert.alert('Please login first');
@@ -97,6 +109,16 @@ export default function FanWallScreen() {
   }
 
 
+  async function sharePost(post: any) {
+    try {
+      await Share.share({
+        message: `Soccer Daily Fan Wall:\n\n${post.text || ''}`,
+      });
+    } catch (error: any) {
+      Alert.alert('Share Error', error.message || 'Could not share post');
+    }
+  }
+
   async function deletePost(post: any) {
     const user = getAuth().currentUser;
     if (!user) return Alert.alert('Please login first');
@@ -122,9 +144,26 @@ export default function FanWallScreen() {
     );
   }
 
-  useEffect(() => {
-    loadPosts();
-  }, []);
+   
+  const startEdit = (post: any) => {
+  setEditingPost(post.id);
+  setPostText(post.text);
+};
+ 
+useEffect(() => {
+  const unsubscribe = onSnapshot(collection(db, 'fanPosts'), (snapshot) => {
+    const list = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    }));
+
+    list.sort((a: any, b: any) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    setPosts(list);
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, []);
 
   if (loading) {
     return (
@@ -149,9 +188,24 @@ export default function FanWallScreen() {
           onChangeText={setPostText}
           multiline
         />
-        <Pressable style={styles.postButton} onPress={createPost}>
-          <Text style={styles.postButtonText}>Post to Fan Wall</Text>
-        </Pressable>
+       <Pressable style={styles.postButton} onPress={editingPost ? saveEdit : createPost}>
+  <Text style={styles.postButtonText}>
+    {editingPost ? '💾 Save Changes' : 'Post to Fan Wall'}
+  </Text>
+</Pressable>
+
+{editingPost ? (
+  <Pressable
+    style={[styles.postButton, { marginTop: 10, backgroundColor: '#22314A' }]}
+    onPress={() => {
+      setEditingPost('');
+      setPostText('');
+    }}
+  >
+    <Text style={[styles.postButtonText, { color: 'white' }]}>Cancel Edit</Text>
+  </Pressable>
+) : null}
+
       </View>
 
       <Pressable style={styles.refresh} onPress={loadPosts}>
@@ -161,6 +215,8 @@ export default function FanWallScreen() {
       {posts.map((post) => {
         const name = getName(post.userEmail);
         const comments = post.comments || [];
+        const currentUser = getAuth().currentUser;
+        const likedByMe = currentUser ? (post.likedBy || []).includes(currentUser.uid) : false;
 
         return (
           <View key={post.id} style={styles.card}>
@@ -174,25 +230,50 @@ export default function FanWallScreen() {
               </View>
             </View>
 
-            <Text style={styles.text}>{post.text}</Text>
-
-            <View style={styles.actions}>
-              <Pressable onPress={() => likePost(post)}>
-                <Text style={styles.actionText}>❤️ Like {post.likes || 0}</Text>
-              </Pressable>
-
-              <Pressable onPress={() => setActivePostId(activePostId === post.id ? '' : post.id)}>
-                <Text style={styles.actionText}>💬 Comment {comments.length}</Text>
-              </Pressable>
-
-              {post.userId === getAuth().currentUser?.uid ? (
-                <Pressable onPress={() => deletePost(post)}>
-                  <Text style={styles.deleteText}>🗑 Delete</Text>
+            {editingPostId === post.id ? (
+              <View style={styles.commentBox}>
+                <TextInput
+                  style={styles.commentInput}
+                  value={editText}
+                  onChangeText={setEditText}
+                  multiline
+                />
+                <Pressable style={styles.commentButton} onPress={saveEdit}>
+                  <Text style={styles.commentButtonText}>Save Edit</Text>
                 </Pressable>
-              ) : (
-                <Text style={styles.actionText}>↗ Share</Text>
-              )}
-            </View>
+              </View>
+            ) : (
+              <Text style={styles.text}>{post.text}</Text>
+            )}
+
+           <View style={styles.actions}>
+  <Pressable onPress={() => likePost(post)}>
+    <Text style={styles.actionText}>{likedByMe ? '❤️ Liked' : '❤️ Like'} {post.likes || 0}</Text>
+  </Pressable>
+
+  <Pressable onPress={() => setActivePostId(activePostId === post.id ? '' : post.id)}>
+    <Text style={styles.actionText}>💬 Comment {comments.length}</Text>
+  </Pressable>
+
+  <Pressable onPress={() => sharePost(post)}>
+    <Text style={styles.actionText}>↗ Share</Text>
+  </Pressable>
+
+  {post.userId === getAuth().currentUser?.uid && (
+    <>
+      <Pressable onPress={() => {
+        setEditingPostId(post.id);
+        setEditText(post.text || '');
+      }}>
+        <Text style={styles.actionText}>✏️ Edit</Text>
+      </Pressable>
+
+      <Pressable onPress={() => deletePost(post)}>
+        <Text style={styles.deleteText}>🗑 Delete</Text>
+      </Pressable>
+    </>
+  )}
+</View>
 
             {comments.length > 0 && (
               <View style={styles.commentsBox}>
@@ -245,9 +326,9 @@ const styles = StyleSheet.create({
   user: { color: 'white', fontWeight: 'bold', fontSize: 17 },
   time: { color: '#8FA3B8', marginTop: 2 },
   text: { color: 'white', fontSize: 17, lineHeight: 25, marginBottom: 14 },
-  actions: { flexDirection: 'row', gap: 22, borderTopWidth: 1, borderTopColor: '#22314A', paddingTop: 12 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, borderTopWidth: 1, borderTopColor: '#22314A', paddingTop: 12 },
+
   actionText: { color: '#A7B0C0', fontWeight: 'bold' },
-  deleteText: { color: '#FF6B6B', fontWeight: 'bold' },
   deleteText: { color: '#FF6B6B', fontWeight: 'bold' },
   commentsBox: { marginTop: 12, backgroundColor: '#07111F', padding: 12, borderRadius: 14 },
   comment: { marginBottom: 10 },

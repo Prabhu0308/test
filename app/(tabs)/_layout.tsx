@@ -1,83 +1,81 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React from 'react';
 import { Tabs } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { Text } from 'react-native';
 
-const hideTab = {
-  href: null,
-};
-
-const labels: any = {
-  en: {
-    home: 'Home',
-    scores: 'Scores',
-    news: 'News',
-    predict: 'Predict',
-    profile: 'Profile',
-    settings: 'Settings',
-  },
-  ne: {
-    home: 'होम',
-    scores: 'स्कोर',
-    news: 'समाचार',
-    predict: 'अनुमान',
-    profile: 'प्रोफाइल',
-    settings: 'सेटिङ्स',
-  },
-  hi: {
-    home: 'होम',
-    scores: 'स्कोर',
-    news: 'समाचार',
-    predict: 'अनुमान',
-    profile: 'प्रोफ़ाइल',
-    settings: 'सेटिंग्स',
-  },
-  es: {
-    home: 'Inicio',
-    scores: 'Resultados',
-    news: 'Noticias',
-    predict: 'Predecir',
-    profile: 'Perfil',
-    settings: 'Ajustes',
-  },
-};
+function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
+  return (
+    <Text style={{ fontSize: 24, opacity: focused ? 1 : 0.6 }}>
+      {icon}
+    </Text>
+  );
+}
 
 export default function TabLayout() {
-  const [language, setLanguage] = useState('en');
-
-  useEffect(() => {
-    async function loadLanguage() {
-      const saved = await AsyncStorage.getItem('language');
-      if (saved) setLanguage(saved);
-    }
-
-    loadLanguage();
-  }, []);
-
-  const l = labels[language] || labels.en;
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#FFD166',
-        tabBarInactiveTintColor: '#8FA3B8',
         tabBarStyle: {
           backgroundColor: '#07111F',
           borderTopColor: '#111C2E',
+          height: 86,
+          paddingBottom: 18,
+          paddingTop: 8,
+        },
+        tabBarActiveTintColor: '#FFD166',
+        tabBarInactiveTintColor: '#8FA3B8',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '700',
         },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: l.home }} />
-      <Tabs.Screen name="scores" options={{ title: l.scores }} />
-      <Tabs.Screen name="news" options={{ title: l.news }} />
-      <Tabs.Screen name="prediction" options={{ title: l.predict }} />
-      <Tabs.Screen name="profile" options={{ title: l.profile }} />
-      <Tabs.Screen name="fan-wall" options={{ title: 'Fan Wall' }} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
+        }}
+      />
 
-      <Tabs.Screen name="leagues" options={hideTab} />
-      <Tabs.Screen name="leaderboard" options={hideTab} />
-      <Tabs.Screen name="login" options={hideTab} />
-      <Tabs.Screen name="settings" options={{ title: l.settings }} />
+      <Tabs.Screen
+        name="scores"
+        options={{
+          title: "Scores",
+          tabBarIcon: ({ focused }) => <TabIcon icon="⚽" focused={focused} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="news"
+        options={{
+          title: "News",
+          tabBarIcon: ({ focused }) => <TabIcon icon="📰" focused={focused} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="tv"
+        options={{
+          title: "TV",
+          tabBarIcon: ({ focused }) => <TabIcon icon="📺" focused={focused} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
+        }}
+      />
+
+      <Tabs.Screen name="prediction" options={{ href: null }} />
+      <Tabs.Screen name="fan-wall" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="leaderboard" options={{ href: null }} />
+      <Tabs.Screen name="login" options={{ href: null }} />
+      <Tabs.Screen name="leagues" options={{ href: null }} />
     </Tabs>
   );
 }
