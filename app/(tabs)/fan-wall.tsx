@@ -110,6 +110,7 @@ export default function FanWallScreen() {
   const [videoUri, setVideoUri] = useState<string | null>(null);
 
   const [commentTexts, setCommentTexts] = useState<{ [key: string]: string }>({});
+  const [translatedPosts, setTranslatedPosts] = useState<{ [key: string]: string }>({});
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
 
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
@@ -348,6 +349,25 @@ console.log('Current User:', user.uid);
     setCommentTexts({
       ...commentTexts,
       [post.id]: '',
+    });
+  }
+
+
+  function translatePostToEnglish(post: FanPost) {
+    const originalText = removeGifUrl(post.text || '').trim();
+
+    if (!originalText) return;
+
+    if (translatedPosts[post.id]) {
+      const next = { ...translatedPosts };
+      delete next[post.id];
+      setTranslatedPosts(next);
+      return;
+    }
+
+    setTranslatedPosts({
+      ...translatedPosts,
+      [post.id]: `English translation coming soon. Original message: ${originalText}`,
     });
   }
 
@@ -696,7 +716,25 @@ console.log('Current User:', user.uid);
               ) : (
                 <>
                   {removeGifUrl(post.text) ? (
-                    <Text style={styles.postText}>{removeGifUrl(post.text)}</Text>
+                    <>
+                      <Text style={styles.postText}>{removeGifUrl(post.text)}</Text>
+
+                      <Pressable
+                        style={styles.translateButton}
+                        onPress={() => translatePostToEnglish(post)}
+                      >
+                        <Text style={styles.translateButtonText}>
+                          🌐 {translatedPosts[post.id] ? 'Hide English translation' : 'Translate to English'}
+                        </Text>
+                      </Pressable>
+
+                      {translatedPosts[post.id] ? (
+                        <View style={styles.translationBox}>
+                          <Text style={styles.translationLabel}>English</Text>
+                          <Text style={styles.translationText}>{translatedPosts[post.id]}</Text>
+                        </View>
+                      ) : null}
+                    </>
                   ) : null}
                 </>
               )}
