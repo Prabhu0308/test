@@ -403,7 +403,38 @@ console.log('Current User:', user.uid);
   }
 
 
-  function translatePostToEnglish(post: FanPost) {
+
+  async function translateTextToEnglish(originalText: string) {
+    const cleanText = originalText.trim();
+
+    if (!cleanText) return '';
+
+    try {
+      const url =
+        'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=' +
+        encodeURIComponent(cleanText);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error('Translation request failed');
+      }
+
+      const data = await response.json();
+
+      const translated =
+        Array.isArray(data?.[0])
+          ? data[0].map((part: any) => part?.[0] || '').join('')
+          : '';
+
+      return translated || `Translation unavailable. Original message: ${cleanText}`;
+    } catch (error) {
+      console.log('Translate to English error:', error);
+      return `Translation unavailable now. Original message: ${cleanText}`;
+    }
+  }
+
+  async function translatePostToEnglish(post: FanPost) {
     const originalText = removeGifUrl(post.text || '').trim();
 
     if (!originalText) return;
@@ -417,12 +448,19 @@ console.log('Current User:', user.uid);
 
     setTranslatedPosts({
       ...translatedPosts,
-      [post.id]: `English translation coming soon. Original message: ${originalText}`,
+      [post.id]: 'Translating to English...',
     });
+
+    const english = await translateTextToEnglish(originalText);
+
+    setTranslatedPosts((prev) => ({
+      ...prev,
+      [post.id]: english,
+    }));
   }
 
 
-  function translateCommentToEnglish(commentKey: string, text?: string) {
+  async function translateCommentToEnglish(commentKey: string, text?: string) {
     const originalText = (text || '').trim();
 
     if (!originalText) return;
@@ -436,8 +474,15 @@ console.log('Current User:', user.uid);
 
     setTranslatedComments({
       ...translatedComments,
-      [commentKey]: `English translation coming soon. Original comment: ${originalText}`,
+      [commentKey]: 'Translating to English...',
     });
+
+    const english = await translateTextToEnglish(originalText);
+
+    setTranslatedComments((prev) => ({
+      ...prev,
+      [commentKey]: english,
+    }));
   }
 
   function startEdit(post: FanPost) {
@@ -792,15 +837,15 @@ console.log('Current User:', user.uid);
                         style={styles.translateButton}
                         onPress={() => translatePostToEnglish(post)}
                       >
-                        <Text style={styles.translateButtonText}>
+                        <Text style={[styles.translateButtonText, { color: '#FFD166', fontWeight: '900' }]}>
                           🌐 {translatedPosts[post.id] ? 'Hide English translation' : 'Translate to English'}
                         </Text>
                       </Pressable>
 
                       {translatedPosts[post.id] ? (
                         <View style={styles.translationBox}>
-                          <Text style={styles.translationLabel}>English</Text>
-                          <Text style={styles.translationText}>{translatedPosts[post.id]}</Text>
+                          <Text style={[styles.translationLabel, { color: '#FFD166', fontWeight: '900' }]}>English</Text>
+                          <Text style={[styles.translationText, { color: '#FFFFFF' }]}>{translatedPosts[post.id]}</Text>
                         </View>
                       ) : null}
                     </>
@@ -920,15 +965,15 @@ console.log('Current User:', user.uid);
                           translateCommentToEnglish(`${post.id}-${comment.id}`, comment.text)
                         }
                       >
-                        <Text style={styles.commentTranslateText}>
+                        <Text style={[styles.commentTranslateText, { color: '#FFD166', fontWeight: '900' }]}>
                           🌐 {translatedComments[`${post.id}-${comment.id}`] ? 'Hide English' : 'Translate comment'}
                         </Text>
                       </Pressable>
 
                       {translatedComments[`${post.id}-${comment.id}`] ? (
                         <View style={styles.commentTranslationBox}>
-                          <Text style={styles.translationLabel}>English</Text>
-                          <Text style={styles.translationText}>
+                          <Text style={[styles.translationLabel, { color: '#FFD166', fontWeight: '900' }]}>English</Text>
+                          <Text style={[styles.translationText, { color: '#FFFFFF' }]}>
                             {translatedComments[`${post.id}-${comment.id}`]}
                           </Text>
                         </View>
@@ -1257,6 +1302,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   reactionRow: {
+    marginTop: 8,
     flexDirection: 'row',
     justifyContent: 'space-around',
     backgroundColor: '#07111F',
