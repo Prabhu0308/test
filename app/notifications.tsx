@@ -1,14 +1,154 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { getAuth } from 'firebase/auth';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  updateDoc,
+} from 'firebase/firestore';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { db } from '../firebase/config';
+
+type AppNotification = {
+  id: string;
+  type?: string;
+  title?: string;
+  message?: string;
+  screen?: string;
+  read?: boolean;
+  createdAt?: number;
+};
 
 export default function NotificationsScreen() {
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadNotifications() {
+    try {
+      setLoading(true);
+
+      const user = getAuth().currentUser;
+      const items: AppNotification[] = [];
+
+      {
+        const q = query(
+          collection(db, 'appNotifications'),
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        );
+
+        const snap = await getDocs(q);
+
+        snap.docs.forEach((d) => {
+          const data: any = d.data();
+          items.push({
+            id: d.id,
+            type: data.type,
+            title: data.title,
+            message: data.message,
+            screen: data.screen,
+            read: !!data.read,
+            createdAt: data.createdAt || 0,
+          });
+        });
+      }
+
+      items.push({
+        id: 'system-welcome',
+        type: 'system',
+        title: 'Welcome to Soccer Daily',
+        message: 'Your notifications will appear here.',
+        read: true,
+        createdAt: 1,
+      });
+
+      setNotifications(items);
+
+      await AsyncStorage.setItem('soccerDailyNotificationsRead', 'yes');
+
+    } catch (error: any) {
+      console.log('Load notifications error:', error);
+      Alert.alert('Load notifications failed', error?.message || String(error));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useFocusEffect(
     useCallback(() => {
-      AsyncStorage.setItem('soccerDailyNotificationsRead', 'yes');
+      loadNotifications();
     }, [])
   );
+
+  async function createTestNotification() {
+    try {
+      const user = getAuth().currentUser;
+
+      await addDoc(collection(db, 'appNotifications'), {
+        type: 'system',
+        screen: 'notifications',
+        toUserId: user?.uid || 'beta-test',
+        fromUserId: user?.uid || 'beta-test',
+        fromName: 'Soccer Daily',
+        title: 'Test notification',
+        message: 'This is a test notification from Soccer Daily.',
+        read: false,
+        createdAt: Date.now(),
+      });
+
+      await loadNotifications();
+    } catch (error: any) {
+      console.log('Create test notification error:', error);
+      Alert.alert('Notification test failed', error?.message || String(error));
+    }
+  }
+
+  async function markAllRead() {
+    try {
+      const q = query(
+        collection(db, 'appNotifications'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
+
+      const snap = await getDocs(q);
+
+      await Promise.all(
+        snap.docs.map((docSnap) =>
+          updateDoc(doc(db, 'appNotifications', docSnap.id), {
+            read: true,
+          }).catch((error) => console.log('Mark all read item error:', error))
+        )
+      );
+
+      setNotifications(
+        notifications.map((item) => ({
+          ...item,
+          read: true,
+        }))
+      );
+
+      await loadNotifications();
+    } catch (error: any) {
+      console.log('Mark all read error:', error);
+      Alert.alert('Mark all read failed', error?.message || String(error));
+    }
+  }
+
+  function openNotification(item: AppNotification) {
+    if (item.screen === 'fan-wall') {
+      router.push('/fan-wall' as any);
+      return;
+    }
+
+    router.push('/' as any);
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -16,17 +156,74 @@ export default function NotificationsScreen() {
         <Text style={styles.backText}>← Back</Text>
       </Pressable>
 
-      <Text style={styles.title}>🔔 Notifications</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>🔔 Notifications</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Welcome to Soccer Daily</Text>
-        <Text style={styles.line}>Your notifications are now marked as read.</Text>
+        <Pressable style={styles.refreshButton} onPress={loadNotifications}>
+          <Text style={styles.refreshText}>Refresh</Text>
+        </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Testing Reminder</Text>
-        <Text style={styles.line}>Check Fan Wall, Prediction Wheel, Admin reports, and Profile photo.</Text>
-      </View>
+      <Pressable
+        style={{
+          backgroundColor: '#FFD166',
+          borderRadius: 16,
+          paddingVertical: 13,
+          paddingHorizontal: 14,
+          alignItems: 'center',
+          marginBottom: 10,
+        }}
+        onPress={markAllRead}
+      >
+        <Text style={{ color: '#07111F', fontWeight: '900', fontSize: 16 }}>
+          ✅ Mark all read
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={{
+          backgroundColor: '#132238',
+          borderWidth: 1,
+          borderColor: '#24344F',
+          borderRadius: 16,
+          paddingVertical: 13,
+          paddingHorizontal: 14,
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+        onPress={createTestNotification}
+      >
+        <Text style={{ color: '#FFD166', fontWeight: '900', fontSize: 15 }}>
+          + Create Test Notification
+        </Text>
+      </Pressable>
+
+      {loading ? (
+        <View style={styles.loadingCard}>
+          <ActivityIndicator color="#FFD166" />
+          <Text style={styles.loadingText}>Loading notifications...</Text>
+        </View>
+      ) : null}
+
+      {!loading &&
+        notifications.map((item) => (
+          <Pressable key={item.id} style={styles.card} onPress={() => openNotification(item)}>
+            <View style={styles.cardTop}>
+              <Text style={styles.cardTitle}>
+                {item.type === 'comment' ? '💬 ' : item.type === 'reaction' ? '🔥 ' : '⚽ '}
+                {item.title || 'Notification'}
+              </Text>
+
+              {!item.read ? <Text style={styles.unreadBadge}>NEW</Text> : null}
+            </View>
+
+            <Text style={styles.line}>{item.message || 'You have a new update.'}</Text>
+
+            {item.screen === 'fan-wall' ? (
+              <Text style={styles.openText}>Open Fan Wall →</Text>
+            ) : null}
+          </Pressable>
+        ))}
     </ScrollView>
   );
 }
@@ -43,7 +240,33 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   backText: { color: '#FFD166', fontWeight: '900' },
-  title: { color: '#FFD166', fontSize: 34, fontWeight: '900', marginBottom: 18 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  title: { color: '#FFD166', fontSize: 30, fontWeight: '900', flex: 1 },
+  refreshButton: {
+    backgroundColor: '#132238',
+    borderWidth: 1,
+    borderColor: '#24344F',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  refreshText: { color: '#FFD166', fontWeight: '900' },
+  loadingCard: {
+    backgroundColor: '#0B1729',
+    borderWidth: 1,
+    borderColor: '#24344F',
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 16,
+    alignItems: 'center',
+    gap: 10,
+  },
+  loadingText: { color: '#FFFFFF', fontWeight: '700' },
   card: {
     backgroundColor: '#0B1729',
     borderWidth: 1,
@@ -52,6 +275,27 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 16,
   },
-  cardTitle: { color: '#FFD166', fontSize: 22, fontWeight: '900', marginBottom: 8 },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  cardTitle: { color: '#FFD166', fontSize: 19, fontWeight: '900', marginBottom: 8, flex: 1 },
   line: { color: 'white', fontSize: 16, lineHeight: 24 },
+  unreadBadge: {
+    backgroundColor: '#FF4D4D',
+    color: 'white',
+    fontWeight: '900',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: 'hidden',
+    fontSize: 11,
+  },
+  openText: {
+    color: '#FFD166',
+    fontWeight: '900',
+    marginTop: 12,
+  },
 });

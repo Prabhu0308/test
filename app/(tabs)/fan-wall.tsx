@@ -323,6 +323,49 @@ console.log('Current User:', user.uid);
       await updateDoc(postRef, {
         [`reactions.${reactionKey}`]: arrayUnion(currentUser.uid),
       });
+
+      await createFanWallNotification(
+        post,
+        'reaction',
+        `${getSafeDisplayName(currentUser.displayName || '', currentUser.email || '')} reacted to your post.`
+      );
+    }
+  }
+
+
+  async function createFanWallNotification(
+    post: FanPost,
+    type: 'reaction' | 'comment',
+    message: string
+  ) {
+    try {
+      if (!currentUser) return;
+      if (!post.userId) return;
+      if (post.userId === currentUser.uid) return;
+
+      const fromName = getSafeDisplayName(
+        currentUser.displayName || '',
+        currentUser.email || ''
+      );
+
+      await addDoc(collection(db, 'appNotifications'), {
+        type,
+        screen: 'fan-wall',
+        toUserId: post.userId,
+        fromUserId: currentUser.uid,
+        fromName,
+        postId: post.id,
+        postText: post.text || '',
+        title:
+          type === 'comment'
+            ? 'New comment on your Fan Wall post'
+            : 'New reaction on your Fan Wall post',
+        message,
+        read: false,
+        createdAt: Date.now(),
+      });
+    } catch (error) {
+      console.log('Fan Wall notification create error:', error);
     }
   }
 
@@ -346,6 +389,12 @@ console.log('Current User:', user.uid);
     await updateDoc(doc(db, 'fanPosts', post.id), {
       comments: arrayUnion(comment),
     });
+
+    await createFanWallNotification(
+      post,
+      'comment',
+      `${comment.displayName} commented: ${text.length > 80 ? text.slice(0, 80) + '...' : text}`
+    );
 
     setCommentTexts({
       ...commentTexts,

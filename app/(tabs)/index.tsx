@@ -1,7 +1,7 @@
 import { getAuth } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
+import {collection, doc, getDoc, getDocs, limit, orderBy, query} from 'firebase/firestore';
 import { useCallback, useRef, useState } from 'react';
 import { db } from '../../firebase/config';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -179,8 +179,28 @@ export default function HomeScreen() {
 
 
   async function loadHomeProfile() {
-    const read = await AsyncStorage.getItem('soccerDailyNotificationsRead');
-    setNotificationBadgeCount(read === 'yes' ? 0 : 3);
+    try {
+      const q = query(
+        collection(db, 'appNotifications'),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+
+      const snap = await getDocs(q);
+      let unreadCount = 0;
+
+      snap.docs.forEach((docSnap) => {
+        const data: any = docSnap.data();
+        if (!data.read) {
+          unreadCount += 1;
+        }
+      });
+
+      setNotificationBadgeCount(unreadCount);
+    } catch (error) {
+      console.log('Home notification count error:', error);
+      setNotificationBadgeCount(0);
+    }
 
     const localClub = await AsyncStorage.getItem('favoriteClubTeam');
     const localNational = await AsyncStorage.getItem('favoriteNationalTeam');
@@ -203,8 +223,6 @@ export default function HomeScreen() {
   }
 
   async function openNotificationsAndClear() {
-    setNotificationBadgeCount(0);
-    await AsyncStorage.setItem('soccerDailyNotificationsRead', 'yes');
     router.push('/notifications' as any);
   }
 
@@ -245,11 +263,6 @@ export default function HomeScreen() {
   };
 
 
-  async function openNotificationsAndClear() {
-    setNotificationBadgeCount(0);
-    await AsyncStorage.setItem('soccerDailyNotificationsRead', 'yes');
-    router.push('/notifications' as any);
-  }
 
   const languageOptions = [
     { code: 'en', label: 'English', flag: '🇺🇸' },
