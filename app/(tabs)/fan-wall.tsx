@@ -111,6 +111,7 @@ export default function FanWallScreen() {
 
   const [commentTexts, setCommentTexts] = useState<{ [key: string]: string }>({});
   const [translatedPosts, setTranslatedPosts] = useState<{ [key: string]: string }>({});
+  const [translatedComments, setTranslatedComments] = useState<{ [key: string]: string }>({});
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
 
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
@@ -368,6 +369,25 @@ console.log('Current User:', user.uid);
     setTranslatedPosts({
       ...translatedPosts,
       [post.id]: `English translation coming soon. Original message: ${originalText}`,
+    });
+  }
+
+
+  function translateCommentToEnglish(commentKey: string, text?: string) {
+    const originalText = (text || '').trim();
+
+    if (!originalText) return;
+
+    if (translatedComments[commentKey]) {
+      const next = { ...translatedComments };
+      delete next[commentKey];
+      setTranslatedComments(next);
+      return;
+    }
+
+    setTranslatedComments({
+      ...translatedComments,
+      [commentKey]: `English translation coming soon. Original comment: ${originalText}`,
     });
   }
 
@@ -844,6 +864,26 @@ console.log('Current User:', user.uid);
                         {getSafeDisplayName(comment.displayName, comment.userEmail)}
                       </Text>
                       <Text style={styles.commentText}>{comment.text}</Text>
+
+                      <Pressable
+                        style={styles.commentTranslateButton}
+                        onPress={() =>
+                          translateCommentToEnglish(`${post.id}-${comment.id}`, comment.text)
+                        }
+                      >
+                        <Text style={styles.commentTranslateText}>
+                          🌐 {translatedComments[`${post.id}-${comment.id}`] ? 'Hide English' : 'Translate comment'}
+                        </Text>
+                      </Pressable>
+
+                      {translatedComments[`${post.id}-${comment.id}`] ? (
+                        <View style={styles.commentTranslationBox}>
+                          <Text style={styles.translationLabel}>English</Text>
+                          <Text style={styles.translationText}>
+                            {translatedComments[`${post.id}-${comment.id}`]}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                   ))}
                 </View>
