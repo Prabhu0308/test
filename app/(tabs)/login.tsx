@@ -1,90 +1,285 @@
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from 'firebase/auth';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { auth } from '../../firebase/config';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 export default function LoginScreen() {
+  const [mode, setMode] = useState<'login' | 'signup'>('signup');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  async function signup() {
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      Alert.alert('Success', 'Account created!');
-    } catch (error: any) {
-      Alert.alert('Signup Error', error.message);
-    }
+  async function saveLocalUser(displayName: string, userEmail: string) {
+    await AsyncStorage.setItem(
+      'soccerDailyUser',
+      JSON.stringify({
+        displayName,
+        email: userEmail,
+      })
+    );
   }
 
-  async function login() {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      Alert.alert('Success', 'Logged in!');
-    } catch (error: any) {
-      Alert.alert('Login Error', error.message);
-    }
-  }
+  async function handleSubmit() {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+    const cleanName = name.trim();
 
-  async function logout() {
-    await signOut(auth);
-    Alert.alert('Logged out');
+    if (!cleanEmail || !cleanPassword) {
+      Alert.alert('Missing information', 'Please enter email and password.');
+      return;
+    }
+
+    if (mode === 'signup' && !cleanName) {
+      Alert.alert('Name required', 'Please enter your name for testing.');
+      return;
+    }
+
+    if (cleanPassword.length < 6) {
+      Alert.alert('Password too short', 'Password must be at least 6 characters.');
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      const auth = getAuth();
+
+      if (mode === 'signup') {
+        const result = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+
+        await updateProfile(result.user, {
+          displayName: cleanName,
+        });
+
+        await saveLocalUser(cleanName, cleanEmail);
+
+        Alert.alert('Account created', 'You are logged in now.');
+        router.replace('/profile' as any);
+      } else {
+        const result = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+
+        await saveLocalUser(result.user.displayName || cleanEmail.split('@')[0], cleanEmail);
+
+        Alert.alert('Logged in', 'Welcome back.');
+        router.replace('/profile' as any);
+      }
+    } catch (error: any) {
+      let message = 'Something went wrong. Please try again.';
+
+      if (error?.code === 'auth/email-already-in-use') {
+        message = 'This email already has an account. Tap Login instead.';
+      }
+
+      if (error?.code === 'auth/invalid-email') {
+        message = 'Please enter a valid email address.';
+      }
+
+      if (error?.code === 'auth/user-not-found' || error?.code === 'auth/invalid-credential') {
+        message = 'Account not found or password is wrong. Tap Create Account for new testers.';
+      }
+
+      if (error?.code === 'auth/wrong-password') {
+        message = 'Wrong password. Please try again.';
+      }
+
+      if (error?.code === 'auth/weak-password') {
+        message = 'Password is too weak. Use at least 6 characters.';
+      }
+
+      Alert.alert('Login error', message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🔐 Login</Text>
-      <Text style={styles.subtitle}>Create or access your Soccer Daily account</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={styles.card}>
+        <Text style={styles.title}>Soccer Daily</Text>
+        <Text style={styles.subtitle}>
+          {mode === 'signup' ? 'Create tester account' : 'Login to your account'}
+        </Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#8FA3B8"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-      />
+        <View style={styles.switchRow}>
+          <Pressable
+            style={[styles.switchButton, mode === 'signup' && styles.switchActive]}
+            onPress={() => setMode('signup')}
+          >
+            <Text style={[styles.switchText, mode === 'signup' && styles.switchTextActive]}>
+              Create Account
+            </Text>
+          </Pressable>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#8FA3B8"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+          <Pressable
+            style={[styles.switchButton, mode === 'login' && styles.switchActive]}
+            onPress={() => setMode('login')}
+          >
+            <Text style={[styles.switchText, mode === 'login' && styles.switchTextActive]}>
+              Login
+            </Text>
+          </Pressable>
+        </View>
 
-      <Pressable style={styles.button} onPress={login}>
-        <Text style={styles.buttonText}>Login</Text>
-      </Pressable>
+        {mode === 'signup' ? (
+          <TextInput
+            style={styles.input}
+            placeholder="Your name"
+            placeholderTextColor="#94A3B8"
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+          />
+        ) : null}
 
-      <Pressable style={styles.secondaryButton} onPress={signup}>
-        <Text style={styles.secondaryText}>Create Account</Text>
-      </Pressable>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#94A3B8"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
 
-      <Pressable style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.logoutText}>Logout</Text>
-      </Pressable>
-    </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Password - minimum 6 characters"
+          placeholderTextColor="#94A3B8"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+
+        <Pressable style={styles.goldButton} onPress={handleSubmit} disabled={busy}>
+          {busy ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.goldText}>
+              {mode === 'signup' ? 'Create Account & Enter' : 'Login'}
+            </Text>
+          )}
+        </Pressable>
+
+        <Pressable style={styles.backButton} onPress={() => router.replace('/' as any)}>
+          <Text style={styles.backText}>Back to Home</Text>
+        </Pressable>
+
+        <Text style={styles.note}>
+          Testing note: new testers should choose Create Account first. Password must be at least 6 characters.
+        </Text>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#07111F', padding: 24, paddingTop: 80 },
-  title: { color: 'white', fontSize: 34, fontWeight: 'bold', marginBottom: 8 },
-  subtitle: { color: '#A7B0C0', fontSize: 16, marginBottom: 28 },
-  input: {
-    backgroundColor: '#111C2E',
-    color: 'white',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#22314A',
+  container: {
+    flex: 1,
+    backgroundColor: '#07111F',
+    justifyContent: 'center',
+    padding: 22,
   },
-  button: { backgroundColor: '#FFD166', padding: 16, borderRadius: 14, marginBottom: 12 },
-  buttonText: { color: '#07111F', textAlign: 'center', fontWeight: 'bold', fontSize: 16 },
-  secondaryButton: { backgroundColor: '#123C69', padding: 16, borderRadius: 14, marginBottom: 12 },
-  secondaryText: { color: 'white', textAlign: 'center', fontWeight: 'bold', fontSize: 16 },
-  logoutButton: { padding: 16 },
-  logoutText: { color: '#FFD166', textAlign: 'center', fontWeight: 'bold' },
+  card: {
+    backgroundColor: '#0B1729',
+    borderRadius: 26,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#24344F',
+  },
+  title: {
+    color: '#FFD166',
+    fontSize: 34,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  subtitle: {
+    color: '#CBD5E1',
+    fontSize: 17,
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    backgroundColor: '#07111F',
+    borderRadius: 18,
+    padding: 5,
+    marginBottom: 16,
+  },
+  switchButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  switchActive: {
+    backgroundColor: '#FFD166',
+  },
+  switchText: {
+    color: '#CBD5E1',
+    fontWeight: '800',
+  },
+  switchTextActive: {
+    color: '#07111F',
+  },
+  input: {
+    backgroundColor: '#111C2F',
+    borderRadius: 16,
+    padding: 15,
+    color: 'white',
+    fontSize: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#24344F',
+  },
+  goldButton: {
+    backgroundColor: '#FFD166',
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  goldText: {
+    color: '#07111F',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  backButton: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  backText: {
+    color: '#93C5FD',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  note: {
+    color: '#94A3B8',
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginTop: 18,
+  },
 });

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 
@@ -33,7 +32,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: 'Home',
           tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
         }}
       />
@@ -41,23 +40,23 @@ export default function TabLayout() {
       <Tabs.Screen
         name="scores"
         options={{
-          title: "Scores",
+          title: 'Scores',
           tabBarIcon: ({ focused }) => <TabIcon icon="⚽" focused={focused} />,
         }}
       />
 
       <Tabs.Screen
-        name="news"
+        name="prediction"
         options={{
-          title: "News",
-          tabBarIcon: ({ focused }) => <TabIcon icon="📰" focused={focused} />,
+          title: 'Prediction',
+          tabBarIcon: ({ focused }) => <TabIcon icon="🔮" focused={focused} />,
         }}
       />
 
       <Tabs.Screen
         name="tv"
         options={{
-          title: "TV",
+          title: 'TV',
           tabBarIcon: ({ focused }) => <TabIcon icon="📺" focused={focused} />,
         }}
       />
@@ -65,12 +64,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: 'Profile',
           tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
         }}
       />
 
-      <Tabs.Screen name="prediction" options={{ href: null }} />
+      <Tabs.Screen name="news" options={{ href: null }} />
       <Tabs.Screen name="fan-wall" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="leaderboard" options={{ href: null }} />

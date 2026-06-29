@@ -1,341 +1,1251 @@
+import { Image as ExpoImage } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import { ResizeMode, Video } from 'expo-av';
 import { getAuth } from 'firebase/auth';
-import { addDoc, arrayUnion, collection, deleteDoc, doc, getDocs, onSnapshot, updateDoc } from 'firebase/firestore';
+import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
-import { db } from '../../firebase/config';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { db, storage } from '../../firebase/config';
 
-function getName(email: string) {
-  return email ? email.split('@')[0] : 'Soccer Fan';
-}
+type Reactions = {
+  like?: string[];
+  fire?: string[];
+  goal?: string[];
+  shocked?: string[];
+};
 
-function timeAgo(time: number) {
-  if (!time) return '';
+type FanPost = {
+  id: string;
+  text?: string;
+  badge?: string;
+  displayName?: string;
+  userEmail?: string;
+  userId?: string;
+  imageUrl?: string;
+  gifUrl?: string;
+  videoUrl?: string;
+  createdAt?: number;
+  editedAt?: number;
+  likes?: string[];
+  comments?: any[];
+  reactions?: Reactions;
+  moderationStatus?: string;
+};
+
+const badges = ['🔥 Hot Take', '🔮 Prediction', '⚽ Match Reaction', '📰 News Reaction'];
+const filters = ['All', 'Hot Takes', 'Predictions', 'Photos', 'Videos', 'My Posts'];
+const topics = ['USA vs Mexico', 'World Cup', 'Transfer Talk', 'Messi', 'Mbappe', 'Premier League'];
+
+function timeAgo(time?: number) {
+  if (!time) return 'Just now';
+
   const min = Math.floor((Date.now() - time) / 60000);
   if (min < 1) return 'Just now';
   if (min < 60) return `${min} min ago`;
+
   const hr = Math.floor(min / 60);
   if (hr < 24) return `${hr} hr ago`;
+
   const day = Math.floor(hr / 24);
   return `${day} day${day > 1 ? 's' : ''} ago`;
 }
 
+function safeArray(value: any) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getSafeDisplayName(name?: string, email?: string) {
+  if (name && !name.includes('@') && name !== 'Soccer Fan') {
+    return name;
+  }
+
+  if (email && email.includes('@')) {
+    const username = email.split('@')[0];
+    return username.charAt(0).toUpperCase() + username.slice(1);
+  }
+
+  return 'Soccer Fan';
+}
+
+
+function extractGifUrl(value?: string) {
+  if (!value) return '';
+
+  const urls = value.match(/https?:\/\/[^\s]+/gi) || [];
+
+  const found = urls.find((url) => {
+    const clean = url.replace(/[),.!?]+$/, '').toLowerCase();
+
+    return (
+      clean.includes('giphy.com') ||
+      clean.endsWith('.gif') ||
+      clean.endsWith('.webp')
+    );
+  });
+
+  return found ? found.replace(/[),.!?]+$/, '') : '';
+}
+
+function removeGifUrl(value?: string) {
+  if (!value) return '';
+
+  const gif = extractGifUrl(value);
+
+  if (!gif) return value;
+
+  return value.replace(gif, '').trim();
+}
+
 export default function FanWallScreen() {
   const [postText, setPostText] = useState('');
-  const [commentText, setCommentText] = useState('');
-  const [activePostId, setActivePostId] = useState('');
-  const [editingPostId, setEditingPostId] = useState('');
-  const [editText, setEditText] = useState('');
-  const [posts, setPosts] = useState<any[]>([]);
+  const [selectedBadge, setSelectedBadge] = useState(badges[0]);
+  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [posts, setPosts] = useState<FanPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingPost, setEditingPost] = useState('');
-  async function loadPosts() {
-    try {
-      setLoading(true);
-      const snap = await getDocs(collection(db, 'fanPosts'));
-      const list = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a: any, b: any) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-      setPosts(list);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Could not load posts');
-    } finally {
+  const [posting, setPosting] = useState(false);
+  const [showComposer, setShowComposer] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [videoUri, setVideoUri] = useState<string | null>(null);
+
+  const [commentTexts, setCommentTexts] = useState<{ [key: string]: string }>({});
+  const [commentPostId, setCommentPostId] = useState<string | null>(null);
+
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
+
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'fanPosts'), (snapshot) => {
+      const list = snapshot.docs.map((document) => ({
+        id: document.id,
+        ...(document.data() as Omit<FanPost, 'id'>),
+      }));
+
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setPosts((list as any[]).filter((p: any) => (p.status ?? 'approved') === 'approved') as any);
       setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const filteredPosts = posts.filter((post) => {
+    if (selectedFilter === 'All') return true;
+    if (selectedFilter === 'Hot Takes') return post.badge?.includes('Hot Take');
+    if (selectedFilter === 'Predictions') return post.badge?.includes('Prediction');
+    if (selectedFilter === 'Photos') return !!post.imageUrl;
+    if (selectedFilter === 'Videos') return !!post.videoUrl;
+    if (selectedFilter === 'My Posts') return currentUser?.uid === post.userId;
+    return true;
+  });
+
+  async function pickImage() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Please allow photo access to upload an image.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsEditing: true,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
     }
   }
 
-   async function createPost() {
-    const user = getAuth().currentUser;
-    if (!user) return Alert.alert('Please login first');
-    if (!postText.trim()) return Alert.alert('Write something first');
+  async function pickVideo() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    await addDoc(collection(db, 'fanPosts'), {
-      text: postText.trim(),
-      userEmail: user.email,
-      userId: user.uid,
-      likes: 0,
-      likedBy: [],
-      comments: [],
-      createdAt: Date.now(),
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Please allow video access to upload a video.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      quality: 0.7,
+      allowsEditing: true,
     });
 
-    setPostText('');
-   
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      const durationMs = asset.duration || 0;
+
+      if (durationMs > 30000) {
+        Alert.alert(
+          'Video too long',
+          'Please choose a video 30 seconds or shorter.'
+        );
+        return;
+      }
+
+      setVideoUri(asset.uri);
+      setImageUri(null);
+    }
   }
-async function saveEdit() {
-  if (!postText.trim()) return Alert.alert('Write something first');
 
-  await updateDoc(doc(db, 'fanPosts', editingPost), {
-    text: postText.trim(),
-    updatedAt: Date.now(),
-  });
+  async function uploadImage(uri: string) {
+    const response = await fetch(uri);
 
-  setEditingPost('');
-  setPostText('');
+    if (!response.ok) {
+      throw new Error('Could not read selected image.');
+    }
+
+    const blob = await response.blob();
+    const fileName = `fan-wall/${Date.now()}.jpg`;
+    const imageRef = ref(storage, fileName);
+    
+   const user = auth.currentUser;
+
+if (!user) {
+  Alert.alert('Login required', 'Please login first.');
+  return;
 }
-  async function likePost(post: any) {
-    const user = getAuth().currentUser;
-    if (!user) return Alert.alert('Please login first');
 
-    const likedBy = post.likedBy || [];
-    if (likedBy.includes(user.uid)) {
-      return Alert.alert('Already liked');
+console.log('Current User:', user.uid);
+    await uploadBytes(imageRef, blob, {
+      contentType: 'image/jpeg',
+    });
+
+    return await getDownloadURL(imageRef);
+  }
+
+  async function uploadVideo(uri: string) {
+    const response = await fetch(uri);
+
+    if (!response.ok) {
+      throw new Error('Could not read selected video.');
     }
 
-    await updateDoc(doc(db, 'fanPosts', post.id), {
-      likes: Number(post.likes || 0) + 1,
-      likedBy: [...likedBy, user.uid],
+    const blob = await response.blob();
+    const fileName = `fan-wall/${Date.now()}.mp4`;
+    const videoRef = ref(storage, fileName);
+
+    await uploadBytes(videoRef, blob, {
+      contentType: 'video/mp4',
     });
 
-    loadPosts();
+    return await getDownloadURL(videoRef);
   }
 
-  async function addComment(post: any) {
-    const user = getAuth().currentUser;
-    if (!user) return Alert.alert('Please login first');
-    if (!commentText.trim()) return Alert.alert('Write a comment first');
+  async function createPost() {
+    if (!currentUser) {
+      Alert.alert('Login needed', 'Please login before posting.');
+      return;
+    }
 
-    await updateDoc(doc(db, 'fanPosts', post.id), {
-      comments: arrayUnion({
-        text: commentText.trim(),
-        userEmail: user.email,
-        userId: user.uid,
-        createdAt: Date.now(),
-      }),
-    });
+    const finalGifUrl = extractGifUrl(postText);
+    const cleanPostText = removeGifUrl(postText).trim();
 
-    setCommentText('');
-    setActivePostId('');
-    loadPosts();
-  }
+    if (!cleanPostText && !finalGifUrl && !imageUri && !videoUri) {
+      Alert.alert('Empty post', 'Write something or add a photo first.');
+      return;
+    }
 
+    setPosting(true);
 
-  async function sharePost(post: any) {
     try {
-      await Share.share({
-        message: `Soccer Daily Fan Wall:\n\n${post.text || ''}`,
-      });
-    } catch (error: any) {
-      Alert.alert('Share Error', error.message || 'Could not share post');
-    }
-  }
+      let imageUrl = '';
+      let videoUrl = '';
 
-  async function deletePost(post: any) {
-    const user = getAuth().currentUser;
-    if (!user) return Alert.alert('Please login first');
+      if (imageUri) {
+        imageUrl = await uploadImage(imageUri);
+      }
 
-    if (post.userId !== user.uid) {
-      return Alert.alert('Not allowed', 'You can delete only your own post.');
-    }
+      if (videoUri) {
+        videoUrl = await uploadVideo(videoUri);
+      }
 
-    Alert.alert(
-      'Delete Post?',
-      'Are you sure you want to delete this post?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteDoc(doc(db, 'fanPosts', post.id));
-            loadPosts();
-          },
+      await addDoc(collection(db, 'fanPosts'), {
+      status: 'approved',
+        text: cleanPostText,
+        gifUrl: finalGifUrl,
+        badge: selectedBadge,
+        displayName: getSafeDisplayName(currentUser.displayName || '', currentUser.email || ''),
+        userEmail: currentUser.email || '',
+        userId: currentUser.uid,
+        imageUrl,
+        videoUrl,
+        createdAt: Date.now(),
+        moderationStatus: 'active',
+        likes: [],
+        comments: [],
+        reactions: {
+          like: [],
+          fire: [],
+          goal: [],
+          shocked: [],
         },
-      ]
-    );
+      });
+
+      setPostText('');
+      setImageUri(null);
+      setVideoUri(null);
+      setSelectedBadge(badges[0]);
+      setShowComposer(false);
+    } catch (error: any) {
+      console.log('POST ERROR:', error);
+      Alert.alert(
+        'Post failed',
+        error?.message || JSON.stringify(error) || 'Something went wrong while posting.'
+      );
+    } finally {
+      setPosting(false);
+    }
   }
 
-   
-  const startEdit = (post: any) => {
-  setEditingPost(post.id);
-  setPostText(post.text);
-};
- 
-useEffect(() => {
-  const unsubscribe = onSnapshot(collection(db, 'fanPosts'), (snapshot) => {
-    const list = snapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...docSnap.data(),
-    }));
+  async function toggleReaction(post: FanPost, reactionKey: keyof Reactions) {
+    if (!currentUser) {
+      Alert.alert('Login needed', 'Please login before reacting.');
+      return;
+    }
 
-    list.sort((a: any, b: any) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-    setPosts(list);
-    setLoading(false);
-  });
+    const postRef = doc(db, 'fanPosts', post.id);
+    const currentReactionArray = safeArray(post.reactions?.[reactionKey]);
+    const alreadyReacted = currentReactionArray.includes(currentUser.uid);
 
-  return () => unsubscribe();
-}, []);
+    if (alreadyReacted) {
+      await updateDoc(postRef, {
+        [`reactions.${reactionKey}`]: arrayRemove(currentUser.uid),
+      });
+    } else {
+      await updateDoc(postRef, {
+        [`reactions.${reactionKey}`]: arrayUnion(currentUser.uid),
+      });
+    }
+  }
 
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#FFD166" />
-        <Text style={styles.loadingText}>Loading Fan Wall...</Text>
-      </View>
-    );
+  async function addComment(post: FanPost) {
+    if (!currentUser) {
+      Alert.alert('Login needed', 'Please login before commenting.');
+      return;
+    }
+
+    const text = commentTexts[post.id]?.trim();
+    if (!text) return;
+
+    const comment = {
+      id: Date.now().toString(),
+      text,
+      displayName: getSafeDisplayName(currentUser.displayName || '', currentUser.email || ''),
+      userId: currentUser.uid,
+      createdAt: Date.now(),
+    };
+
+    await updateDoc(doc(db, 'fanPosts', post.id), {
+      comments: arrayUnion(comment),
+    });
+
+    setCommentTexts({
+      ...commentTexts,
+      [post.id]: '',
+    });
+  }
+
+  function startEdit(post: FanPost) {
+    setEditingPostId(post.id);
+    setEditingText(post.text || '');
+  }
+
+  async function saveEdit(post: FanPost) {
+    if (!editingText.trim()) {
+      Alert.alert('Empty edit', 'Post cannot be empty.');
+      return;
+    }
+
+    await updateDoc(doc(db, 'fanPosts', post.id), {
+      text: editingText.trim(),
+      editedAt: Date.now(),
+    });
+
+    setEditingPostId(null);
+    setEditingText('');
+  }
+
+  async function deletePost(post: FanPost) {
+    Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteDoc(doc(db, 'fanPosts', post.id));
+        },
+      },
+    ]);
+  }
+
+  async function reportPost(post: FanPost) {
+    if (!currentUser) {
+      Alert.alert('Login needed', 'Please login before reporting.');
+      return;
+    }
+
+    await addDoc(collection(db, 'reports'), {
+      postId: post.id,
+      reportedPostId: post.id,
+      fanPostId: post.id,
+      originalPostId: post.id,
+      videoUrl: post.videoUrl || null,
+      imageUrl: post.imageUrl || null,
+      text: post.text || '',
+      postUserId: post.userId || '',
+      postUserEmail: post.userEmail || '',
+      postDisplayName: post.displayName || '',
+      postId: post.id,
+      reportedPostId: post.id,
+      fanPostId: post.id,
+      originalPostId: post.id,
+      videoUrl: post.videoUrl || null,
+      imageUrl: post.imageUrl || null,
+      text: post.text || '',
+      postUserId: post.userId || '',
+      postUserEmail: post.userEmail || '',
+      postDisplayName: post.displayName || '',
+      postId: post.id,
+      reportedBy: currentUser.uid,
+      createdAt: Date.now(),
+      status: 'new',
+    });
+
+    Alert.alert('Reported', 'Thanks. Our team will review this post.');
+  }
+
+  async function sharePost(post: FanPost) {
+    await Share.share({
+      message: `${post.badge || '⚽ Fan Post'}\n\n${post.text || ''}\n\nShared from Soccer Daily`,
+    });
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>💬 Fan Wall</Text>
-      <Text style={styles.subtitle}>Talk football with Soccer Daily fans</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.hero}>
+        <Pressable
+        onPress={() => router.push('/community-guidelines' as any)}
+        style={{
+          backgroundColor: '#1A2A44',
+          borderWidth: 1,
+          borderColor: '#FFD166',
+          padding: 14,
+          borderRadius: 16,
+          marginBottom: 14,
+        }}
+      >
+        <Text style={{ color: '#FFD166', fontWeight: 'bold', fontSize: 16 }}>
+          ⚽ Fan Wall Rules: 13+ • Be respectful • No private info • No TV clips
+        </Text>
+        <Text style={{ color: '#A7B0C0', marginTop: 5, lineHeight: 20 }}>
+          Tap here to read Soccer Daily Community Guidelines.
+        </Text>
+      </Pressable>
 
-      <View style={styles.composer}>
-        <TextInput
-          style={styles.input}
-          placeholder="What's on your soccer mind?"
-          placeholderTextColor="#8FA3B8"
-          value={postText}
-          onChangeText={setPostText}
-          multiline
-        />
-       <Pressable style={styles.postButton} onPress={editingPost ? saveEdit : createPost}>
-  <Text style={styles.postButtonText}>
-    {editingPost ? '💾 Save Changes' : 'Post to Fan Wall'}
-  </Text>
-</Pressable>
+      <Text style={styles.title}>🔥 Fan Wall</Text>
+        <Text style={styles.subtitle}>
+          A soccer-only social feed for match reactions, predictions, photos, and hot takes.
+        </Text>
 
-{editingPost ? (
-  <Pressable
-    style={[styles.postButton, { marginTop: 10, backgroundColor: '#22314A' }]}
-    onPress={() => {
-      setEditingPost('');
-      setPostText('');
-    }}
-  >
-    <Text style={[styles.postButtonText, { color: 'white' }]}>Cancel Edit</Text>
-  </Pressable>
-) : null}
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{posts.length}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
+          </View>
 
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>
+              {posts.filter((p) => p.badge?.includes('Prediction')).length}
+            </Text>
+            <Text style={styles.statLabel}>Predictions</Text>
+          </View>
+
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>
+              {posts.filter((p) => !!p.videoUrl).length}
+            </Text>
+            <Text style={styles.statLabel}>Videos</Text>
+          </View>
+        </View>
       </View>
 
-      <Pressable style={styles.refresh} onPress={loadPosts}>
-        <Text style={styles.refreshText}>Refresh Feed</Text>
-      </Pressable>
+      <View style={styles.createCard}>
+        <View style={styles.createTop}>
+          <View>
+            <Text style={styles.createTitle}>Share your soccer take</Text>
+            <Text style={styles.createSub}>Post like a fan, not like a news page.</Text>
+          </View>
 
-      {posts.map((post) => {
-        const name = getName(post.userEmail);
-        const comments = post.comments || [];
-        const currentUser = getAuth().currentUser;
-        const likedByMe = currentUser ? (post.likedBy || []).includes(currentUser.uid) : false;
+          <Pressable
+            style={styles.createButton}
+            onPress={() => setShowComposer(!showComposer)}
+          >
+            <Text style={styles.createButtonText}>
+              {showComposer ? 'Close' : '+ Post'}
+            </Text>
+          </Pressable>
+        </View>
 
-        return (
-          <View key={post.id} style={styles.card}>
-            <View style={styles.header}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
-              </View>
-              <View>
-                <Text style={styles.user}>{name}</Text>
-                <Text style={styles.time}>{timeAgo(Number(post.createdAt || 0))}</Text>
-              </View>
+        {showComposer && (
+          <View style={styles.composer}>
+            <View style={styles.badgeWrap}>
+              {badges.map((badge) => (
+                <Pressable
+                  key={badge}
+                  style={[
+                    styles.badgeButton,
+                    selectedBadge === badge && styles.activeBadgeButton,
+                  ]}
+                  onPress={() => setSelectedBadge(badge)}
+                >
+                  <Text
+                    style={[
+                      styles.badgeText,
+                      selectedBadge === badge && styles.activeBadgeText,
+                    ]}
+                  >
+                    {badge}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
 
-            {editingPostId === post.id ? (
-              <View style={styles.commentBox}>
-                <TextInput
-                  style={styles.commentInput}
-                  value={editText}
-                  onChangeText={setEditText}
-                  multiline
-                />
-                <Pressable style={styles.commentButton} onPress={saveEdit}>
-                  <Text style={styles.commentButtonText}>Save Edit</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <Text style={styles.text}>{post.text}</Text>
-            )}
+            <TextInput
+              value={postText}
+              onChangeText={setPostText}
+              placeholder="What happened in the match? What is your take?"
+              placeholderTextColor="#7F8A9A"
+              multiline
+              style={styles.input}
+            />
 
-           <View style={styles.actions}>
-  <Pressable onPress={() => likePost(post)}>
-    <Text style={styles.actionText}>{likedByMe ? '❤️ Liked' : '❤️ Like'} {post.likes || 0}</Text>
-  </Pressable>
+            {imageUri && (
+              <View style={styles.previewBox}>
+                <Image source={{ uri: imageUri }} style={styles.previewImage} />
 
-  <Pressable onPress={() => setActivePostId(activePostId === post.id ? '' : post.id)}>
-    <Text style={styles.actionText}>💬 Comment {comments.length}</Text>
-  </Pressable>
-
-  <Pressable onPress={() => sharePost(post)}>
-    <Text style={styles.actionText}>↗ Share</Text>
-  </Pressable>
-
-  {post.userId === getAuth().currentUser?.uid && (
-    <>
-      <Pressable onPress={() => {
-        setEditingPostId(post.id);
-        setEditText(post.text || '');
-      }}>
-        <Text style={styles.actionText}>✏️ Edit</Text>
-      </Pressable>
-
-      <Pressable onPress={() => deletePost(post)}>
-        <Text style={styles.deleteText}>🗑 Delete</Text>
-      </Pressable>
-    </>
-  )}
-</View>
-
-            {comments.length > 0 && (
-              <View style={styles.commentsBox}>
-                {comments.slice(-5).map((c: any, index: number) => (
-                  <View key={index} style={styles.comment}>
-                    <Text style={styles.commentUser}>{getName(c.userEmail)}</Text>
-                    <Text style={styles.commentText}>{c.text}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {activePostId === post.id && (
-              <View style={styles.commentBox}>
-                <TextInput
-                  style={styles.commentInput}
-                  placeholder="Write a comment..."
-                  placeholderTextColor="#8FA3B8"
-                  value={commentText}
-                  onChangeText={setCommentText}
-                />
-                <Pressable style={styles.commentButton} onPress={() => addComment(post)}>
-                  <Text style={styles.commentButtonText}>Comment</Text>
+                <Pressable
+                  style={styles.removeImageButton}
+                  onPress={() => setImageUri(null)}
+                >
+                  <Text style={styles.removeImageText}>Remove Image</Text>
                 </Pressable>
               </View>
             )}
+
+            {videoUri && (
+              <View style={styles.previewBox}>
+                <Video
+                  source={{ uri: videoUri }}
+                  style={styles.previewVideo}
+                  useNativeControls
+                  resizeMode={ResizeMode.COVER}
+                />
+
+                <Pressable
+                  style={styles.removeImageButton}
+                  onPress={() => setVideoUri(null)}
+                >
+                  <Text style={styles.removeImageText}>Remove Video</Text>
+                </Pressable>
+              </View>
+            )}
+
+            <View style={styles.composerActions}>
+              <Pressable style={styles.photoButton} onPress={pickImage}>
+                <Text style={styles.photoButtonText}>🖼 Photo</Text>
+              </Pressable>
+
+              <Pressable style={styles.photoButton} onPress={pickVideo}>
+                <Text style={styles.photoButtonText}>🎥 Video</Text>
+              </Pressable>
+
+              <Pressable style={styles.postButton} onPress={createPost} disabled={posting}>
+                {posting ? (
+                  <ActivityIndicator color="#07111F" />
+                ) : (
+                  <Text style={styles.postButtonText}>Post</Text>
+                )}
+              </Pressable>
+            </View>
           </View>
-        );
-      })}
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>📈 Trending Topics</Text>
+
+        <View style={styles.topicWrap}>
+          {topics.map((topic) => (
+            <View key={topic} style={styles.topicPill}>
+              <Text style={styles.topicText}>{topic}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+        {filters.map((filter) => (
+          <Pressable
+            key={filter}
+            style={[
+              styles.filterPill,
+              selectedFilter === filter && styles.activeFilterPill,
+            ]}
+            onPress={() => setSelectedFilter(filter)}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                selectedFilter === filter && styles.activeFilterText,
+              ]}
+            >
+              {filter}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <Text style={styles.feedTitle}>⚽ Fan Feed</Text>
+
+      {loading ? (
+        <ActivityIndicator color="#FFD166" size="large" />
+      ) : filteredPosts.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No posts here yet</Text>
+          <Text style={styles.emptyText}>
+            Start the conversation with your first soccer take.
+          </Text>
+        </View>
+      ) : (
+        filteredPosts.map((post) => {
+          const isOwner = currentUser?.uid === post.userId;
+          const commentsArray = safeArray(post.comments);
+
+          const likeArray = safeArray(post.reactions?.like);
+          const fireArray = safeArray(post.reactions?.fire);
+          const goalArray = safeArray(post.reactions?.goal);
+          const shockedArray = safeArray(post.reactions?.shocked);
+
+          const displayName = getSafeDisplayName(post.displayName, post.userEmail);
+
+          return (
+            <View key={post.id} style={styles.postCard}>
+              <View style={styles.postHeader}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>⚽</Text>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.displayName}>{displayName}</Text>
+                  <Text style={styles.metaText}>
+                    Soccer Fan • {post.badge || '⚽ Fan Post'} • {timeAgo(post.createdAt)}
+                  </Text>
+                </View>
+
+                <Pressable
+  onPress={() =>
+    Alert.alert(
+      'Report this post?',
+      'Our team will review this post.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: () => reportPost(post),
+        },
+      ]
+    )
+  }
+>
+                  <Text style={styles.moreText}>⋯</Text>
+                </Pressable>
+              </View>
+
+              {editingPostId === post.id ? (
+                <View>
+                  <TextInput
+                    value={editingText}
+                    onChangeText={setEditingText}
+                    multiline
+                    style={styles.editInput}
+                  />
+
+                  <View style={styles.editRow}>
+                    <Pressable style={styles.saveEditButton} onPress={() => saveEdit(post)}>
+                      <Text style={styles.saveEditText}>Save</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.cancelEditButton}
+                      onPress={() => {
+                        setEditingPostId(null);
+                        setEditingText('');
+                      }}
+                    >
+                      <Text style={styles.cancelEditText}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  {removeGifUrl(post.text) ? (
+                    <Text style={styles.postText}>{removeGifUrl(post.text)}</Text>
+                  ) : null}
+                </>
+              )}
+
+              {!!post.imageUrl && (
+                <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+              )}
+
+              {!!post.videoUrl && (
+                <Video
+                  source={{ uri: post.videoUrl }}
+                  style={styles.postVideo}
+                  useNativeControls
+                  resizeMode={ResizeMode.COVER}
+                />
+              )}
+
+              
+              {(post.gifUrl || extractGifUrl(post.text)) ? (
+                <ExpoImage
+                  source={{ uri: post.gifUrl || extractGifUrl(post.text) }}
+                  style={{
+                    width: '100%',
+                    height: 220,
+                    borderRadius: 18,
+                    marginTop: 12,
+                    backgroundColor: '#07111F',
+                  }}
+                  contentFit="cover"
+                />
+              ) : null}
+
+<View style={styles.reactionRow}>
+                <Pressable onPress={() => toggleReaction(post, 'like')}>
+                  <Text style={styles.reactionText}>❤️ {likeArray.length}</Text>
+                </Pressable>
+
+                <Pressable onPress={() => toggleReaction(post, 'fire')}>
+                  <Text style={styles.reactionText}>🔥 {fireArray.length}</Text>
+                </Pressable>
+
+                <Pressable onPress={() => toggleReaction(post, 'goal')}>
+                  <Text style={styles.reactionText}>⚽ {goalArray.length}</Text>
+                </Pressable>
+
+                <Pressable onPress={() => toggleReaction(post, 'shocked')}>
+                  <Text style={styles.reactionText}>😮 {shockedArray.length}</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.actionRow}>
+                <Pressable
+                  onPress={() =>
+                    setCommentPostId(commentPostId === post.id ? null : post.id)
+                  }
+                >
+                  <Text style={styles.action}>💬 Comment {commentsArray.length}</Text>
+                </Pressable>
+
+                <Pressable onPress={() => sharePost(post)}>
+                  <Text style={styles.action}>↗ Share</Text>
+                </Pressable>
+
+                <Pressable onPress={() => reportPost(post)}>
+                  <Text style={styles.action}>🚩 Report</Text>
+                </Pressable>
+              </View>
+
+              {isOwner && (
+                <View style={styles.ownerRow}>
+                  <Pressable onPress={() => startEdit(post)}>
+                    <Text style={styles.ownerAction}>✏️ Edit</Text>
+                  </Pressable>
+
+                  <Pressable onPress={() => deletePost(post)}>
+                    <Text style={styles.deleteAction}>🗑 Delete</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {post.editedAt && (
+                <Text style={styles.editedText}>Edited</Text>
+              )}
+
+              {commentPostId === post.id && (
+                <View style={styles.commentBox}>
+                  <TextInput
+                    value={commentTexts[post.id] || ''}
+                    onChangeText={(text) =>
+                      setCommentTexts({
+                        ...commentTexts,
+                        [post.id]: text,
+                      })
+                    }
+                    placeholder="Write a comment..."
+                    placeholderTextColor="#7F8A9A"
+                    style={styles.commentInput}
+                  />
+
+                  <Pressable style={styles.commentButton} onPress={() => addComment(post)}>
+                    <Text style={styles.commentButtonText}>Send Comment</Text>
+                  </Pressable>
+
+                  {commentsArray.map((comment) => (
+                    <View key={comment.id} style={styles.commentItem}>
+                      <Text style={styles.commentName}>
+                        {getSafeDisplayName(comment.displayName, comment.userEmail)}
+                      </Text>
+                      <Text style={styles.commentText}>{comment.text}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#07111F', padding: 20, paddingTop: 60 },
-  loading: { flex: 1, backgroundColor: '#07111F', justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: 'white', marginTop: 12 },
-  title: { color: 'white', fontSize: 34, fontWeight: 'bold', marginBottom: 6 },
-  subtitle: { color: '#A7B0C0', fontSize: 16, marginBottom: 20 },
-  composer: { backgroundColor: '#111C2E', padding: 16, borderRadius: 20, marginBottom: 16 },
-  input: { backgroundColor: '#07111F', color: 'white', padding: 14, borderRadius: 14, minHeight: 90, marginBottom: 12, fontSize: 16 },
-  postButton: { backgroundColor: '#FFD166', padding: 14, borderRadius: 14 },
-  postButtonText: { color: '#07111F', textAlign: 'center', fontWeight: 'bold', fontSize: 16 },
-  refresh: { backgroundColor: '#123C69', padding: 14, borderRadius: 14, marginBottom: 16 },
-  refreshText: { color: 'white', textAlign: 'center', fontWeight: 'bold' },
-  card: { backgroundColor: '#111C2E', padding: 16, borderRadius: 20, marginBottom: 14 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  avatar: { backgroundColor: '#FFD166', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  avatarText: { color: '#07111F', fontSize: 22, fontWeight: 'bold' },
-  user: { color: 'white', fontWeight: 'bold', fontSize: 17 },
-  time: { color: '#8FA3B8', marginTop: 2 },
-  text: { color: 'white', fontSize: 17, lineHeight: 25, marginBottom: 14 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, borderTopWidth: 1, borderTopColor: '#22314A', paddingTop: 12 },
-
-  actionText: { color: '#A7B0C0', fontWeight: 'bold' },
-  deleteText: { color: '#FF6B6B', fontWeight: 'bold' },
-  commentsBox: { marginTop: 12, backgroundColor: '#07111F', padding: 12, borderRadius: 14 },
-  comment: { marginBottom: 10 },
-  commentUser: { color: '#FFD166', fontWeight: 'bold' },
-  commentText: { color: 'white', marginTop: 3 },
-  commentBox: { marginTop: 12, backgroundColor: '#07111F', padding: 12, borderRadius: 14 },
-  commentInput: { backgroundColor: '#111C2E', color: 'white', padding: 12, borderRadius: 12, marginBottom: 10 },
-  commentButton: { backgroundColor: '#FFD166', padding: 12, borderRadius: 12 },
-  commentButtonText: { color: '#07111F', textAlign: 'center', fontWeight: 'bold' },
+  container: {
+    flex: 1,
+    backgroundColor: '#07111F',
+  },
+  content: {
+    padding: 20,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  hero: {
+    backgroundColor: '#111C2E',
+    padding: 22,
+    borderRadius: 26,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#22314A',
+  },
+  title: {
+    color: '#FFD166',
+    fontSize: 38,
+    fontWeight: 'bold',
+  },
+  subtitle: {
+    color: '#A7B0C0',
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: 8,
+    marginBottom: 18,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#07111F',
+    padding: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  statNumber: {
+    color: '#FFD166',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  createCard: {
+    backgroundColor: '#111C2E',
+    padding: 18,
+    borderRadius: 22,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFD166',
+  },
+  createTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+  },
+  createTitle: {
+    color: 'white',
+    fontSize: 21,
+    fontWeight: 'bold',
+  },
+  createSub: {
+    color: '#A7B0C0',
+    marginTop: 5,
+  },
+  createButton: {
+    backgroundColor: '#FFD166',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 999,
+  },
+  createButtonText: {
+    color: '#07111F',
+    fontWeight: 'bold',
+  },
+  composer: {
+    marginTop: 16,
+  },
+  badgeWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  badgeButton: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  activeBadgeButton: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+  },
+  badgeText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  activeBadgeText: {
+    color: '#07111F',
+  },
+  input: {
+    backgroundColor: '#07111F',
+    color: 'white',
+    minHeight: 120,
+    borderRadius: 16,
+    padding: 14,
+    fontSize: 16,
+    lineHeight: 22,
+    textAlignVertical: 'top',
+  },
+  previewBox: {
+    marginTop: 12,
+  },
+  previewImage: {
+    width: '100%',
+    height: 230,
+    borderRadius: 18,
+  },
+  previewVideo: {
+    width: '100%',
+    height: 230,
+    borderRadius: 18,
+    backgroundColor: '#000',
+  },
+  removeImageButton: {
+    marginTop: 9,
+    alignSelf: 'center',
+  },
+  removeImageText: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+  },
+  composerActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  photoButton: {
+    flex: 1,
+    backgroundColor: '#123C69',
+    padding: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  photoButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  postButton: {
+    flex: 1,
+    backgroundColor: '#FFD166',
+    padding: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  postButtonText: {
+    color: '#07111F',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  card: {
+    backgroundColor: '#111C2E',
+    padding: 18,
+    borderRadius: 20,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#22314A',
+  },
+  cardTitle: {
+    color: '#FFD166',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  topicWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
+  topicPill: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  topicText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  filterScroll: {
+    marginBottom: 16,
+  },
+  filterPill: {
+    backgroundColor: '#111C2E',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 999,
+    marginRight: 9,
+  },
+  activeFilterPill: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+  },
+  filterText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  activeFilterText: {
+    color: '#07111F',
+  },
+  feedTitle: {
+    color: '#FFD166',
+    fontSize: 26,
+    fontWeight: 'bold',
+    marginBottom: 14,
+  },
+  emptyCard: {
+    backgroundColor: '#111C2E',
+    padding: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    color: 'white',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  emptyText: {
+    color: '#A7B0C0',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  postCard: {
+    backgroundColor: '#111C2E',
+    padding: 18,
+    borderRadius: 24,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#22314A',
+  },
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 13,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#07111F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#22314A',
+  },
+  avatarText: {
+    fontSize: 24,
+  },
+  displayName: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  metaText: {
+    color: '#A7B0C0',
+    fontSize: 13,
+    marginTop: 3,
+  },
+  moreText: {
+    color: '#A7B0C0',
+    fontSize: 28,
+    fontWeight: 'bold',
+    paddingHorizontal: 4,
+  },
+  postText: {
+    color: 'white',
+    fontSize: 17,
+    lineHeight: 25,
+    marginBottom: 12,
+  },
+  postImage: {
+    width: '100%',
+    height: 280,
+    borderRadius: 20,
+    marginBottom: 14,
+  },
+  postVideo: {
+    width: '100%',
+    height: 280,
+    borderRadius: 20,
+    marginBottom: 14,
+    backgroundColor: '#000',
+  },
+  reactionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#07111F',
+    paddingVertical: 11,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  reactionText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#22314A',
+    paddingTop: 12,
+  },
+  action: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  ownerRow: {
+    flexDirection: 'row',
+    gap: 18,
+    marginTop: 12,
+  },
+  ownerAction: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+  },
+  deleteAction: {
+    color: '#FF6B6B',
+    fontWeight: 'bold',
+  },
+  editedText: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  editInput: {
+    backgroundColor: '#07111F',
+    color: 'white',
+    minHeight: 90,
+    borderRadius: 14,
+    padding: 12,
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 10,
+  },
+  editRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  saveEditButton: {
+    flex: 1,
+    backgroundColor: '#FFD166',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  saveEditText: {
+    color: '#07111F',
+    fontWeight: 'bold',
+  },
+  cancelEditButton: {
+    flex: 1,
+    backgroundColor: '#123C69',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelEditText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  commentBox: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#22314A',
+    paddingTop: 12,
+  },
+  commentInput: {
+    backgroundColor: '#07111F',
+    color: 'white',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  commentButton: {
+    backgroundColor: '#FFD166',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  commentButtonText: {
+    color: '#07111F',
+    fontWeight: 'bold',
+  },
+  commentItem: {
+    backgroundColor: '#07111F',
+    padding: 10,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  commentName: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  commentText: {
+    color: 'white',
+    lineHeight: 20,
+  },
 });

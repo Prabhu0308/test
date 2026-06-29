@@ -1,29 +1,8 @@
+import { Image as ExpoImage } from 'expo-image';
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  Share,
-} from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator, Alert, Share, Image } from 'react-native';
 import { router } from 'expo-router';
-import {
-  collection,
-  addDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  serverTimestamp,
-  doc,
-  deleteDoc,
-  updateDoc,
-  arrayUnion,
-  arrayRemove,
-} from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { db } from '../firebase/config';
 
@@ -34,12 +13,43 @@ type FanPost = {
   userEmail?: string;
   likes?: string[];
   comments?: any[];
+  gifUrl?: string;
   createdAt?: any;
   editedAt?: any;
 };
 
+
+function extractGifUrl(value?: string) {
+  if (!value) return '';
+
+  const match = value.match(/https?:\/\/\S+?(?:\.gif|\.webp)(?:\?\S*)?/i);
+
+  if (match?.[0]) {
+    return match[0].replace(/[),]+$/, '');
+  }
+
+  const giphyMatch = value.match(/https?:\/\/(?:media\.)?giphy\.com\/\S+/i);
+
+  if (giphyMatch?.[0]) {
+    return giphyMatch[0].replace(/[),]+$/, '');
+  }
+
+  return '';
+}
+
+function removeGifUrl(value?: string) {
+  if (!value) return '';
+
+  const gif = extractGifUrl(value);
+
+  if (!gif) return value;
+
+  return value.replace(gif, '').trim();
+}
+
 export default function FanWallScreen() {
   const [postText, setPostText] = useState('');
+  const [selectedGifUrl, setSelectedGifUrl] = useState('');
   const [posts, setPosts] = useState<FanPost[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +61,27 @@ export default function FanWallScreen() {
 
   const auth = getAuth();
   const currentEmail = auth.currentUser?.email || 'guest@soccerdaily.app';
+
+
+  const soccerGifs = [
+    {
+      label: 'Goal',
+      url: 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
+    },
+    {
+      label: 'Fire',
+      url: 'https://media.giphy.com/media/3o7TKrEzvLbsVAud8I/giphy.gif',
+    },
+    {
+      label: 'Celebrate',
+      url: 'https://media.giphy.com/media/26BRrSvJUa0crqw4E/giphy.gif',
+    },
+    {
+      label: 'Shocked',
+      url: 'https://media.giphy.com/media/6nWhy3ulBL7GSCvKw6/giphy.gif',
+    },
+  ];
+
 
   useEffect(() => {
     const q = query(collection(db, 'fanWall'), orderBy('createdAt', 'desc'));
@@ -76,14 +107,18 @@ export default function FanWallScreen() {
   }, []);
 
   const submitPost = async () => {
-    if (!postText.trim()) {
-      Alert.alert('Empty Post', 'Please write something first.');
+    const finalGifUrl = selectedGifUrl || extractGifUrl(postText);
+    const cleanText = removeGifUrl(postText).trim();
+
+    if (!cleanText && !finalGifUrl) {
+      Alert.alert('Empty Post', 'Please write something or choose a GIF first.');
       return;
     }
 
     try {
       await addDoc(collection(db, 'fanWall'), {
-        text: postText.trim(),
+        text: cleanText,
+        gifUrl: finalGifUrl,
         userEmail: currentEmail,
         user: currentEmail.split('@')[0],
         likes: [],
@@ -92,11 +127,13 @@ export default function FanWallScreen() {
       });
 
       setPostText('');
+      setSelectedGifUrl('');
     } catch (error) {
       console.log('Submit post error:', error);
       Alert.alert('Error', 'Could not submit post.');
     }
   };
+
 
   const startEdit = (post: FanPost) => {
     setEditingId(post.id);
@@ -198,7 +235,48 @@ export default function FanWallScreen() {
           multiline
         />
 
-        <Pressable style={styles.postButton} onPress={submitPost}>
+        
+      <View style={styles.gifPickerCard}>
+        <Text style={styles.gifTitle}>🎞️ Add GIF</Text>
+
+        <View style={styles.gifRow}>
+          {soccerGifs.map((gif) => (
+            <Pressable
+              key={gif.label}
+              style={[
+                styles.gifButton,
+                selectedGifUrl === gif.url && styles.activeGifButton,
+              ]}
+              onPress={() => setSelectedGifUrl(gif.url)}
+            >
+              <Text
+                style={[
+                  styles.gifButtonText,
+                  selectedGifUrl === gif.url && styles.activeGifButtonText,
+                ]}
+              >
+                {gif.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {selectedGifUrl ? (
+          <View>
+            <ExpoImage
+              source={{ uri: selectedGifUrl }}
+              style={styles.selectedGifPreview}
+              resizeMode="cover"
+            />
+
+            <Pressable onPress={() => setSelectedGifUrl('')}>
+              <Text style={styles.removeGifText}>Remove GIF</Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
+
+<Pressable style={styles.postButton} onPress={submitPost}>
           <Text style={styles.postButtonText}>Post</Text>
         </Pressable>
       </View>
@@ -255,7 +333,7 @@ export default function FanWallScreen() {
                     </>
                   ) : (
                     <>
-                      <Text style={styles.postText}>{post.text}</Text>
+                      <Text style={styles.postText}>{removeGifUrl(post.text)}</Text>
 
                       <Pressable style={styles.editBigButton} onPress={() => startEdit(post)}>
                         <Text style={styles.editBigButtonText}>✏️ Edit Post</Text>
@@ -263,7 +341,37 @@ export default function FanWallScreen() {
                     </>
                   )}
 
-                  <View style={styles.actionRow}>
+                  
+          {post.gifUrl ? (
+            <ExpoImage
+              source={{ uri: post.gifUrl }}
+              style={{
+                width: '100%',
+                height: 220,
+                borderRadius: 14,
+                marginTop: 12,
+                backgroundColor: '#07111F',
+              }}
+              resizeMode="cover"
+            />
+          ) : null}
+
+
+          {(post.gifUrl || extractGifUrl(post.text)) ? (
+            <ExpoImage
+              source={{ uri: post.gifUrl || extractGifUrl(post.text) }}
+              style={{
+                width: '100%',
+                height: 220,
+                borderRadius: 14,
+                marginTop: 12,
+                backgroundColor: '#07111F',
+              }}
+              resizeMode="cover"
+            />
+          ) : null}
+
+<View style={styles.actionRow}>
                     <Pressable onPress={() => toggleLike(post)}>
                       <Text style={liked ? styles.likedAction : styles.action}>
                         {liked ? '❤️' : '🤍'} Like {likeCount}
@@ -383,4 +491,57 @@ const styles = StyleSheet.create({
   commentCard: { backgroundColor: '#07111F', padding: 10, borderRadius: 12 },
   commentUser: { color: '#FFD166', fontSize: 12, fontWeight: 'bold', marginBottom: 4 },
   commentText: { color: '#D8DEE9', fontSize: 14 },
+
+  gifPickerCard: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  gifTitle: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  gifRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  gifButton: {
+    backgroundColor: '#111C2E',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    marginBottom: 8,
+  },
+  activeGifButton: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+  },
+  gifButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  activeGifButtonText: {
+    color: '#07111F',
+  },
+  selectedGifPreview: {
+    width: '100%',
+    height: 190,
+    borderRadius: 14,
+    marginTop: 10,
+    backgroundColor: '#111C2E',
+  },
+  removeGifText: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+
 });

@@ -1,0 +1,82 @@
+import React from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  Pressable,
+} from 'react-native';
+import { router } from 'expo-router';
+
+const languages = [
+  '🇺🇸 English',
+  '🇳🇵 नेपाली',
+  '🇮🇳 हिन्दी',
+  '🇪🇸 Español',
+  '🇫🇷 Français',
+  '🇩🇪 Deutsch',
+  '🇮🇹 Italiano',
+  '🇵🇹 Português',
+  '🇯🇵 日本語',
+  '🇰🇷 한국어',
+  '🇨🇳 中文',
+];
+
+export default function LanguageScreen() {
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>🌐 Choose Your Language</Text>
+
+      <Text style={styles.subtitle}>
+        Select your preferred language.
+      </Text>
+
+      {languages.map((language) => (
+        <Pressable
+          key={language}
+          style={styles.card}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.cardText}>
+            {language}
+          </Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#07111F',
+    padding: 20,
+    paddingTop: 60,
+  },
+
+  title: {
+    color: '#FFD166',
+    fontSize: 30,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+
+  subtitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    marginBottom: 24,
+  },
+
+  card: {
+    backgroundColor: '#111C2E',
+    padding: 18,
+    borderRadius: 16,
+    marginBottom: 14,
+  },
+
+  cardText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+});
+

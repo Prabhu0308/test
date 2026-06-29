@@ -1,128 +1,159 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
 
 export default function StudioScreen() {
-  const [script, setScript] = useState(
-    'Welcome to Soccer Daily. Today we are reviewing the match and bringing you the biggest football stories in one minute.'
-  );
-
-  const [fontSize, setFontSize] = useState(26);
-  const [speed, setSpeed] = useState(30);
-  const [playing, setPlaying] = useState(false);
-
-  const teleRef = useRef<ScrollView>(null);
-  const position = useRef(0);
+  const [script, setScript] = useState('');
 
   useEffect(() => {
-    if (!playing) return;
+    async function loadScript() {
+      const saved = await AsyncStorage.getItem('studioScript');
+      setScript(saved || '');
+    }
 
-    const timer = setInterval(() => {
-      position.current += speed;
-      teleRef.current?.scrollTo({ y: position.current, animated: true });
-    }, 1000);
+    loadScript();
+  }, []);
 
-    return () => clearInterval(timer);
-  }, [playing, speed]);
+  async function saveScript() {
+    await AsyncStorage.setItem('studioScript', script);
+    Alert.alert('Saved', 'Your script has been saved.');
+  }
 
-  function resetTeleprompter() {
-    position.current = 0;
-    teleRef.current?.scrollTo({ y: 0, animated: true });
-    setPlaying(false);
+  async function openTeleprompter() {
+    await AsyncStorage.setItem('studioScript', script);
+    router.push('/teleprompter');
+  }
+
+  async function openCameraStudio() {
+    await AsyncStorage.setItem('studioScript', script);
+    router.push('/camera-studio');
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>🎬 Soccer Daily Studio</Text>
-      <Text style={styles.subtitle}>Write scripts and practice with teleprompter.</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>🎬 Soccer Daily Studio</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>📝 Script Writer</Text>
-        <TextInput
-          style={styles.input}
-          value={script}
-          onChangeText={setScript}
-          multiline
-          placeholder="Write your script here..."
-          placeholderTextColor="#8FA3B8"
-        />
-      </View>
+          <Text style={styles.subtitle}>
+            Write your script, save it, then open the teleprompter or camera studio.
+          </Text>
 
-      <View style={styles.teleprompter}>
-        <Text style={styles.teleTitle}>🎤 Teleprompter</Text>
+          <View style={styles.topActions}>
+            <Pressable style={styles.actionButton} onPress={saveScript}>
+              <Text style={styles.actionText}>💾 Save Script</Text>
+            </Pressable>
 
-        <ScrollView ref={teleRef} style={styles.promptBox}>
-          <Text style={[styles.promptText, { fontSize, lineHeight: fontSize + 16 }]}>
-            {script}
+            <Pressable style={styles.actionButton} onPress={openTeleprompter}>
+              <Text style={styles.actionText}>📜 Open Teleprompter</Text>
+            </Pressable>
+
+            <Pressable style={styles.actionButton} onPress={openCameraStudio}>
+              <Text style={styles.actionText}>🎥 Open Camera Studio</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.section}>📝 Script Editor</Text>
+
+          <TextInput
+            multiline
+            value={script}
+            onChangeText={setScript}
+            placeholder="Write your soccer script here..."
+            placeholderTextColor="#7F8A9A"
+            style={styles.input}
+            textAlignVertical="top"
+            returnKeyType="done"
+            blurOnSubmit={true}
+            onSubmitEditing={Keyboard.dismiss}
+          />
+
+          <Text style={styles.note}>
+            Tip: Open Teleprompter and Open Camera Studio automatically save your latest script first.
           </Text>
         </ScrollView>
-
-        <View style={styles.row}>
-          <Pressable style={styles.button} onPress={() => setPlaying(true)}>
-            <Text style={styles.buttonText}>▶ Start</Text>
-          </Pressable>
-
-          <Pressable style={styles.button} onPress={() => setPlaying(false)}>
-            <Text style={styles.buttonText}>⏸ Pause</Text>
-          </Pressable>
-
-          <Pressable style={styles.button} onPress={resetTeleprompter}>
-            <Text style={styles.buttonText}>↺ Reset</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.row}>
-          <Pressable style={styles.smallButton} onPress={() => setFontSize(Math.max(18, fontSize - 2))}>
-            <Text style={styles.buttonText}>A-</Text>
-          </Pressable>
-
-          <Pressable style={styles.smallButton} onPress={() => setFontSize(fontSize + 2)}>
-            <Text style={styles.buttonText}>A+</Text>
-          </Pressable>
-
-          <Pressable style={styles.smallButton} onPress={() => setSpeed(Math.max(10, speed - 10))}>
-            <Text style={styles.buttonText}>🐢 Slow</Text>
-          </Pressable>
-
-          <Pressable style={styles.smallButton} onPress={() => setSpeed(speed + 10)}>
-            <Text style={styles.buttonText}>⚡ Fast</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <Text style={styles.footer}>Soccer Daily Creator Studio</Text>
-    </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#07111F', padding: 20, paddingTop: 60 },
-  title: { color: 'white', fontSize: 32, fontWeight: 'bold', marginBottom: 8 },
-  subtitle: { color: '#A7B0C0', fontSize: 16, marginBottom: 20 },
-  card: { backgroundColor: '#111C2E', padding: 18, borderRadius: 18, marginBottom: 18 },
-  cardTitle: { color: '#FFD166', fontSize: 22, fontWeight: 'bold', marginBottom: 12 },
-  input: {
-    color: 'white',
-    backgroundColor: '#07111F',
-    minHeight: 150,
+  backButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#132238',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 14,
-    padding: 14,
-    fontSize: 16,
-    textAlignVertical: 'top',
+    marginBottom: 16,
   },
-  teleprompter: { backgroundColor: '#000', padding: 18, borderRadius: 18, marginBottom: 30 },
-  teleTitle: { color: '#FFD166', fontSize: 22, fontWeight: 'bold', marginBottom: 12 },
-  promptBox: { height: 260, backgroundColor: '#050505', borderRadius: 14, padding: 14 },
-  promptText: { color: 'white', fontWeight: 'bold' },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
-  button: { backgroundColor: '#FFD166', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14 },
-  smallButton: { backgroundColor: '#123C69', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14 },
-  buttonText: { color: '#07111F', fontWeight: 'bold' },
-  footer: { color: '#FFD166', textAlign: 'center', marginBottom: 40, fontWeight: 'bold' },
+  backText: {
+    color: '#FFD166',
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#07111F',
+  },
+  content: {
+    padding: 20,
+    paddingTop: 70,
+    paddingBottom: 40,
+  },
+  title: {
+    color: '#FFD166',
+    fontSize: 34,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  subtitle: {
+    color: 'white',
+    fontSize: 17,
+    lineHeight: 24,
+    marginBottom: 18,
+  },
+  topActions: {
+    marginBottom: 22,
+    gap: 12,
+  },
+  actionButton: {
+    backgroundColor: '#FFD166',
+    padding: 15,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  actionText: {
+    color: '#07111F',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  section: {
+    color: '#FFD166',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 14,
+  },
+  input: {
+    backgroundColor: '#111C2E',
+    color: 'white',
+    minHeight: 520,
+    borderRadius: 22,
+    padding: 22,
+    fontSize: 22,
+    lineHeight: 34,
+  },
+  note: {
+    color: '#A7B0C0',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 16,
+  },
 });

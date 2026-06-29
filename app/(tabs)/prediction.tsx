@@ -1,197 +1,945 @@
-import { getAuth } from 'firebase/auth';
-import { addDoc, collection } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { db } from '../../firebase/config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
-const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard';
+const matches = [
+  {
+    id: 'usa-mexico',
+    title: 'USA vs Mexico',
+    teamA: 'USA',
+    teamB: 'Mexico',
+    date: 'Featured Match',
+    insight: 'USA has better recent momentum, but Mexico is dangerous in counterattack.',
+    fanA: 56,
+    fanDraw: 24,
+    fanB: 20,
+  },
+  {
+    id: 'arg-brazil',
+    title: 'Argentina vs Brazil',
+    teamA: 'Argentina',
+    teamB: 'Brazil',
+    date: 'Classic Rivalry',
+    insight: 'Brazil has speed on the wings, Argentina has more control in the middle.',
+    fanA: 42,
+    fanDraw: 22,
+    fanB: 36,
+  },
+  {
+    id: 'eng-france',
+    title: 'England vs France',
+    teamA: 'England',
+    teamB: 'France',
+    date: 'Big Game',
+    insight: 'France has explosive pace, England has balance and set-piece threat.',
+    fanA: 39,
+    fanDraw: 25,
+    fanB: 36,
+  },
+];
+
+type PredictionItem = {
+  id: string;
+  match: string;
+  pick: string;
+  confidence: number;
+  reason: string;
+  xp: number;
+  createdAt: string;
+};
+
+const WHEEL_SIZE = 250;
+const CENTER = WHEEL_SIZE / 2;
+const RADIUS = 116;
+
+function polarPoint(angle: number, radius = RADIUS) {
+  const rad = (Math.PI / 180) * angle;
+  return {
+    x: CENTER + radius * Math.sin(rad),
+    y: CENTER - radius * Math.cos(rad),
+  };
+}
+
+function sectorPath(startAngle: number, endAngle: number) {
+  const start = polarPoint(startAngle);
+  const end = polarPoint(endAngle);
+
+  let diff = endAngle - startAngle;
+  if (diff < 0) diff += 360;
+
+  const largeArcFlag = diff > 180 ? 1 : 0;
+
+  return [
+    `M ${CENTER} ${CENTER}`,
+    `L ${start.x} ${start.y}`,
+    `A ${RADIUS} ${RADIUS} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`,
+    'Z',
+  ].join(' ');
+}
+
+function labelFontSize(name: string) {
+  if (name.length >= 9) return 13;
+  if (name.length >= 7) return 14;
+  return 16;
+}
 
 export default function PredictionScreen() {
-  const [matches, setMatches] = useState<any[]>([]);
-  const [selectedMatch, setSelectedMatch] = useState<any>(null);
-  const [winner, setWinner] = useState('');
-  const [homeScore, setHomeScore] = useState('');
-  const [awayScore, setAwayScore] = useState('');
-  const [comment, setComment] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [selectedMatch, setSelectedMatch] = useState(matches[0]);
+  const [pick, setPick] = useState('');
+  const [confidence, setConfidence] = useState(60);
+  const [reason, setReason] = useState('');
+  const [history, setHistory] = useState<PredictionItem[]>([]);
+  const [spinResult, setSpinResult] = useState('');
+  const [spinning, setSpinning] = useState(false);
 
-  async function loadMatches() {
-    try {
-      setLoading(true);
-      const response = await fetch(ESPN_URL);
-      const data = await response.json();
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const pointerAngleRef = useRef(0);
 
-      const cleanMatches = (data.events || []).map((event: any) => {
-        const competition = event.competitions?.[0];
-        const competitors = competition?.competitors || [];
-
-        const home = competitors.find((team: any) => team.homeAway === 'home') || competitors[0];
-        const away = competitors.find((team: any) => team.homeAway === 'away') || competitors[1];
-
-        return {
-          id: event.id,
-          home: home?.team?.displayName || 'Home',
-          away: away?.team?.displayName || 'Away',
-          time: competition?.status?.type?.shortDetail || 'Scheduled',
-          league: competition?.altGameNote || 'Soccer',
-        };
-      });
-
-      setMatches(cleanMatches);
-      setSelectedMatch(cleanMatches[0] || null);
-    } catch (error: any) {
-      Alert.alert('Match Load Error', error.message || 'Could not load matches');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const m = selectedMatch;
 
   useEffect(() => {
-    loadMatches();
+    loadHistory();
   }, []);
 
-  async function submitPrediction() {
-    if (!selectedMatch) {
-      Alert.alert('No Match', 'Please select a match.');
-      return;
-    }
-
-    if (!winner) {
-      Alert.alert('Missing Winner', 'Please select a winner or draw.');
-      return;
-    }
-
-    try {
-      const data = {
-       user: getAuth().currentUser?.email || 'Guest',
-       userId: getAuth().currentUser?.uid || 'guest',
-       userEmail: getAuth().currentUser?.email || 'guest',
-        matchId: selectedMatch.id,
-        match: `${selectedMatch.home} vs ${selectedMatch.away}`,
-        league: selectedMatch.league,
-        winner,
-        scorePrediction: `${homeScore || '?'}-${awayScore || '?'}`,
-        comment: comment || 'No comment',
-        pointsEarned: 1,
-        resultChecked: false,
-        createdAt: Date.now(),
-      };
-
-      const docRef = await addDoc(collection(db, 'predictions'), data);
-
-      Alert.alert('Success', `Prediction saved\nID: ${docRef.id}`);
-      setWinner('');
-      setHomeScore('');
-      setAwayScore('');
-      setComment('');
-    } catch (error: any) {
-      Alert.alert('Firebase Error', error.message || 'Could not save prediction');
+  async function loadHistory() {
+    const saved = await AsyncStorage.getItem('predictionHistory');
+    if (saved) {
+      setHistory(JSON.parse(saved));
     }
   }
 
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#FFD166" />
-        <Text style={styles.loadingText}>Loading real matches...</Text>
-      </View>
-    );
+  function chooseMatch(match: (typeof matches)[0]) {
+    setSelectedMatch(match);
+    setPick('');
+    setReason('');
+    setSpinResult('');
+    setConfidence(60);
+    pointerAngleRef.current = 0;
+    spinAnim.setValue(0);
   }
+
+  function spinWheel() {
+    if (spinning) return;
+
+    setSpinning(true);
+    setSpinResult('');
+
+    const resultOptions = [
+      `${m.teamA} Wins`,
+      'Draw',
+      `${m.teamB} Wins`,
+    ];
+
+    const landingAngles = [
+      300, // left/top zone: team A
+      180, // bottom zone: draw
+      60,  // right/top zone: team B
+    ];
+
+    const selectedIndex = Math.floor(Math.random() * resultOptions.length);
+    const selectedOption = resultOptions[selectedIndex];
+    const targetAngle = landingAngles[selectedIndex];
+
+    const currentAngle = pointerAngleRef.current % 360;
+    let extraAngle = targetAngle - currentAngle;
+    if (extraAngle < 0) extraAngle += 360;
+
+    const randomTurns = 7 + Math.floor(Math.random() * 5);
+    const randomDuration = 4800 + Math.floor(Math.random() * 2800);
+
+    const finalAngle = pointerAngleRef.current + 360 * randomTurns + extraAngle;
+
+    Animated.timing(spinAnim, {
+      toValue: finalAngle,
+      duration: randomDuration,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      pointerAngleRef.current = finalAngle;
+      setSpinResult(selectedOption);
+      setPick(selectedOption);
+      setReason(`My spin prediction says: ${selectedOption}.`);
+      setConfidence(70);
+      setSpinning(false);
+    });
+  }
+
+  async function savePrediction() {
+    if (!pick) {
+      Alert.alert('Choose prediction', 'Please choose a team, draw, or spin the wheel first.');
+      return;
+    }
+
+    const xp = confidence >= 80 ? 25 : confidence >= 60 ? 15 : 10;
+
+    const newPrediction: PredictionItem = {
+      id: Date.now().toString(),
+      match: selectedMatch.title,
+      pick,
+      confidence,
+      reason: reason.trim() || 'No reason added.',
+      xp,
+      createdAt: new Date().toLocaleString(),
+    };
+
+    const updated = [newPrediction, ...history].slice(0, 10);
+    setHistory(updated);
+    await AsyncStorage.setItem('predictionHistory', JSON.stringify(updated));
+
+    setPick('');
+    setReason('');
+    setConfidence(60);
+    setSpinResult('');
+
+    Alert.alert('Prediction Saved', `You earned ${xp} XP for this prediction.`);
+  }
+
+  async function clearHistory() {
+    await AsyncStorage.removeItem('predictionHistory');
+    setHistory([]);
+  }
+
+  const pointerRotate = spinAnim.interpolate({
+    inputRange: [0, 360],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const teamAPos = polarPoint(300, 74);
+  const drawPos = polarPoint(180, 76);
+  const teamBPos = polarPoint(60, 74);
+
+  const topLine = polarPoint(0);
+  const rightLine = polarPoint(120);
+  const leftLine = polarPoint(240);
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>🔮 Predictions</Text>
-      <Text style={styles.subtitle}>Predict real matches from ESPN data.</Text>
+      <Text style={styles.subtitle}>
+        Choose a match, spin the pro soccer selector, and save your fan prediction.
+      </Text>
 
-      <Pressable style={styles.refresh} onPress={loadMatches}>
-        <Text style={styles.refreshText}>Refresh Matches</Text>
-      </Pressable>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>⚽ Choose Match</Text>
 
-      {matches.map((match) => (
-        <Pressable
-          key={match.id}
-          style={[styles.matchCard, selectedMatch?.id === match.id && styles.selectedCard]}
-          onPress={() => {
-            setSelectedMatch(match);
-            setWinner('');
-            setHomeScore('');
-            setAwayScore('');
-            setComment('');
-          }}>
-          <Text style={styles.league}>{match.league}</Text>
-          <Text style={styles.match}>{match.home} vs {match.away}</Text>
-          <Text style={styles.time}>{match.time}</Text>
-          <Text style={styles.info}>🏟️ {match.stadium}</Text>
-	  <Text style={styles.info}>📍 {match.city}</Text>
-          <Text style={styles.info}>🕒 {match.date}</Text>	 
-        </Pressable>
-      ))}
+        {matches.map((match) => (
+          <Pressable
+            key={match.id}
+            style={[
+              styles.matchButton,
+              selectedMatch.id === match.id && styles.activeMatchButton,
+            ]}
+            onPress={() => chooseMatch(match)}
+          >
+            <Text
+              style={[
+                styles.matchText,
+                selectedMatch.id === match.id && styles.activeMatchText,
+              ]}
+            >
+              {match.title}
+            </Text>
 
-      {selectedMatch ? (
-        <View style={styles.predictCard}>
-          <Text style={styles.sectionTitle}>{selectedMatch.home} vs {selectedMatch.away}</Text>
-
-          <Pressable style={styles.button} onPress={() => setWinner(selectedMatch.home)}>
-            <Text style={styles.buttonText}>{selectedMatch.home}</Text>
+            <Text
+              style={[
+                styles.matchSubText,
+                selectedMatch.id === match.id && styles.activeMatchText,
+              ]}
+            >
+              {match.date}
+            </Text>
           </Pressable>
+        ))}
+      </View>
 
-          <Pressable style={styles.button} onPress={() => setWinner('Draw')}>
-            <Text style={styles.buttonText}>Draw</Text>
-          </Pressable>
+      <View style={styles.wheelCard}>
+        <Text style={styles.cardTitle}>🎡 Soccer Prediction Wheel</Text>
 
-          <Pressable style={styles.button} onPress={() => setWinner(selectedMatch.away)}>
-            <Text style={styles.buttonText}>{selectedMatch.away}</Text>
-          </Pressable>
-
-          <Text style={styles.selected}>Selected: {winner || 'None'}</Text>
-
-          <View style={styles.scoreRow}>
-            <TextInput style={styles.scoreInput} placeholder="0" placeholderTextColor="#8FA3B8" value={homeScore} onChangeText={setHomeScore} keyboardType="number-pad" />
-            <Text style={styles.dash}>-</Text>
-            <TextInput style={styles.scoreInput} placeholder="0" placeholderTextColor="#8FA3B8" value={awayScore} onChangeText={setAwayScore} keyboardType="number-pad" />
+        <View style={styles.scoreboard}>
+          <View style={styles.scoreTeam}>
+            <Text style={styles.scoreTeamText}>{m.teamA}</Text>
           </View>
 
-          <TextInput style={styles.input} placeholder="Write your comment..." placeholderTextColor="#8FA3B8" value={comment} onChangeText={setComment} multiline />
+          <Text style={styles.vsText}>VS</Text>
 
-          <Pressable style={styles.submit} onPress={submitPrediction}>
-            <Text style={styles.submitText}>Submit Prediction</Text>
+          <View style={styles.scoreTeam}>
+            <Text style={styles.scoreTeamText}>{m.teamB}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.wheelSub}>
+          Three equal landing zones: {m.teamA} Wins • Draw • {m.teamB} Wins
+        </Text>
+
+        <View style={styles.proWheelWrap}>
+          <Svg
+            width={WHEEL_SIZE}
+            height={WHEEL_SIZE}
+            viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
+            style={styles.wheelSvg}
+          >
+            <Path d={sectorPath(240, 360)} fill="#15803D" stroke="#F8FAFC" strokeWidth={3} />
+            <Path d={sectorPath(0, 120)} fill="#22C55E" stroke="#F8FAFC" strokeWidth={3} />
+            <Path d={sectorPath(120, 240)} fill="#166534" stroke="#F8FAFC" strokeWidth={3} />
+
+            <Circle
+              cx={CENTER}
+              cy={CENTER}
+              r={RADIUS}
+              fill="none"
+              stroke="#F8FAFC"
+              strokeWidth={12}
+            />
+
+            <Line x1={CENTER} y1={CENTER} x2={topLine.x} y2={topLine.y} stroke="#F8FAFC" strokeWidth={3} />
+            <Line x1={CENTER} y1={CENTER} x2={rightLine.x} y2={rightLine.y} stroke="#F8FAFC" strokeWidth={3} />
+            <Line x1={CENTER} y1={CENTER} x2={leftLine.x} y2={leftLine.y} stroke="#F8FAFC" strokeWidth={3} />
+
+            <Circle
+              cx={CENTER}
+              cy={CENTER}
+              r={42}
+              fill="#07111F"
+              stroke="#FFD166"
+              strokeWidth={7}
+            />
+
+            <SvgText
+              x={teamAPos.x}
+              y={teamAPos.y - 10}
+              fill="white"
+              fontSize={labelFontSize(m.teamA)}
+              fontWeight="800"
+              textAnchor="middle"
+            >
+              {m.teamA.toUpperCase()}
+            </SvgText>
+            <SvgText
+              x={teamAPos.x}
+              y={teamAPos.y + 10}
+              fill="white"
+              fontSize="13"
+              fontWeight="800"
+              textAnchor="middle"
+            >
+              WINS
+            </SvgText>
+
+            <SvgText
+              x={drawPos.x}
+              y={drawPos.y + 4}
+              fill="white"
+              fontSize="18"
+              fontWeight="900"
+              textAnchor="middle"
+            >
+              DRAW
+            </SvgText>
+
+            <SvgText
+              x={teamBPos.x}
+              y={teamBPos.y - 10}
+              fill="white"
+              fontSize={labelFontSize(m.teamB)}
+              fontWeight="800"
+              textAnchor="middle"
+            >
+              {m.teamB.toUpperCase()}
+            </SvgText>
+            <SvgText
+              x={teamBPos.x}
+              y={teamBPos.y + 10}
+              fill="white"
+              fontSize="13"
+              fontWeight="800"
+              textAnchor="middle"
+            >
+              WINS
+            </SvgText>
+          </Svg>
+
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.rotatingPointer,
+              {
+                transform: [{ rotate: pointerRotate }],
+              },
+            ]}
+          >
+            <View style={styles.pointerBadge}>
+              <Text style={styles.pointerBadgeText}>▼</Text>
+            </View>
+          </Animated.View>
+
+          <View style={styles.centerBall}>
+            <Text style={styles.ballText}>⚽</Text>
+          </View>
+        </View>
+
+        <View style={styles.landingCard}>
+          <Text style={styles.landingLabel}>Pointer Landing</Text>
+          <Text style={styles.landingText}>
+            {spinning ? 'Spinning...' : spinResult || 'Ready'}
+          </Text>
+        </View>
+
+        <View style={styles.resultChoices}>
+          <View style={styles.choicePill}>
+            <Text style={styles.choiceSmall}>ZONE 1</Text>
+            <Text style={styles.choiceText}>{m.teamA} Wins</Text>
+          </View>
+
+          <View style={styles.choicePill}>
+            <Text style={styles.choiceSmall}>ZONE 2</Text>
+            <Text style={styles.choiceText}>Draw</Text>
+          </View>
+
+          <View style={styles.choicePill}>
+            <Text style={styles.choiceSmall}>ZONE 3</Text>
+            <Text style={styles.choiceText}>{m.teamB} Wins</Text>
+          </View>
+        </View>
+
+        <Pressable style={styles.spinButton} onPress={spinWheel} disabled={spinning}>
+          <Text style={styles.spinButtonText}>
+            {spinning ? '🎡 Spinning...' : '🎡 Spin Now'}
+          </Text>
+        </Pressable>
+
+        {spinResult ? (
+          <View style={styles.resultCard}>
+            <Text style={styles.resultTitle}>🎯 Spin Result</Text>
+            <Text style={styles.resultText}>{spinResult}</Text>
+            <Text style={styles.resultSub}>Do you agree with this prediction?</Text>
+
+            <Pressable style={styles.saveResultButton} onPress={savePrediction}>
+              <Text style={styles.saveResultText}>Save as My Prediction</Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>🧠 Match Insight</Text>
+        <Text style={styles.matchTitle}>{m.title}</Text>
+        <Text style={styles.line}>{m.insight}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>📊 Fan Poll Snapshot</Text>
+
+        <View style={styles.pollRow}>
+          <Text style={styles.pollLabel}>{m.teamA}</Text>
+          <Text style={styles.pollValue}>{m.fanA}%</Text>
+        </View>
+        <View style={styles.pollBar}>
+          <View style={[styles.pollFill, { width: `${m.fanA}%` }]} />
+        </View>
+
+        <View style={styles.pollRow}>
+          <Text style={styles.pollLabel}>Draw</Text>
+          <Text style={styles.pollValue}>{m.fanDraw}%</Text>
+        </View>
+        <View style={styles.pollBar}>
+          <View style={[styles.pollFill, { width: `${m.fanDraw}%` }]} />
+        </View>
+
+        <View style={styles.pollRow}>
+          <Text style={styles.pollLabel}>{m.teamB}</Text>
+          <Text style={styles.pollValue}>{m.fanB}%</Text>
+        </View>
+        <View style={styles.pollBar}>
+          <View style={[styles.pollFill, { width: `${m.fanB}%` }]} />
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>✅ Your Pick</Text>
+
+        <View style={styles.pickRow}>
+          <Pressable
+            style={[styles.pickButton, pick === `${m.teamA} Wins` && styles.activePick]}
+            onPress={() => setPick(`${m.teamA} Wins`)}
+          >
+            <Text style={[styles.pickText, pick === `${m.teamA} Wins` && styles.activePickText]}>
+              {m.teamA} Wins
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.pickButton, pick === 'Draw' && styles.activePick]}
+            onPress={() => setPick('Draw')}
+          >
+            <Text style={[styles.pickText, pick === 'Draw' && styles.activePickText]}>
+              Draw
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.pickButton, pick === `${m.teamB} Wins` && styles.activePick]}
+            onPress={() => setPick(`${m.teamB} Wins`)}
+          >
+            <Text style={[styles.pickText, pick === `${m.teamB} Wins` && styles.activePickText]}>
+              {m.teamB} Wins
+            </Text>
           </Pressable>
         </View>
-      ) : (
-        <Text style={styles.empty}>No matches found.</Text>
-      )}
+
+        <Text style={styles.confidenceText}>Confidence: {confidence}%</Text>
+
+        <View style={styles.confidenceRow}>
+          <Pressable
+            style={styles.smallButton}
+            onPress={() => setConfidence(Math.max(10, confidence - 10))}
+          >
+            <Text style={styles.smallButtonText}>-10</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.smallButton}
+            onPress={() => setConfidence(Math.min(100, confidence + 10))}
+          >
+            <Text style={styles.smallButtonText}>+10</Text>
+          </Pressable>
+        </View>
+
+        <TextInput
+          value={reason}
+          onChangeText={setReason}
+          placeholder="Why do you think this will happen?"
+          placeholderTextColor="#7F8A9A"
+          multiline
+          style={styles.reasonInput}
+        />
+
+        <Pressable style={styles.saveButton} onPress={savePrediction}>
+          <Text style={styles.saveText}>💾 Save Prediction</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.historyHeader}>
+          <Text style={styles.cardTitle}>🏆 Prediction History</Text>
+
+          {history.length > 0 && (
+            <Pressable onPress={clearHistory}>
+              <Text style={styles.clearText}>Clear</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {history.length === 0 ? (
+          <Text style={styles.emptyText}>
+            No predictions yet. Spin the wheel or save your first prediction.
+          </Text>
+        ) : (
+          history.map((item) => (
+            <View key={item.id} style={styles.historyItem}>
+              <Text style={styles.historyMatch}>{item.match}</Text>
+              <Text style={styles.line}>Pick: {item.pick}</Text>
+              <Text style={styles.line}>Confidence: {item.confidence}%</Text>
+              <Text style={styles.line}>Reason: {item.reason}</Text>
+              <Text style={styles.xpText}>+{item.xp} XP</Text>
+              <Text style={styles.dateText}>{item.createdAt}</Text>
+            </View>
+          ))
+        )}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#07111F', padding: 20, paddingTop: 60 },
-  loading: { flex: 1, backgroundColor: '#07111F', justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: 'white', marginTop: 12 },
-  title: { color: 'white', fontSize: 34, fontWeight: 'bold', marginBottom: 8 },
-  subtitle: { color: '#A7B0C0', fontSize: 16, marginBottom: 18 },
-  refresh: { backgroundColor: '#FFD166', padding: 14, borderRadius: 14, marginBottom: 18 },
-  refreshText: { color: '#07111F', textAlign: 'center', fontWeight: 'bold' },
-  matchCard: { backgroundColor: '#111C2E', padding: 16, borderRadius: 16, marginBottom: 12 },
-  selectedCard: { borderColor: '#FFD166', borderWidth: 2 },
-  league: { color: '#FFD166', fontWeight: 'bold', marginBottom: 6 },
-  match: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  time: { color: '#8FA3B8', marginTop: 6 },
-info: {
-  color: '#cfd8e3',
-  fontSize: 13,
-  marginTop: 2,
-},
-  predictCard: { backgroundColor: '#111C2E', padding: 18, borderRadius: 18, marginTop: 12, marginBottom: 40 },
-  sectionTitle: { color: '#FFD166', fontSize: 22, fontWeight: 'bold', marginBottom: 14 },
-  button: { backgroundColor: '#123C69', padding: 14, borderRadius: 12, marginBottom: 10 },
-  buttonText: { color: 'white', textAlign: 'center', fontWeight: 'bold' },
-  selected: { color: '#FFD166', marginTop: 8, marginBottom: 14, fontWeight: 'bold' },
-  scoreRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 16, marginBottom: 14 },
-  scoreInput: { backgroundColor: '#07111F', color: 'white', width: 70, padding: 14, borderRadius: 12, textAlign: 'center', fontSize: 20 },
-  dash: { color: 'white', fontSize: 28 },
-  input: { backgroundColor: '#07111F', color: 'white', padding: 14, borderRadius: 12, minHeight: 90, marginBottom: 14 },
-  submit: { backgroundColor: '#FFD166', padding: 15, borderRadius: 12 },
-  submitText: { color: '#07111F', textAlign: 'center', fontWeight: 'bold', fontSize: 16 },
-  empty: { color: '#8FA3B8', fontSize: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: '#07111F',
+  },
+  content: {
+    padding: 20,
+    paddingTop: 75,
+    paddingBottom: 40,
+  },
+  title: {
+    color: '#FFD166',
+    fontSize: 34,
+    fontWeight: 'bold',
+  },
+  subtitle: {
+    color: '#A7B0C0',
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  card: {
+    backgroundColor: '#111C2E',
+    padding: 18,
+    borderRadius: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#22314A',
+  },
+  wheelCard: {
+    backgroundColor: '#111C2E',
+    padding: 18,
+    borderRadius: 24,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFD166',
+  },
+  cardTitle: {
+    color: '#FFD166',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  matchButton: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
+  },
+  activeMatchButton: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+  },
+  matchText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  matchSubText: {
+    color: '#A7B0C0',
+    marginTop: 4,
+  },
+  activeMatchText: {
+    color: '#07111F',
+  },
+  scoreboard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scoreTeam: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  scoreTeamText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 17,
+  },
+  vsText: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+    marginHorizontal: 12,
+  },
+  wheelSub: {
+    color: '#A7B0C0',
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  proWheelWrap: {
+    width: 300,
+    height: 300,
+    alignSelf: 'center',
+    position: 'relative',
+    marginBottom: 10,
+  },
+  wheelSvg: {
+    position: 'absolute',
+    top: 25,
+    left: 25,
+  },
+  rotatingPointer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 300,
+    height: 300,
+    alignItems: 'center',
+  },
+  pointerBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#07111F',
+  },
+  pointerBadgeText: {
+    color: '#07111F',
+    fontSize: 25,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+  centerBall: {
+    position: 'absolute',
+    left: 112,
+    top: 112,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#07111F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ballText: {
+    fontSize: 43,
+  },
+  landingCard: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  landingLabel: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  landingText: {
+    color: '#FFD166',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  resultChoices: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  choicePill: {
+    flex: 1,
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  choiceSmall: {
+    color: '#A7B0C0',
+    fontSize: 9,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  choiceText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  spinButton: {
+    backgroundColor: '#FFD166',
+    padding: 16,
+    borderRadius: 18,
+    alignItems: 'center',
+  },
+  spinButtonText: {
+    color: '#07111F',
+    fontWeight: 'bold',
+    fontSize: 20,
+  },
+  resultCard: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+    borderRadius: 18,
+    padding: 16,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  resultTitle: {
+    color: '#FFD166',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  resultText: {
+    color: 'white',
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  resultSub: {
+    color: '#A7B0C0',
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  saveResultButton: {
+    backgroundColor: '#FFD166',
+    padding: 13,
+    borderRadius: 14,
+    width: '100%',
+    alignItems: 'center',
+  },
+  saveResultText: {
+    color: '#07111F',
+    fontWeight: 'bold',
+  },
+  matchTitle: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  line: {
+    color: 'white',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  pollRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  pollLabel: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  pollValue: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+  },
+  pollBar: {
+    height: 10,
+    backgroundColor: '#07111F',
+    borderRadius: 10,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  pollFill: {
+    height: 10,
+    backgroundColor: '#FFD166',
+    borderRadius: 10,
+  },
+  pickRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 18,
+  },
+  pickButton: {
+    flex: 1,
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    padding: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  activePick: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+  },
+  pickText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  activePickText: {
+    color: '#07111F',
+  },
+  confidenceText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  confidenceRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  smallButton: {
+    flex: 1,
+    backgroundColor: '#123C69',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  smallButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  reasonInput: {
+    backgroundColor: '#07111F',
+    color: 'white',
+    minHeight: 100,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 14,
+    textAlignVertical: 'top',
+  },
+  saveButton: {
+    backgroundColor: '#FFD166',
+    padding: 15,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  saveText: {
+    color: '#07111F',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  clearText: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+  },
+  emptyText: {
+    color: '#A7B0C0',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  historyItem: {
+    backgroundColor: '#07111F',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  historyMatch: {
+    color: '#FFD166',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  xpText: {
+    color: '#FFD166',
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  dateText: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    marginTop: 6,
+  },
 });

@@ -1,24 +1,73 @@
+import { useFocusEffect } from 'expo-router';
 import { collection, getDocs } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { db } from '../../firebase/config';
 
+type Leader = {
+  id: string;
+  user: string;
+  email: string;
+  points: number;
+  total: number;
+  accuracy: number;
+};
+
 export default function LeaderboardScreen() {
-  const [leaders, setLeaders] = useState<any[]>([]);
+  const [leaders, setLeaders] = useState<Leader[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function loadLeaderboard() {
     try {
       setLoading(true);
 
-      const snap = await getDocs(collection(db, 'leaderboard'));
+      const snap = await getDocs(collection(db, 'predictions'));
 
-      const list = snap.docs
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
+      const users: Record<string, Leader> = {};
+
+      snap.docs.forEach((doc) => {
+        const data: any = doc.data();
+
+        const key =
+          data.userEmail ||
+          data.email ||
+          data.user ||
+          data.displayName ||
+          'Guest';
+
+        if (!users[key]) {
+          users[key] = {
+            id: key,
+            user: data.displayName || data.user || key.split('@')[0] || 'Guest',
+            email: data.userEmail || data.email || key,
+            points: 0,
+            total: 0,
+            accuracy: 0,
+          };
+        }
+
+        const rawPoints = Number(data.points || data.xp || 0);
+
+        const points =
+          rawPoints > 0
+            ? rawPoints
+            : Number(data.confidence || 0) >= 80
+              ? 25
+              : Number(data.confidence || 0) >= 60
+                ? 15
+                : 10;
+
+        users[key].points += points;
+        users[key].total += 1;
+      });
+
+      const list = Object.values(users)
+        .map((user) => ({
+          ...user,
+          accuracy: user.total > 0 ? Math.round(user.points / user.total) : 0,
         }))
-        .sort((a: any, b: any) => Number(b.points || 0) - Number(a.points || 0));
+       .sort((a, b) => b.points - a.points)
+.slice(0, 25);
 
       setLeaders(list);
     } catch (error) {
@@ -28,9 +77,11 @@ export default function LeaderboardScreen() {
     }
   }
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     loadLeaderboard();
-  }, []);
+  }, [])
+);
 
   if (loading) {
     return (
@@ -42,11 +93,11 @@ export default function LeaderboardScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>🏆 Leaderboard</Text>
-      <Text style={styles.subtitle}>Top Soccer Daily predictors</Text>
+  <ScrollView style={styles.container}>
+    <Text style={styles.title}>🏆 Leaderboard</Text>
+    <Text style={styles.subtitle}>Top Soccer Daily Fan XP leaders</Text>
 
-      <Pressable style={styles.refresh} onPress={loadLeaderboard}>
+    <Pressable style={styles.refresh} onPress={loadLeaderboard}>
         <Text style={styles.refreshText}>Refresh Leaderboard</Text>
       </Pressable>
 
@@ -55,16 +106,17 @@ export default function LeaderboardScreen() {
           <Text style={styles.rank}>#{index + 1}</Text>
 
           <View style={styles.info}>
-            <Text style={styles.name}>{user.user || user.email || 'Unknown User'}</Text>
-            <Text style={styles.accuracy}>Accuracy: {user.accuracy || '0'}%</Text>
+            <Text style={styles.name}>{user.user}</Text>
+            <Text style={styles.accuracy}>Predictions: {user.total}</Text>
+            <Text style={styles.email}>{user.email}</Text>
           </View>
 
-          <Text style={styles.points}>{Number(user.points || 0)} pts</Text>
+          <Text style={styles.points}>{user.points} pts</Text>
         </View>
       ))}
 
       {leaders.length === 0 ? (
-        <Text style={styles.empty}>No leaderboard data yet.</Text>
+        <Text style={styles.empty}>No prediction data yet. Save a prediction first.</Text>
       ) : null}
     </ScrollView>
   );
@@ -90,6 +142,7 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   name: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   accuracy: { color: '#8FA3B8', marginTop: 4 },
+  email: { color: '#5F7187', marginTop: 3, fontSize: 12 },
   points: { color: '#FFD166', fontSize: 16, fontWeight: 'bold' },
   empty: { color: '#8FA3B8', fontSize: 16, marginTop: 20 },
 });
