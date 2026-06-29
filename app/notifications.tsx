@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import {
-  addDoc,
   collection,
   doc,
   getDocs,
@@ -86,61 +85,6 @@ export default function NotificationsScreen() {
     }, [])
   );
 
-  async function createTestNotification() {
-    try {
-      const user = getAuth().currentUser;
-
-      await addDoc(collection(db, 'appNotifications'), {
-        type: 'system',
-        screen: 'notifications',
-        toUserId: user?.uid || 'beta-test',
-        fromUserId: user?.uid || 'beta-test',
-        fromName: 'Soccer Daily',
-        title: 'Test notification',
-        message: 'This is a test notification from Soccer Daily.',
-        read: false,
-        createdAt: Date.now(),
-      });
-
-      await loadNotifications();
-    } catch (error: any) {
-      console.log('Create test notification error:', error);
-      Alert.alert('Notification test failed', error?.message || String(error));
-    }
-  }
-
-  async function markAllRead() {
-    try {
-      const q = query(
-        collection(db, 'appNotifications'),
-        orderBy('createdAt', 'desc'),
-        limit(100)
-      );
-
-      const snap = await getDocs(q);
-
-      await Promise.all(
-        snap.docs.map((docSnap) =>
-          updateDoc(doc(db, 'appNotifications', docSnap.id), {
-            read: true,
-          }).catch((error) => console.log('Mark all read item error:', error))
-        )
-      );
-
-      setNotifications(
-        notifications.map((item) => ({
-          ...item,
-          read: true,
-        }))
-      );
-
-      await loadNotifications();
-    } catch (error: any) {
-      console.log('Mark all read error:', error);
-      Alert.alert('Mark all read failed', error?.message || String(error));
-    }
-  }
-
   function openNotification(item: AppNotification) {
     if (item.screen === 'fan-wall') {
       router.push('/fan-wall' as any);
@@ -164,39 +108,6 @@ export default function NotificationsScreen() {
         </Pressable>
       </View>
 
-      <Pressable
-        style={{
-          backgroundColor: '#FFD166',
-          borderRadius: 16,
-          paddingVertical: 13,
-          paddingHorizontal: 14,
-          alignItems: 'center',
-          marginBottom: 10,
-        }}
-        onPress={markAllRead}
-      >
-        <Text style={{ color: '#07111F', fontWeight: '900', fontSize: 16 }}>
-          ✅ Mark all read
-        </Text>
-      </Pressable>
-
-      <Pressable
-        style={{
-          backgroundColor: '#132238',
-          borderWidth: 1,
-          borderColor: '#24344F',
-          borderRadius: 16,
-          paddingVertical: 13,
-          paddingHorizontal: 14,
-          alignItems: 'center',
-          marginBottom: 16,
-        }}
-        onPress={createTestNotification}
-      >
-        <Text style={{ color: '#FFD166', fontWeight: '900', fontSize: 15 }}>
-          + Create Test Notification
-        </Text>
-      </Pressable>
 
       {loading ? (
         <View style={styles.loadingCard}>
