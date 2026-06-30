@@ -2,12 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
 import { getAuth, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import {collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc} from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useCallback, useState } from 'react';
 import {
   Alert,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,11 +16,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SOCIAL_LINKS } from '../../constants/socialLinks';
 import { db, storage } from '../../firebase/config';
 
 const ADMIN_EMAIL = 'prabhudevupadhyay@gmail.com';
 
 export default function ProfileScreen() {
+  const [profileNotificationCount, setProfileNotificationCount] = useState(0);
   const auth = getAuth();
   const user = auth.currentUser;
   const isAdminUser = user?.email === ADMIN_EMAIL;
@@ -159,6 +162,19 @@ export default function ProfileScreen() {
     }
   }
 
+  async function openOfficialLink(url: string, title = 'Link not ready yet') {
+    if (!url) {
+      Alert.alert(title, 'We will add this official link soon.');
+      return;
+    }
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Could not open link', 'Please try again later.');
+    }
+  }
+
   async function handleLogout() {
     Alert.alert('Log Out?', 'Do you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -172,6 +188,37 @@ export default function ProfileScreen() {
       },
     ]);
   }
+
+  async function loadProfileNotificationCount() {
+    try {
+      const q = query(
+        collection(db, 'appNotifications'),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+
+      const snap = await getDocs(q);
+      let unreadCount = 0;
+
+      snap.docs.forEach((docSnap) => {
+        const data: any = docSnap.data();
+        if (!data.read) {
+          unreadCount += 1;
+        }
+      });
+
+      setProfileNotificationCount(unreadCount);
+    } catch (error) {
+      console.log('Profile notification count error:', error);
+      setProfileNotificationCount(0);
+    }
+  }
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileNotificationCount();
+    }, [])
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -241,12 +288,16 @@ export default function ProfileScreen() {
           <Text style={styles.toolText}>🔎 Search / Home</Text>
         </Pressable>
 
+        <Pressable style={styles.toolButton} onPress={() => router.push('/leaderboard' as any)}>
+          <Text style={styles.toolText}>🥇 Leaderboard</Text>
+        </Pressable>
+
         <Pressable style={styles.toolButton} onPress={() => router.push('/fan-wall' as any)}>
           <Text style={styles.toolText}>🧱 Fan Wall</Text>
         </Pressable>
 
         <Pressable style={styles.toolButton} onPress={() => router.push('/notifications' as any)}>
-          <Text style={styles.toolText}>🔔 Notifications</Text>
+          <Text style={styles.toolText}>🔔 Notifications {profileNotificationCount > 0 ? `(${profileNotificationCount})` : ''}</Text>
         </Pressable>
 
         {isAdminUser ? (
@@ -269,6 +320,30 @@ export default function ProfileScreen() {
 
         <Pressable style={styles.toolButton} onPress={() => router.push('/language' as any)}>
           <Text style={styles.toolText}>🌐 Language Center</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Official Soccer Daily Links</Text>
+
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.website)}>
+          <Text style={styles.toolText}>🌐 Website</Text>
+        </Pressable>
+
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.email)}>
+          <Text style={styles.toolText}>📧 Email Soccer Daily</Text>
+        </Pressable>
+
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.facebook)}>
+          <Text style={styles.toolText}>📘 Facebook</Text>
+        </Pressable>
+
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.instagram)}>
+          <Text style={styles.toolText}>📸 Instagram</Text>
+        </Pressable>
+
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.youtube, 'YouTube coming soon')}>
+          <Text style={styles.toolText}>▶️ YouTube</Text>
         </Pressable>
       </View>
 
