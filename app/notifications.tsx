@@ -85,6 +85,37 @@ export default function NotificationsScreen() {
     }, [])
   );
 
+  async function markAllRead() {
+    try {
+      const q = query(
+        collection(db, 'appNotifications'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
+
+      const snap = await getDocs(q);
+
+      await Promise.all(
+        snap.docs.map((docSnap) =>
+          updateDoc(doc(db, 'appNotifications', docSnap.id), {
+            read: true,
+          }).catch((error) => console.log('Mark read item error:', error))
+        )
+      );
+
+      setNotifications(
+        notifications.map((item) => ({
+          ...item,
+          read: true,
+        }))
+      );
+
+      await loadNotifications();
+    } catch (error) {
+      console.log('Mark all read error:', error);
+    }
+  }
+
   function openNotification(item: AppNotification) {
     if (item.screen === 'fan-wall') {
       router.push('/fan-wall' as any);
@@ -103,9 +134,15 @@ export default function NotificationsScreen() {
       <View style={styles.headerRow}>
         <Text style={styles.title}>🔔 Notifications</Text>
 
-        <Pressable style={styles.refreshButton} onPress={loadNotifications}>
-          <Text style={styles.refreshText}>Refresh</Text>
-        </Pressable>
+        <View style={styles.headerButtons}>
+          <Pressable style={styles.refreshButton} onPress={loadNotifications}>
+            <Text style={styles.refreshText}>Refresh</Text>
+          </Pressable>
+
+          <Pressable style={styles.markReadButton} onPress={markAllRead}>
+            <Text style={styles.markReadText}>Mark all read</Text>
+          </Pressable>
+        </View>
       </View>
 
 
@@ -158,6 +195,22 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   title: { color: '#FFD166', fontSize: 30, fontWeight: '900', flex: 1 },
+  headerButtons: {
+    flexDirection: 'column',
+    gap: 8,
+    alignItems: 'flex-end',
+  },
+  markReadButton: {
+    backgroundColor: '#FFD166',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  markReadText: {
+    color: '#07111F',
+    fontWeight: '900',
+    fontSize: 13,
+  },
   refreshButton: {
     backgroundColor: '#132238',
     borderWidth: 1,

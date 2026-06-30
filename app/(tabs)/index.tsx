@@ -319,16 +319,10 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.topTools}>
-        <View style={styles.searchBox}>
+        <Pressable style={styles.searchBox} onPress={() => router.push('/search' as any)}>
           <Text style={styles.searchIcon}>🔎</Text>
-          <TextInput
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholder="Search teams, news, fans..."
-            placeholderTextColor="#7F8A9A"
-            style={styles.searchInput}
-          />
-        </View>
+          <Text style={styles.searchInputText}>Search teams, news, fans...</Text>
+        </Pressable>
 
         <Pressable style={styles.notificationButton} onPress={openNotificationsAndClear}>
           <Text style={styles.notificationIcon}>🔔</Text>
