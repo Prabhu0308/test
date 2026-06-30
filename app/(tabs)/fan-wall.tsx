@@ -54,7 +54,14 @@ type FanPost = {
 
 const badges = ['🔥 Hot Take', '🔮 Prediction', '⚽ Match Reaction', '📰 News Reaction'];
 const filters = ['All', 'Hot Takes', 'Predictions', 'Photos', 'Videos', 'My Posts'];
-const topics = ['USA vs Mexico', 'World Cup', 'Transfer Talk', 'Messi', 'Mbappe', 'Premier League'];
+const topics = [
+  'USA vs Mexico',
+  'World Cup',
+  'Transfer Talk',
+  'Messi',
+  'Arsenal',
+  'More',
+];
 
 function timeAgo(time?: number) {
   if (!time) return 'Just now';
@@ -763,10 +770,10 @@ console.log('Current User:', user.uid);
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>📈 Trending Topics</Text>
+        <Text style={styles.cardTitle}>📈 Trending</Text>
 
         <View style={styles.topicWrap}>
-          {Array.from(new Set([...topics, ...CLUB_FAN_ROOMS])).map((topic) => (
+          {topics.map((topic) => (
             <View key={topic} style={styles.topicPill}>
               <Text style={styles.topicText}>{topic}</Text>
             </View>
@@ -775,7 +782,7 @@ console.log('Current User:', user.uid);
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-        {Array.from(new Set([...filters, ...CLUB_FAN_ROOMS])).map((filter) => (
+        {filters.map((filter) => (
           <Pressable
             key={filter}
             style={[
@@ -1213,7 +1220,7 @@ const styles = StyleSheet.create({
   topicWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 9,
+    gap: 6,
   },
   topicPill: {
     backgroundColor: '#07111F',
@@ -1222,10 +1229,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
+    marginRight: 8,
+    marginBottom: 8,
   },
   topicText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '800',
+    fontSize: 14,
   },
   filterScroll: {
     marginBottom: 16,
