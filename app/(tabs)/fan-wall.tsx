@@ -518,41 +518,65 @@ console.log('Current User:', user.uid);
     ]);
   }
 
-  async function reportPost(post: FanPost) {
+  async function submitReportWithReason(post: FanPost, reason: string) {
     if (!currentUser) {
       Alert.alert('Login needed', 'Please login before reporting.');
       return;
     }
 
-    await addDoc(collection(db, 'reports'), {
-      postId: post.id,
-      reportedPostId: post.id,
-      fanPostId: post.id,
-      originalPostId: post.id,
-      videoUrl: post.videoUrl || null,
-      imageUrl: post.imageUrl || null,
-      text: post.text || '',
-      postUserId: post.userId || '',
-      postUserEmail: post.userEmail || '',
-      postDisplayName: post.displayName || '',
-      postId: post.id,
-      reportedPostId: post.id,
-      fanPostId: post.id,
-      originalPostId: post.id,
-      videoUrl: post.videoUrl || null,
-      imageUrl: post.imageUrl || null,
-      text: post.text || '',
-      postUserId: post.userId || '',
-      postUserEmail: post.userEmail || '',
-      postDisplayName: post.displayName || '',
-      postId: post.id,
-      reportedBy: currentUser.uid,
-      createdAt: Date.now(),
-      status: 'new',
-    });
+    try {
+      await addDoc(collection(db, 'reports'), {
+        postId: post.id,
+        reason,
+        status: 'new',
+        reporterId: currentUser.uid,
+        reporterEmail: currentUser.email || '',
+        reportedBy: getSafeDisplayName(currentUser.displayName || '', currentUser.email || ''),
+        postText: post.text || '',
+        postImageUrl: post.imageUrl || '',
+        postVideoUrl: post.videoUrl || '',
+        postOwnerEmail: post.userEmail || '',
+        postOwnerId: post.userId || '',
+        createdAt: Date.now(),
+      });
 
-    Alert.alert('Reported', 'Thanks. Our team will review this post.');
+      Alert.alert('Report sent', 'Thank you. Our team will review this post.');
+    } catch (error) {
+      console.log('Report post error:', error);
+      Alert.alert('Report failed', 'Please try again.');
+    }
   }
+
+  async function reportPost(post: FanPost) {
+    Alert.alert(
+      'Why are you reporting this post?',
+      'Choose the closest reason.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Spam',
+          onPress: () => submitReportWithReason(post, 'Spam'),
+        },
+        {
+          text: 'Abuse / hate',
+          onPress: () => submitReportWithReason(post, 'Abuse / hate'),
+        },
+        {
+          text: 'Bad language',
+          onPress: () => submitReportWithReason(post, 'Bad language'),
+        },
+        {
+          text: 'Wrong content',
+          onPress: () => submitReportWithReason(post, 'Wrong content'),
+        },
+        {
+          text: 'Other',
+          onPress: () => submitReportWithReason(post, 'Other'),
+        },
+      ]
+    );
+  }
+
 
   async function sharePost(post: FanPost) {
     await Share.share({
@@ -782,22 +806,7 @@ console.log('Current User:', user.uid);
                   </Text>
                 </View>
 
-                <Pressable
-  onPress={() =>
-    Alert.alert(
-      'Report this post?',
-      'Our team will review this post.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Report',
-          style: 'destructive',
-          onPress: () => reportPost(post),
-        },
-      ]
-    )
-  }
->
+                <Pressable onPress={() => reportPost(post)}>
                   <Text style={styles.moreText}>⋯</Text>
                 </Pressable>
               </View>
@@ -838,7 +847,7 @@ console.log('Current User:', user.uid);
                         onPress={() => translatePostToEnglish(post)}
                       >
                         <Text style={[styles.translateButtonText, { color: '#FFD166', fontWeight: '900' }]}>
-                          🌐 {translatedPosts[post.id] ? 'Hide English translation' : 'Translate to English'}
+                          🌐 {translatedPosts[post.id] ? 'Hide English' : 'English'}
                         </Text>
                       </Pressable>
 
@@ -912,9 +921,6 @@ console.log('Current User:', user.uid);
                   <Text style={styles.action}>↗ Share</Text>
                 </Pressable>
 
-                <Pressable onPress={() => reportPost(post)}>
-                  <Text style={styles.action}>🚩 Report</Text>
-                </Pressable>
               </View>
 
               {isOwner && (
@@ -966,7 +972,7 @@ console.log('Current User:', user.uid);
                         }
                       >
                         <Text style={[styles.commentTranslateText, { color: '#FFD166', fontWeight: '900' }]}>
-                          🌐 {translatedComments[`${post.id}-${comment.id}`] ? 'Hide English' : 'Translate comment'}
+                          🌐 {translatedComments[`${post.id}-${comment.id}`] ? 'Hide English' : 'English'}
                         </Text>
                       </Pressable>
 
@@ -997,7 +1003,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 90,
     paddingBottom: 40,
   },
   hero: {
@@ -1289,12 +1295,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   postImage: {
+    marginTop: 14,
     width: '100%',
     height: 280,
     borderRadius: 20,
     marginBottom: 14,
   },
   postVideo: {
+    marginTop: 14,
     width: '100%',
     height: 280,
     borderRadius: 20,
@@ -1302,13 +1310,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   reactionRow: {
-    marginTop: 8,
+    marginTop: 12,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#24344F',
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#07111F',
-    paddingVertical: 11,
-    borderRadius: 16,
-    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   reactionText: {
     color: 'white',
@@ -1324,21 +1332,24 @@ const styles = StyleSheet.create({
   },
   action: {
     color: '#FFD166',
-    fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 16,
+    fontWeight: '900',
   },
   ownerRow: {
-    flexDirection: 'row',
-    gap: 18,
     marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   ownerAction: {
     color: '#FFD166',
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '900',
   },
   deleteAction: {
     color: '#FF6B6B',
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '900',
   },
   editedText: {
     color: '#A7B0C0',
