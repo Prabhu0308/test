@@ -160,7 +160,7 @@ const text: any = {
 };
 
 export default function HomeScreen() {
-  const [notificationBadgeCount, setNotificationBadgeCount] = useState(3);
+  const [notificationBadgeCount, setNotificationBadgeCount] = useState(0);
   const [language, setLanguage] = useState('en');
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [showLanguages, setShowLanguages] = useState(false);
@@ -376,6 +376,11 @@ export default function HomeScreen() {
             <Text style={styles.quickText}>{t.fanWall}</Text>
           </Pressable>
 
+          <Pressable style={styles.quickButton} onPress={() => router.push('/fans-club' as any)}>
+            <Text style={styles.quickIcon}>🏟️</Text>
+            <Text style={styles.quickText}>Fans Club</Text>
+          </Pressable>
+
           <Pressable style={styles.quickButton} onPress={() => router.push('/tv' as any)}>
             <Text style={styles.quickIcon}>📺</Text>
             <Text style={styles.quickText}>{t.tv}</Text>
@@ -391,14 +396,14 @@ export default function HomeScreen() {
             <Text style={styles.quickText}>{t.stats}</Text>
           </Pressable>
 
-          <Pressable style={styles.quickButton} onPress={() => router.push('/community-guidelines' as any)}>
-            <Text style={styles.quickIcon}>🛡️</Text>
-            <Text style={styles.quickText}>Community Rules</Text>
-          </Pressable>
-
           <Pressable style={[styles.quickButton, styles.leaguesQuickButton]} onPress={() => router.push('/leagues-stats' as any)}>
             <Text style={styles.quickIcon}>🏆</Text>
             <Text style={styles.quickText}>Leagues & Stats</Text>
+          </Pressable>
+
+          <Pressable style={styles.quickButton} onPress={() => router.push('/leaderboard' as any)}>
+            <Text style={styles.quickIcon}>🥇</Text>
+            <Text style={styles.quickText}>Leaderboard</Text>
           </Pressable>
           {searchText.trim().toLowerCase() === 'handler' && (
             <Pressable style={[styles.quickButton, styles.adminQuickButton]} onPress={() => router.push('/admin' as any)}>

@@ -4,10 +4,28 @@ import { ResizeMode, Video } from 'expo-av';
 import { getAuth } from 'firebase/auth';
 import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { router } from 'expo-router';
+import {router, useLocalSearchParams} from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { db, storage } from '../../firebase/config';
+
+
+const CLUB_FAN_ROOMS = [
+  'Manchester United',
+  'Manchester City',
+  'Liverpool',
+  'Arsenal',
+  'Chelsea',
+  'Tottenham',
+  'Real Madrid',
+  'Barcelona',
+  'Bayern Munich',
+  'PSG',
+  'Juventus',
+  'AC Milan',
+  'Inter Miami',
+  'Al Nassr',
+];
 
 type Reactions = {
   like?: string[];
@@ -99,6 +117,7 @@ function removeGifUrl(value?: string) {
 }
 
 export default function FanWallScreen() {
+  const params = useLocalSearchParams();
   const [postText, setPostText] = useState('');
   const [selectedBadge, setSelectedBadge] = useState(badges[0]);
   const [selectedFilter, setSelectedFilter] = useState('All');
@@ -144,6 +163,13 @@ export default function FanWallScreen() {
     if (selectedFilter === 'My Posts') return currentUser?.uid === post.userId;
     return true;
   });
+
+  useEffect(() => {
+    const room = typeof params.room === 'string' ? params.room : '';
+    if (room) {
+      setActiveFilter(room);
+    }
+  }, [params.room]);
 
   async function pickImage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -739,7 +765,7 @@ console.log('Current User:', user.uid);
         <Text style={styles.cardTitle}>📈 Trending Topics</Text>
 
         <View style={styles.topicWrap}>
-          {topics.map((topic) => (
+          {Array.from(new Set([...topics, ...CLUB_FAN_ROOMS])).map((topic) => (
             <View key={topic} style={styles.topicPill}>
               <Text style={styles.topicText}>{topic}</Text>
             </View>
@@ -748,7 +774,7 @@ console.log('Current User:', user.uid);
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-        {filters.map((filter) => (
+        {Array.from(new Set([...filters, ...CLUB_FAN_ROOMS])).map((filter) => (
           <Pressable
             key={filter}
             style={[
