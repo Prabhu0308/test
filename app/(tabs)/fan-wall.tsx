@@ -138,6 +138,7 @@ export default function FanWallScreen() {
 
   const auth = getAuth();
   const currentUser = auth.currentUser;
+  const currentRoom = typeof params.room === 'string' ? params.room : '';
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'fanPosts'), (snapshot) => {
@@ -161,13 +162,13 @@ export default function FanWallScreen() {
     if (selectedFilter === 'Photos') return !!post.imageUrl;
     if (selectedFilter === 'Videos') return !!post.videoUrl;
     if (selectedFilter === 'My Posts') return currentUser?.uid === post.userId;
-    return true;
+    return post.badge === selectedFilter;
   });
 
   useEffect(() => {
     const room = typeof params.room === 'string' ? params.room : '';
     if (room) {
-      setActiveFilter(room);
+      setSelectedFilter(room);
     }
   }, [params.room]);
 
@@ -297,7 +298,7 @@ console.log('Current User:', user.uid);
       status: 'approved',
         text: cleanPostText,
         gifUrl: finalGifUrl,
-        badge: selectedBadge,
+        badge: currentRoom || selectedBadge,
         displayName: getSafeDisplayName(currentUser.displayName || '', currentUser.email || ''),
         userEmail: currentUser.email || '',
         userId: currentUser.uid,
@@ -632,7 +633,7 @@ console.log('Current User:', user.uid);
         </Text>
       </Pressable>
 
-      <Text style={styles.title}>🔥 Fan Wall</Text>
+      <Text style={styles.title}>{currentRoom ? `🏟️ ${currentRoom}` : '💬 Fan Wall'}</Text>
         <Text style={styles.subtitle}>
           A soccer-only social feed for match reactions, predictions, photos, and hot takes.
         </Text>

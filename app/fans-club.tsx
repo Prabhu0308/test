@@ -63,7 +63,7 @@ export default function FansClubScreen() {
 
   function openRoom(room: string) {
     router.push({
-      pathname: '/fan-wall',
+      pathname: '/(tabs)/fan-wall',
       params: { room },
     } as any);
   }
