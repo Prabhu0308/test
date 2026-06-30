@@ -39,6 +39,70 @@ const matches = [
   },
 ];
 
+
+const fanTarotCards = [
+  {
+    name: '⚽ The Striker',
+    meaning: 'Attacking energy is strong. One side may create clear chances early.',
+    pickTemplate: '{teamA} has attacking momentum',
+    confidence: 72,
+  },
+  {
+    name: '🧤 The Keeper',
+    meaning: 'Defense and goalkeeping may decide this match. A tight score is likely.',
+    pickTemplate: 'Draw or low-scoring match',
+    confidence: 64,
+  },
+  {
+    name: '👑 The Captain',
+    meaning: 'Leadership and experience may control the pressure moments.',
+    pickTemplate: '{teamA} controls the big moments',
+    confidence: 70,
+  },
+  {
+    name: '🔥 The Comeback',
+    meaning: 'The match may change late. Do not trust the first-half feeling too much.',
+    pickTemplate: '{teamB} can fight back',
+    confidence: 68,
+  },
+  {
+    name: '🌧️ The Red Card',
+    meaning: 'Discipline, mistakes, or emotional moments may shift the result.',
+    pickTemplate: 'Unexpected twist in the match',
+    confidence: 61,
+  },
+  {
+    name: '🛡️ The Defense',
+    meaning: 'Shape, patience, and defending may matter more than pure attack.',
+    pickTemplate: 'Draw feels possible',
+    confidence: 63,
+  },
+  {
+    name: '🚀 The Counter Attack',
+    meaning: 'Speed in transition could punish the team that keeps more possession.',
+    pickTemplate: '{teamB} can hurt on counters',
+    confidence: 69,
+  },
+  {
+    name: '🏟️ The Home Crowd',
+    meaning: 'Fan energy and pressure may lift one team during key moments.',
+    pickTemplate: '{teamA} has crowd energy',
+    confidence: 71,
+  },
+  {
+    name: '⏳ Extra Time',
+    meaning: 'This feels close. Small details may decide it late.',
+    pickTemplate: 'Very close match',
+    confidence: 60,
+  },
+  {
+    name: '⭐ The Star Player',
+    meaning: 'One special player may change the match with one big moment.',
+    pickTemplate: 'Star player decides the game',
+    confidence: 74,
+  },
+];
+
 type PredictionItem = {
   id: string;
   match: string;
@@ -92,6 +156,7 @@ export default function PredictionScreen() {
   const [history, setHistory] = useState<PredictionItem[]>([]);
   const [spinResult, setSpinResult] = useState('');
   const [spinning, setSpinning] = useState(false);
+  const [tarotCard, setTarotCard] = useState<(typeof fanTarotCards)[number] | null>(null);
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pointerAngleRef = useRef(0);
@@ -114,6 +179,7 @@ export default function PredictionScreen() {
     setPick('');
     setReason('');
     setSpinResult('');
+    setTarotCard(null);
     setConfidence(60);
     pointerAngleRef.current = 0;
     spinAnim.setValue(0);
@@ -163,6 +229,19 @@ export default function PredictionScreen() {
       setConfidence(70);
       setSpinning(false);
     });
+  }
+
+
+  function drawFanTarot() {
+    const card = fanTarotCards[Math.floor(Math.random() * fanTarotCards.length)];
+    const tarotPick = card.pickTemplate
+      .replace('{teamA}', m.teamA)
+      .replace('{teamB}', m.teamB);
+
+    setTarotCard(card);
+    setPick(tarotPick);
+    setConfidence(card.confidence);
+    setReason(`Fan Tarot drew ${card.name}. ${card.meaning} For fun only, not betting advice.`);
   }
 
   async function savePrediction() {
@@ -251,6 +330,29 @@ export default function PredictionScreen() {
             </Text>
           </Pressable>
         ))}
+      </View>
+
+
+      <View style={styles.tarotCardBox}>
+        <Text style={styles.cardTitle}>🔮 Fan Tarot Pick</Text>
+        <Text style={styles.tarotIntro}>
+          Draw a soccer-style tarot card for fun and turn it into a fan prediction.
+        </Text>
+
+        <Pressable style={styles.tarotButton} onPress={drawFanTarot}>
+          <Text style={styles.tarotButtonText}>🔮 Draw Fan Tarot</Text>
+        </Pressable>
+
+        {tarotCard && (
+          <View style={styles.tarotResult}>
+            <Text style={styles.tarotName}>{tarotCard.name}</Text>
+            <Text style={styles.tarotMeaning}>{tarotCard.meaning}</Text>
+            <Text style={styles.tarotPick}>Pick: {pick}</Text>
+            <Text style={styles.tarotPick}>Confidence: {confidence}%</Text>
+          </View>
+        )}
+
+        <Text style={styles.tarotDisclaimer}>For fun only. Not betting advice.</Text>
       </View>
 
       <View style={styles.wheelCard}>
@@ -941,5 +1043,64 @@ const styles = StyleSheet.create({
     color: '#A7B0C0',
     fontSize: 12,
     marginTop: 6,
+  },
+
+  tarotCardBox: {
+    backgroundColor: '#111C2E',
+    borderWidth: 1,
+    borderColor: '#3A2B5E',
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 18,
+  },
+  tarotIntro: {
+    color: '#A7B0C0',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 14,
+  },
+  tarotButton: {
+    backgroundColor: '#FFD166',
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  tarotButtonText: {
+    color: '#07111F',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  tarotResult: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#2B3D5E',
+    borderRadius: 20,
+    padding: 15,
+    marginTop: 4,
+  },
+  tarotName: {
+    color: '#FFD166',
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  tarotMeaning: {
+    color: 'white',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 10,
+  },
+  tarotPick: {
+    color: '#A7B0C0',
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  tarotDisclaimer: {
+    color: '#7F8A9A',
+    fontSize: 12,
+    marginTop: 10,
+    fontStyle: 'italic',
   },
 });
