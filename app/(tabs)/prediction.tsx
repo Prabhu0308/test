@@ -1,4 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth } from 'firebase/auth';
+import { db } from '../../firebase/config';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
@@ -244,6 +247,54 @@ export default function PredictionScreen() {
     setReason(`Fan Tarot drew ${card.name}. ${card.meaning} For fun only, not betting advice.`);
   }
 
+  async function postPredictionToFanZone(newPrediction: PredictionItem) {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      const currentEmail = user?.email || 'guest@soccerdaily.app';
+      const currentUid = user?.uid || '';
+      const savedBadge = await AsyncStorage.getItem('favoriteFanBadge');
+
+      const badge = savedBadge || 'General Fan Wall';
+      const postTitle = tarotCard
+        ? '🔮 Fan Tarot Pick'
+        : spinResult
+          ? '🎡 Prediction Wheel Pick'
+          : '⚽ Match Prediction';
+
+      const cardText = tarotCard
+        ? `\nCard: ${tarotCard.name}\nMeaning: ${tarotCard.meaning}`
+        : '';
+
+      const fanZoneText =
+        `${postTitle}\n\n` +
+        `Match: ${newPrediction.match}` +
+        cardText +
+        `\nPick: ${newPrediction.pick}` +
+        `\nConfidence: ${newPrediction.confidence}%` +
+        `\nReason: ${newPrediction.reason}` +
+        `\n\nPosted from Soccer Daily Predictions.`;
+
+      await addDoc(collection(db, 'fanWall'), {
+        text: fanZoneText,
+        userEmail: currentEmail,
+        userId: currentUid,
+        badge,
+        user: currentEmail.split('@')[0],
+        likes: [],
+        comments: [],
+        source: 'prediction',
+        predictionId: newPrediction.id,
+        createdAt: serverTimestamp(),
+      });
+
+      return true;
+    } catch (error) {
+      console.log('Fan Zone prediction post error:', error);
+      return false;
+    }
+  }
+
   async function savePrediction() {
     if (!pick) {
       Alert.alert('Choose prediction', 'Please choose a team, draw, or spin the wheel first.');
@@ -266,12 +317,14 @@ export default function PredictionScreen() {
     setHistory(updated);
     await AsyncStorage.setItem('predictionHistory', JSON.stringify(updated));
 
+    const postedToFanZone = await postPredictionToFanZone(newPrediction);
+
     setPick('');
     setReason('');
     setConfidence(60);
     setSpinResult('');
 
-    Alert.alert('Prediction Saved', `You earned ${xp} XP for this prediction.`);
+    Alert.alert('Prediction Saved', postedToFanZone ? `You earned ${xp} XP and posted to Fan Zone.` : `You earned ${xp} XP. Fan Zone post could not be created.`);
   }
 
   async function clearHistory() {
