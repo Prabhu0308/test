@@ -57,6 +57,7 @@ type FanAccount = {
   favoriteFanBadge?: string;
   favoriteFanClub?: string;
   favoriteFanCountry?: string;
+  photoUrl?: string;
 };
 
 const COUNTRY_CLUBS: any = {
@@ -103,6 +104,27 @@ function countryLabel(country: string) {
 function roomsForCountry(country: string) {
   return [NATIONAL_TEAMS[country], ...COUNTRY_CLUBS[country]];
 }
+
+function countryFlag(country: string) {
+  const flags: any = {
+    USA: '🇺🇸',
+    Mexico: '🇲🇽',
+    England: '🏴',
+    Spain: '🇪🇸',
+    Germany: '🇩🇪',
+    France: '🇫🇷',
+    Italy: '🇮🇹',
+    Portugal: '🇵🇹',
+    Brazil: '🇧🇷',
+    Argentina: '🇦🇷',
+    SaudiArabia: '🇸🇦',
+    Nepal: '🇳🇵',
+  };
+
+  return flags[country] || '🌎';
+}
+
+const POPULAR_COUNTRIES = ['USA', 'Mexico', 'England', 'Spain', 'Brazil', 'Argentina'];
 
 function extractGifUrl(value?: string) {
   if (!value) return '';
@@ -366,6 +388,14 @@ export default function FanWallScreen() {
         `${countryLabel(selectedCountry)} ${room}`.toLowerCase().includes(search)
       )
     : [];
+
+  const popularCountryResults = countrySearchResults.filter((country) =>
+    POPULAR_COUNTRIES.includes(country)
+  );
+
+  const moreCountryResults = countrySearchResults.filter((country) =>
+    !POPULAR_COUNTRIES.includes(country)
+  );
 
   function safeFollowId(value: string) {
     return value.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -666,6 +696,22 @@ export default function FanWallScreen() {
     setCommentPostId(null);
   }
 
+  const myFanAccount = accounts.find((account) =>
+    account.id === currentUid ||
+    account.email === currentEmail ||
+    account.userEmail === currentEmail
+  );
+
+  const myFanName =
+    currentUser?.displayName ||
+    myFanAccount?.displayName ||
+    myFanAccount?.username ||
+    currentEmail.split('@')[0] ||
+    'Soccer Fan';
+
+  const myFanPhotoUrl = myFanAccount?.photoUrl || '';
+  const myMainRoom = activeRoom || savedFanBadge || 'General Fan Wall';
+
   async function sharePost(post: FanPost) {
     try {
       await Share.share({
@@ -680,6 +726,70 @@ export default function FanWallScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 180 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>🔥 Fan Zone</Text>
       <Text style={styles.subtitle}>Fan Wall + Fans Club in one place</Text>
+
+      <View style={styles.myFanRoomCard}>
+        <View style={styles.myFanRoomTop}>
+          {myFanPhotoUrl ? (
+            <ExpoImage source={{ uri: myFanPhotoUrl }} style={styles.myFanAvatar} contentFit="cover" />
+          ) : (
+            <View style={styles.myFanAvatarFallback}>
+              <Text style={styles.myFanAvatarText}>{myFanName.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+
+          <View style={styles.myFanInfo}>
+            <Text style={styles.myFanLabel}>My Fan Room</Text>
+            <Text style={styles.myFanName}>{myFanName}</Text>
+            <Text style={styles.myFanBadge} numberOfLines={1}>🏟️ {myMainRoom}</Text>
+          </View>
+        </View>
+
+        <View style={styles.myFanStatsRow}>
+          <View style={styles.myFanStatBox}>
+            <Text style={styles.myFanStatNumber}>{followedTeams.length}</Text>
+            <Text style={styles.myFanStatLabel}>Teams</Text>
+          </View>
+
+          <View style={styles.myFanStatBox}>
+            <Text style={styles.myFanStatNumber}>{followingUsers.length}</Text>
+            <Text style={styles.myFanStatLabel}>Following</Text>
+          </View>
+
+          <View style={styles.myFanStatBox}>
+            <Text style={styles.myFanStatNumber}>{visiblePosts.length}</Text>
+            <Text style={styles.myFanStatLabel}>Posts</Text>
+          </View>
+        </View>
+
+        <View style={styles.myFanActionsRow}>
+          <Pressable
+            style={styles.myFanActionButton}
+            onPress={() => {
+              if (savedFanBadge) {
+                setActiveRoom(savedFanBadge);
+              } else {
+                setShowClubPicker(true);
+              }
+            }}
+          >
+            <Text style={styles.myFanActionText}>⭐ My Room</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.myFanActionButton}
+            onPress={() => setShowClubPicker(true)}
+          >
+            <Text style={styles.myFanActionText}>🏟️ Pick Club</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.myFanActionButton}
+            onPress={() => router.push('/profile' as any)}
+          >
+            <Text style={styles.myFanActionText}>📸 Profile Photo</Text>
+          </Pressable>
+        </View>
+      </View>
 
       <TextInput
         style={styles.searchInput}
@@ -749,19 +859,59 @@ export default function FanWallScreen() {
             <>
               <Text style={styles.sectionTitle}>{search ? '🔎 Club / Country Results' : '🌎 Pick Country'}</Text>
 
-              {countrySearchResults.map((country) => (
-                <Pressable
-                  key={country}
-                  style={styles.roomButton}
-                  onPress={() => {
-                    setSelectedCountry(country);
-                    setSearchText('');
-                  }}
-                >
-                  <Text style={styles.roomText}>{countryLabel(country)}</Text>
-                  <Text style={styles.roomSubtext}>National team + clubs →</Text>
-                </Pressable>
-              ))}
+              {!search ? (
+                <>
+                  <Text style={styles.countryGroupLabel}>Popular Fan Countries</Text>
+                  <View style={styles.countryGrid}>
+                    {popularCountryResults.map((country) => (
+                      <Pressable
+                        key={country}
+                        style={styles.countryTile}
+                        onPress={() => {
+                          setSelectedCountry(country);
+                          setSearchText('');
+                        }}
+                      >
+                        <Text style={styles.countryTileFlag}>{countryFlag(country)}</Text>
+                        <Text style={styles.countryTileName}>{countryLabel(country)}</Text>
+                        <Text style={styles.countryTileSub}>Teams →</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  <Text style={styles.countryGroupLabel}>More Countries</Text>
+                  <View style={styles.countryChipWrap}>
+                    {moreCountryResults.map((country) => (
+                      <Pressable
+                        key={country}
+                        style={styles.countryChip}
+                        onPress={() => {
+                          setSelectedCountry(country);
+                          setSearchText('');
+                        }}
+                      >
+                        <Text style={styles.countryChipText}>
+                          {countryFlag(country)} {countryLabel(country)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                countrySearchResults.map((country) => (
+                  <Pressable
+                    key={country}
+                    style={styles.roomButton}
+                    onPress={() => {
+                      setSelectedCountry(country);
+                      setSearchText('');
+                    }}
+                  >
+                    <Text style={styles.roomText}>{countryFlag(country)} {countryLabel(country)}</Text>
+                    <Text style={styles.roomSubtext}>National team + clubs →</Text>
+                  </Pressable>
+                ))
+              )}
 
               {teamSearchResults.slice(0, 15).map((item) => {
                 const following = followedTeams.includes(item.badge);
@@ -1087,6 +1237,164 @@ export default function FanWallScreen() {
 }
 
 const styles = StyleSheet.create({
+  countryGroupLabel: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  countryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  countryTile: {
+    width: '48%',
+    backgroundColor: '#07111F',
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.26)',
+  },
+  countryTileFlag: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  countryTileName: {
+    color: '#FFD166',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  countryTileSub: {
+    color: '#CBD5E1',
+    fontSize: 13,
+    marginTop: 4,
+    fontWeight: '700',
+  },
+  countryChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 8,
+  },
+  countryChip: {
+    backgroundColor: '#07111F',
+    borderRadius: 999,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  countryChipText: {
+    color: '#E5E7EB',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  myFanRoomCard: {
+    backgroundColor: '#0F1B2D',
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.28)',
+  },
+  myFanRoomTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 14,
+  },
+  myFanAvatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 2,
+    borderColor: '#FFD166',
+    backgroundColor: '#07111F',
+  },
+  myFanAvatarFallback: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 2,
+    borderColor: '#FFD166',
+    backgroundColor: '#17243A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  myFanAvatarText: {
+    color: '#FFD166',
+    fontSize: 30,
+    fontWeight: '900',
+  },
+  myFanInfo: {
+    flex: 1,
+  },
+  myFanLabel: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  myFanName: {
+    color: '#FFD166',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  myFanBadge: {
+    color: '#E5E7EB',
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: '700',
+  },
+  myFanStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  myFanStatBox: {
+    flex: 1,
+    backgroundColor: '#07111F',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  myFanStatNumber: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  myFanStatLabel: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  myFanActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  myFanActionButton: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 209, 102, 0.14)',
+    borderRadius: 14,
+    paddingVertical: 11,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+  },
+  myFanActionText: {
+    color: '#FFD166',
+    fontSize: 12,
+    fontWeight: '900',
+  },
   photoComposerBox: {
     marginTop: 10,
     marginBottom: 10,
