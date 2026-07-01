@@ -856,28 +856,28 @@ export default function FanWallScreen() {
           returnKeyType="default"
         />
 
+        <View style={styles.photoComposerBox}>
+          <Pressable style={styles.photoButton} onPress={pickFanPostPhoto} disabled={uploadingPostPhoto}>
+            <Text style={styles.photoButtonText}>
+              {uploadingPostPhoto ? 'Uploading photo...' : '🖼️ Add Photo'}
+            </Text>
+          </Pressable>
+
+          {selectedImageUri ? (
+            <View style={styles.photoPreviewBox}>
+              <ExpoImage source={{ uri: selectedImageUri }} style={styles.photoPreview} contentFit="cover" />
+              <Pressable style={styles.removePhotoButton} onPress={() => setSelectedImageUri('')}>
+                <Text style={styles.removePhotoText}>Remove Photo</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+
         <View style={styles.gifPickerCard}>
           <Text style={styles.gifTitle}>🎞️ Add GIF</Text>
 
           <View style={styles.gifRow}>
-            <View style={styles.photoComposerBox}>
-        <Pressable style={styles.photoButton} onPress={pickFanPostPhoto} disabled={uploadingPostPhoto}>
-          <Text style={styles.photoButtonText}>
-            {uploadingPostPhoto ? 'Uploading photo...' : '🖼️ Add Photo'}
-          </Text>
-        </Pressable>
-
-        {selectedImageUri ? (
-          <View style={styles.photoPreviewBox}>
-            <ExpoImage source={{ uri: selectedImageUri }} style={styles.photoPreview} contentFit="cover" />
-            <Pressable style={styles.removePhotoButton} onPress={() => setSelectedImageUri('')}>
-              <Text style={styles.removePhotoText}>Remove Photo</Text>
-            </Pressable>
-          </View>
-        ) : null}
-      </View>
-
-      {soccerGifs.map((gif) => (
+            {soccerGifs.map((gif) => (
               <Pressable
                 key={gif.label}
                 style={[styles.gifButton, selectedGifUrl === gif.url && styles.activeGifButton]}
