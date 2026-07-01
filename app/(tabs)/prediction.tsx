@@ -231,7 +231,7 @@ function comparePredictorRows(a: any, b: any) {
 }
 
 function scientificPointRuleSummary() {
-  return 'Correct result + confidence + difficulty + early pick + streak. Points only count after final result.';
+  return 'Participation points + final-result points + confidence + difficulty + early pick + streak.';
 }
 
 function labelFontSize(name: string) {
@@ -249,6 +249,7 @@ export default function PredictionScreen() {
   const [spinResult, setSpinResult] = useState('');
   const [spinning, setSpinning] = useState(false);
   const [tarotCard, setTarotCard] = useState<(typeof fanTarotCards)[number] | null>(null);
+  const [showChasers, setShowChasers] = useState(false);
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pointerAngleRef = useRef(0);
@@ -456,12 +457,24 @@ export default function PredictionScreen() {
     0
   );
 
+  // Small activity points keep users interested even before match final.
+  // Big ranking points still depend on final match result.
+  const participationPoints = history.length * 2;
+  const pendingPotentialPoints = pendingPredictions.reduce(
+    (total, item) => total + (item.potentialXp ?? item.xp ?? 0),
+    0
+  );
+  const visibleUserPoints = scoredXp + participationPoints;
+
   const predictorRows = [
     {
       id: 'current-user',
       name: displayName,
       photoUrl: profilePhotoUrl,
-      xp: scoredXp,
+      xp: visibleUserPoints,
+      scoredXp,
+      participationPoints,
+      pendingPotentialPoints,
       pending: pendingPredictions.length,
       total: history.length,
       accuracy: scoredPredictions.length > 0 ? 100 : 0,
@@ -494,41 +507,133 @@ export default function PredictionScreen() {
           One GOAT only. Weekly reset Monday 00:00 UTC. Tie-breakers: points, accuracy, correct picks, difficulty, early picks, streak, then first to reach score.
         </Text>
 
-        <View style={styles.podiumGrid}>
-          {topPredictorSlots.map((slot) => (
+        <View style={styles.goatFeatureBox}>
+          <Text style={styles.goatCrown}>🐐 GOAT Predictor</Text>
+
+          {topPredictorSlots[0]?.row?.photoUrl ? (
+            <ExpoImage source={{ uri: topPredictorSlots[0].row.photoUrl }} style={styles.goatAvatarImage} contentFit="cover" />
+          ) : (
+            <View style={styles.goatAvatarFallback}>
+              <Text style={styles.goatAvatarText}>
+                {topPredictorSlots[0]?.row ? topPredictorSlots[0].row.name.charAt(0).toUpperCase() : '?'}
+              </Text>
+            </View>
+          )}
+
+          <Text style={styles.goatName}>
+            {topPredictorSlots[0]?.row ? topPredictorSlots[0].row.name : 'Open GOAT spot'}
+          </Text>
+
+          <View style={styles.goatXpPill}>
+            <Text style={styles.goatXpText}>
+              {topPredictorSlots[0]?.row ? `${topPredictorSlots[0].row.xp} XP` : 'Climb here'}
+            </Text>
+          </View>
+
+          <Text style={styles.goatRule}>Only Rank #1 can be GOAT this week</Text>
+        </View>
+
+        <View style={styles.diamondGoldRow}>
+          {[topPredictorSlots[1], topPredictorSlots[2]].map((slot) => (
             <View
               key={slot.index}
               style={[
-                styles.podiumBox,
-                slot.index === 0 && styles.goatPodiumBox,
+                styles.smallPodiumBox,
                 slot.index === 1 && styles.diamondPodiumBox,
                 slot.index === 2 && styles.goldPodiumBox,
               ]}
             >
-              <Text style={styles.podiumRank}>{slot.title}</Text>
+              <Text style={styles.smallPodiumRank}>{slot.title}</Text>
 
               {slot.row?.photoUrl ? (
-                <ExpoImage source={{ uri: slot.row.photoUrl }} style={styles.podiumAvatarImage} contentFit="cover" />
+                <ExpoImage source={{ uri: slot.row.photoUrl }} style={styles.smallPodiumAvatarImage} contentFit="cover" />
               ) : (
-                <View style={styles.podiumAvatarFallback}>
-                  <Text style={styles.podiumAvatarText}>
+                <View style={styles.smallPodiumAvatarFallback}>
+                  <Text style={styles.smallPodiumAvatarText}>
                     {slot.row ? slot.row.name.charAt(0).toUpperCase() : '?'}
                   </Text>
                 </View>
               )}
 
-              <Text style={styles.podiumName}>
+              <Text style={styles.smallPodiumName}>
                 {slot.row ? slot.row.name : 'Open spot'}
               </Text>
-              <Text style={styles.podiumXp}>
+
+              <Text style={styles.smallPodiumXp}>
                 {slot.row ? `${slot.row.xp} XP` : 'Climb here'}
               </Text>
-              <Text style={styles.podiumTiny}>
-                {slot.index === 0 ? 'Rank #1 only' : slot.index === 1 ? 'Rank #2' : 'Rank #3'}
+
+              <Text style={styles.smallPodiumTiny}>
+                {slot.index === 1 ? 'Rank #2' : 'Rank #3'}
               </Text>
             </View>
           ))}
         </View>
+
+
+        <Pressable style={styles.chaserToggleBox} onPress={() => setShowChasers(!showChasers)}>
+          <View style={styles.chaserMiniGrid}>
+            <View style={styles.chaserMiniBox}>
+              <Text style={styles.chaserMiniEmoji}>🔥</Text>
+              <Text style={styles.chaserMiniTitle}>Super</Text>
+              <Text style={styles.chaserMiniSub}>#4–10</Text>
+            </View>
+
+            <View style={styles.chaserMiniBox}>
+              <Text style={styles.chaserMiniEmoji}>⭐</Text>
+              <Text style={styles.chaserMiniTitle}>Rising</Text>
+              <Text style={styles.chaserMiniSub}>#11–25</Text>
+            </View>
+
+            <View style={styles.chaserMiniBox}>
+              <Text style={styles.chaserMiniEmoji}>⚽</Text>
+              <Text style={styles.chaserMiniTitle}>Fan</Text>
+              <Text style={styles.chaserMiniSub}>All users</Text>
+            </View>
+          </View>
+
+          <Text style={styles.chaserToggleSub}>
+            Tap to {showChasers ? 'hide' : 'open'} predictor list #{4} and below {showChasers ? '▲' : '▼'}
+          </Text>
+        </Pressable>
+
+        {showChasers ? (
+          <View style={styles.chaserListBox}>
+            {otherPredictors.length > 0 ? (
+              otherPredictors.map((row, index) => {
+                const realIndex = index + 3;
+                return (
+                  <View key={row.id} style={styles.chaserRow}>
+                    <Text style={styles.chaserRank}>#{realIndex + 1}</Text>
+
+                    {row.photoUrl ? (
+                      <ExpoImage source={{ uri: row.photoUrl }} style={styles.chaserAvatarImage} contentFit="cover" />
+                    ) : (
+                      <View style={styles.chaserAvatarFallback}>
+                        <Text style={styles.chaserAvatarText}>{row.name.charAt(0).toUpperCase()}</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.chaserInfo}>
+                      <Text style={styles.chaserName}>{row.name}</Text>
+                      <Text style={styles.chaserBadge}>{predictorRankTitle(realIndex, row.xp)}</Text>
+                      <Text style={styles.chaserStats}>
+                        Points: {row.xp} • Pending: {row.pending} • Picks: {row.total}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={styles.emptyChaserBox}>
+                <Text style={styles.emptyChaserText}>
+                  More predictors will appear here as users join. Everyone can still see their own points above.
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : null}
+
 
         <View style={styles.leagueRuleStrip}>
           <Text style={styles.leagueRuleText}>Cycle: {currentCycleId}</Text>
@@ -538,48 +643,22 @@ export default function PredictionScreen() {
           </Text>
         </View>
 
+        <View style={styles.myPointsBox}>
+          <Text style={styles.myPointsTitle}>📍 My Predictor Points</Text>
+          <Text style={styles.myPointsBig}>{visibleUserPoints} pts</Text>
+          <Text style={styles.myPointsSmall}>
+            Scored: {scoredXp} • Participation: {participationPoints} • Pending potential: {pendingPotentialPoints}
+          </Text>
+          <Text style={styles.myPointsNote}>
+            Every participant can see their points, even outside GOAT, Diamond, Gold, Super, or Rising groups.
+          </Text>
+        </View>
+
           <Pressable style={styles.rulesLinkButton} onPress={() => router.push('/prediction-rules' as any)}>
             <Text style={styles.rulesLinkText}>📘 Scoring & Rules Book</Text>
             <Text style={styles.rulesLinkSub}>{scientificPointRuleSummary()}</Text>
           </Pressable>
 
-        <View style={styles.chaserHeaderRow}>
-          <Text style={styles.chaserTitle}>🔥 Chasing the Top</Text>
-          <Text style={styles.chaserSub}>Super • Rising • Fan</Text>
-        </View>
-
-        {otherPredictors.length > 0 ? (
-          otherPredictors.map((row, index) => {
-            const realIndex = index + 3;
-            return (
-              <View key={row.id} style={styles.chaserRow}>
-                <Text style={styles.chaserRank}>#{realIndex + 1}</Text>
-
-                {row.photoUrl ? (
-                  <ExpoImage source={{ uri: row.photoUrl }} style={styles.chaserAvatarImage} contentFit="cover" />
-                ) : (
-                  <View style={styles.chaserAvatarFallback}>
-                    <Text style={styles.chaserAvatarText}>{row.name.charAt(0).toUpperCase()}</Text>
-                  </View>
-                )}
-
-                <View style={styles.chaserInfo}>
-                  <Text style={styles.chaserName}>{row.name}</Text>
-                  <Text style={styles.chaserBadge}>{predictorRankTitle(realIndex, row.xp)}</Text>
-                  <Text style={styles.chaserStats}>
-                    XP: {row.xp} • Pending: {row.pending} • Picks: {row.total}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        ) : (
-          <View style={styles.emptyChaserBox}>
-            <Text style={styles.emptyChaserText}>
-              More predictors will appear here as users join and scored results are confirmed.
-            </Text>
-          </View>
-        )}
       </View>
 
       <View style={styles.card}>
@@ -1204,6 +1283,245 @@ const styles = StyleSheet.create({
     color: '#DDE7F0',
     fontSize: 12,
     lineHeight: 17,
+  },
+  goatFeatureBox: {
+    backgroundColor: '#1F1604',
+    borderRadius: 28,
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 14,
+    borderWidth: 2,
+    borderColor: '#FFD166',
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  goatCrown: {
+    color: '#FFD166',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  goatAvatarImage: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: '#243044',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    marginBottom: 12,
+  },
+  goatAvatarFallback: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: '#243044',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    marginBottom: 12,
+  },
+  goatAvatarText: {
+    color: '#FFD166',
+    fontSize: 34,
+    fontWeight: '900',
+  },
+  goatName: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  goatXpPill: {
+    backgroundColor: '#FFD166',
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 7,
+    marginBottom: 10,
+  },
+  goatXpText: {
+    color: '#07111F',
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  goatRule: {
+    color: '#6EE7B7',
+    fontSize: 14,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  diamondGoldRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 14,
+  },
+  smallPodiumBox: {
+    flex: 1,
+    backgroundColor: '#111C2E',
+    borderRadius: 24,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 2,
+    minHeight: 178,
+  },
+  smallPodiumRank: {
+    color: '#FFD166',
+    fontSize: 17,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  smallPodiumAvatarImage: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#243044',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    marginBottom: 10,
+  },
+  smallPodiumAvatarFallback: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#243044',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    marginBottom: 10,
+  },
+  smallPodiumAvatarText: {
+    color: '#FFD166',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  smallPodiumName: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  smallPodiumXp: {
+    color: '#07111F',
+    backgroundColor: '#FFD166',
+    overflow: 'hidden',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  smallPodiumTiny: {
+    color: '#6EE7B7',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  chaserToggleBox: {
+    backgroundColor: '#0B1B2D',
+    borderRadius: 22,
+    padding: 12,
+    marginTop: 0,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+    shadowColor: '#000',
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  chaserToggleTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  chaserToggleSub: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    marginTop: 3,
+    fontWeight: '700',
+  },
+  chaserToggleArrow: {
+    color: '#FFD166',
+    fontSize: 18,
+    fontWeight: '900',
+    marginLeft: 10,
+  },
+  chaserListBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 18,
+    padding: 8,
+    marginBottom: 4,
+  },
+  myPointsBox: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.32)',
+  },
+  myPointsTitle: {
+    color: '#6EE7B7',
+    fontSize: 15,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  myPointsBig: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  myPointsSmall: {
+    color: '#DDE7F0',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  myPointsNote: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  chaserMiniGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  chaserMiniBox: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 209, 102, 0.12)',
+    borderRadius: 16,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.28)',
+  },
+  chaserMiniEmoji: {
+    fontSize: 20,
+    marginBottom: 3,
+  },
+  chaserMiniTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  chaserMiniSub: {
+    color: '#FFD166',
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: 2,
   },
   card: {
     backgroundColor: '#111C2E',

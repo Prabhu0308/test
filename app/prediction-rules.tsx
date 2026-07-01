@@ -18,7 +18,8 @@ export default function PredictionRulesScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>⏳ When Points Count</Text>
-        <Text style={styles.text}>• Saved prediction = pending.</Text>
+        <Text style={styles.text}>• Saved prediction = pending, but user receives small participation points.</Text>
+        <Text style={styles.text}>• Participation points keep users active even before the final result.</Text>
         <Text style={styles.text}>• Game starts = prediction locks.</Text>
         <Text style={styles.text}>• Game live = no leaderboard points yet.</Text>
         <Text style={styles.text}>• Game final = points are calculated.</Text>
@@ -33,7 +34,9 @@ export default function PredictionRulesScreen() {
         <Text style={styles.text}>Difficulty / underdog bonus: up to 15 points.</Text>
         <Text style={styles.text}>Early pick bonus: up to 5 points.</Text>
         <Text style={styles.text}>Correct streak bonus: up to 10 points.</Text>
-        <Text style={styles.text}>Wrong prediction: 0 leaderboard points for beta.</Text>
+        <Text style={styles.text}>Participation points: 2 points per saved prediction.</Text>
+        <Text style={styles.text}>Early prediction bonus: up to 5 points when prediction is made before kickoff.</Text>
+        <Text style={styles.text}>Wrong prediction: keeps participation points, but gets 0 final-result points for beta.</Text>
       </View>
 
       <View style={styles.card}>
@@ -44,6 +47,7 @@ export default function PredictionRulesScreen() {
         <Text style={styles.text}>🔥 Super Predictors = Rank #4–10.</Text>
         <Text style={styles.text}>⭐ Rising Predictors = Rank #11–25.</Text>
         <Text style={styles.text}>⚽ Fan Predictors = all active users after that.</Text>
+        <Text style={styles.text}>Every participant can see their points even if they are not in GOAT, Diamond, Gold, Super, or Rising groups.</Text>
       </View>
 
       <View style={styles.card}>
