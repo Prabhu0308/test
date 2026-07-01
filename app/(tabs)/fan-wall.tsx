@@ -71,6 +71,20 @@ const COUNTRY_CLUBS: any = {
   Portugal: ['Benfica', 'Porto', 'Sporting CP', 'Braga', 'Vitória SC', 'Boavista', 'Marítimo', 'Rio Ave'],
   Brazil: ['Flamengo', 'Palmeiras', 'Santos', 'São Paulo', 'Corinthians', 'Fluminense', 'Vasco da Gama', 'Botafogo', 'Grêmio', 'Internacional', 'Cruzeiro', 'Atlético Mineiro'],
   Argentina: ['Boca Juniors', 'River Plate', 'Racing Club', 'Independiente', 'San Lorenzo', 'Estudiantes', 'Vélez Sarsfield', 'Rosario Central', 'Newell’s Old Boys', 'Huracán'],
+  Japan: ['Vissel Kobe', 'Urawa Red Diamonds', 'Yokohama F. Marinos', 'Kashima Antlers', 'FC Tokyo', 'Gamba Osaka', 'Cerezo Osaka'],
+  SouthKorea: ['Jeonbuk Hyundai Motors', 'Ulsan HD', 'FC Seoul', 'Pohang Steelers', 'Suwon Samsung Bluewings'],
+  China: ['Shanghai Port', 'Shanghai Shenhua', 'Beijing Guoan', 'Shandong Taishan', 'Guangzhou FC'],
+  Morocco: ['Wydad AC', 'Raja CA', 'FAR Rabat', 'RS Berkane', 'FUS Rabat'],
+  Netherlands: ['Ajax', 'PSV Eindhoven', 'Feyenoord', 'AZ Alkmaar', 'FC Utrecht', 'FC Twente'],
+  Turkey: ['Galatasaray', 'Fenerbahçe', 'Beşiktaş', 'Trabzonspor', 'İstanbul Başakşehir'],
+  Egypt: ['Al Ahly', 'Zamalek', 'Pyramids FC', 'Ismaily', 'Al Masry'],
+  Ghana: ['Asante Kotoko', 'Hearts of Oak', 'Medeama SC', 'Aduana Stars'],
+  Senegal: ['Casa Sports', 'ASC Diaraf', 'Teungueth FC', 'Génération Foot'],
+  Australia: ['Sydney FC', 'Melbourne Victory', 'Melbourne City', 'Western Sydney Wanderers', 'Brisbane Roar'],
+  Colombia: ['Atlético Nacional', 'Millonarios', 'América de Cali', 'Deportivo Cali', 'Junior'],
+  Croatia: ['Dinamo Zagreb', 'Hajduk Split', 'Rijeka', 'Osijek'],
+  Uruguay: ['Peñarol', 'Nacional', 'Defensor Sporting', 'Danubio'],
+  Algeria: ['CR Belouizdad', 'MC Alger', 'JS Kabylie', 'USM Alger', 'ES Sétif'],
   SaudiArabia: ['Al Nassr', 'Al Hilal', 'Al Ittihad', 'Al Ahli', 'Al Shabab', 'Al Ettifaq', 'Al Taawoun', 'Al Fateh'],
   Nepal: ['Church Boys United', 'Machhindra FC', 'Manang Marshyangdi Club', 'Three Star Club', 'Nepal Police Club', 'APF Club', 'Tribhuvan Army FC'],
 };
@@ -86,6 +100,20 @@ const NATIONAL_TEAMS: any = {
   Portugal: '🇵🇹 Portugal National Team',
   Brazil: '🇧🇷 Brazil National Team',
   Argentina: '🇦🇷 Argentina National Team',
+  Japan: '🇯🇵 Japan National Team',
+  SouthKorea: '🇰🇷 South Korea National Team',
+  China: '🇨🇳 China National Team',
+  Morocco: '🇲🇦 Morocco National Team',
+  Netherlands: '🇳🇱 Netherlands National Team',
+  Turkey: '🇹🇷 Turkey National Team',
+  Egypt: '🇪🇬 Egypt National Team',
+  Ghana: '🇬🇭 Ghana National Team',
+  Senegal: '🇸🇳 Senegal National Team',
+  Australia: '🇦🇺 Australia National Team',
+  Colombia: '🇨🇴 Colombia National Team',
+  Croatia: '🇭🇷 Croatia National Team',
+  Uruguay: '🇺🇾 Uruguay National Team',
+  Algeria: '🇩🇿 Algeria National Team',
   SaudiArabia: '🇸🇦 Saudi Arabia National Team',
   Nepal: '🇳🇵 Nepal National Team',
 };
@@ -98,7 +126,12 @@ const soccerGifs = [
 ];
 
 function countryLabel(country: string) {
-  return country === 'SaudiArabia' ? 'Saudi Arabia' : country;
+  const labels: any = {
+    SaudiArabia: 'Saudi Arabia',
+    SouthKorea: 'South Korea',
+  };
+
+  return labels[country] || country;
 }
 
 function roomsForCountry(country: string) {
@@ -119,6 +152,20 @@ function countryFlag(country: string) {
     Argentina: '🇦🇷',
     SaudiArabia: '🇸🇦',
     Nepal: '🇳🇵',
+    Algeria: '🇩🇿',
+    Uruguay: '🇺🇾',
+    Croatia: '🇭🇷',
+    Colombia: '🇨🇴',
+    Australia: '🇦🇺',
+    Senegal: '🇸🇳',
+    Ghana: '🇬🇭',
+    Egypt: '🇪🇬',
+    Turkey: '🇹🇷',
+    Netherlands: '🇳🇱',
+    Morocco: '🇲🇦',
+    China: '🇨🇳',
+    SouthKorea: '🇰🇷',
+    Japan: '🇯🇵',
   };
 
   return flags[country] || '🌎';
@@ -175,6 +222,7 @@ export default function FanWallScreen() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [showClubPicker, setShowClubPicker] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
+  const [showMoreCountries, setShowMoreCountries] = useState(false);
 
   const [searchText, setSearchText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -879,23 +927,33 @@ export default function FanWallScreen() {
                     ))}
                   </View>
 
-                  <Text style={styles.countryGroupLabel}>More Countries</Text>
-                  <View style={styles.countryChipWrap}>
-                    {moreCountryResults.map((country) => (
-                      <Pressable
-                        key={country}
-                        style={styles.countryChip}
-                        onPress={() => {
-                          setSelectedCountry(country);
-                          setSearchText('');
-                        }}
-                      >
-                        <Text style={styles.countryChipText}>
-                          {countryFlag(country)} {countryLabel(country)}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <Pressable
+                    style={styles.moreCountriesButton}
+                    onPress={() => setShowMoreCountries(!showMoreCountries)}
+                  >
+                    <Text style={styles.moreCountriesText}>
+                      🌎 More Countries {showMoreCountries ? '▲' : '▼'}
+                    </Text>
+                  </Pressable>
+
+                  {showMoreCountries ? (
+                    <View style={styles.countryChipWrap}>
+                      {moreCountryResults.map((country) => (
+                        <Pressable
+                          key={country}
+                          style={styles.countryChip}
+                          onPress={() => {
+                            setSelectedCountry(country);
+                            setSearchText('');
+                          }}
+                        >
+                          <Text style={styles.countryChipText}>
+                            {countryFlag(country)} {countryLabel(country)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
                 </>
               ) : (
                 countrySearchResults.map((country) => (
@@ -1275,6 +1333,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     fontWeight: '700',
+  },
+  moreCountriesButton: {
+    backgroundColor: 'rgba(255, 209, 102, 0.14)',
+    borderRadius: 18,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  moreCountriesText: {
+    color: '#FFD166',
+    fontSize: 16,
+    fontWeight: '900',
   },
   countryChipWrap: {
     flexDirection: 'row',
