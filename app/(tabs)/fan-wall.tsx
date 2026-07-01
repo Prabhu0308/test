@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image as ExpoImage } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import {
@@ -16,6 +17,7 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -29,7 +31,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { db } from '../../firebase/config';
+import { db, storage } from '../../firebase/config';
 
 type FanPost = {
   id: string;
@@ -41,6 +43,7 @@ type FanPost = {
   likes?: string[];
   comments?: any[];
   gifUrl?: string;
+  imageUrl?: string;
   createdAt?: any;
   editedAt?: any;
 };
@@ -136,6 +139,8 @@ export default function FanWallScreen() {
 
   const [postText, setPostText] = useState('');
   const [selectedGifUrl, setSelectedGifUrl] = useState('');
+  const [selectedImageUri, setSelectedImageUri] = useState('');
+  const [uploadingPostPhoto, setUploadingPostPhoto] = useState(false);
   const [posts, setPosts] = useState<FanPost[]>([]);
   const [accounts, setAccounts] = useState<FanAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -456,21 +461,78 @@ export default function FanWallScreen() {
     }
   }
 
+  async function pickFanPostPhoto() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Please allow photo access to add a Fan Zone photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.75,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      setSelectedImageUri(result.assets[0].uri);
+    } catch (error) {
+      console.log('Pick Fan Zone photo error:', error);
+      Alert.alert('Photo error', 'Could not choose photo.');
+    }
+  }
+
+  async function uploadFanPostPhoto() {
+    if (!selectedImageUri) return '';
+
+    if (!currentUid) {
+      Alert.alert('Login required', 'Please login first to upload a photo.');
+      return '';
+    }
+
+    try {
+      setUploadingPostPhoto(true);
+
+      const response = await fetch(selectedImageUri);
+      const blob = await response.blob();
+
+      const imageRef = ref(storage, `fan-wall/${currentUid}/${Date.now()}.jpg`);
+      await uploadBytes(imageRef, blob, {
+        contentType: 'image/jpeg',
+      });
+
+      return await getDownloadURL(imageRef);
+    } catch (error) {
+      console.log('Upload Fan Zone photo error:', error);
+      Alert.alert('Upload failed', 'Could not upload Fan Zone photo.');
+      return '';
+    } finally {
+      setUploadingPostPhoto(false);
+    }
+  }
+
   async function submitPost() {
     const finalGifUrl = selectedGifUrl || extractGifUrl(postText);
     const cleanText = removeGifUrl(postText).trim();
 
-    if (!cleanText && !finalGifUrl) {
+    if (!cleanText && !finalGifUrl && !selectedImageUri) {
       Alert.alert('Empty Post', 'Please write something or choose a GIF first.');
       return;
     }
 
     const badge = activeRoom || savedFanBadge || 'General Fan Wall';
+    const uploadedImageUrl = await uploadFanPostPhoto();
+
+    if (selectedImageUri && !uploadedImageUrl) return;
 
     try {
       await addDoc(collection(db, 'fanWall'), {
         text: cleanText,
         gifUrl: finalGifUrl,
+        imageUrl: uploadedImageUrl,
         userEmail: currentEmail,
         userId: currentUid,
         badge,
@@ -482,6 +544,7 @@ export default function FanWallScreen() {
 
       setPostText('');
       setSelectedGifUrl('');
+      setSelectedImageUri('');
       setShowComposer(false);
     } catch (error) {
       console.log('Submit post error:', error);
@@ -797,7 +860,24 @@ export default function FanWallScreen() {
           <Text style={styles.gifTitle}>🎞️ Add GIF</Text>
 
           <View style={styles.gifRow}>
-            {soccerGifs.map((gif) => (
+            <View style={styles.photoComposerBox}>
+        <Pressable style={styles.photoButton} onPress={pickFanPostPhoto} disabled={uploadingPostPhoto}>
+          <Text style={styles.photoButtonText}>
+            {uploadingPostPhoto ? 'Uploading photo...' : '🖼️ Add Photo'}
+          </Text>
+        </Pressable>
+
+        {selectedImageUri ? (
+          <View style={styles.photoPreviewBox}>
+            <ExpoImage source={{ uri: selectedImageUri }} style={styles.photoPreview} contentFit="cover" />
+            <Pressable style={styles.removePhotoButton} onPress={() => setSelectedImageUri('')}>
+              <Text style={styles.removePhotoText}>Remove Photo</Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
+
+      {soccerGifs.map((gif) => (
               <Pressable
                 key={gif.label}
                 style={[styles.gifButton, selectedGifUrl === gif.url && styles.activeGifButton]}
@@ -1007,6 +1087,52 @@ export default function FanWallScreen() {
 }
 
 const styles = StyleSheet.create({
+  photoComposerBox: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  photoButton: {
+    backgroundColor: 'rgba(255, 209, 102, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.4)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  photoButtonText: {
+    color: '#FFD166',
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  photoPreviewBox: {
+    marginTop: 12,
+  },
+  photoPreview: {
+    width: '100%',
+    height: 220,
+    borderRadius: 16,
+    backgroundColor: '#0F1B2D',
+  },
+  removePhotoButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(239, 68, 68, 0.14)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  removePhotoText: {
+    color: '#FCA5A5',
+    fontWeight: '800',
+  },
+  postImage: {
+    width: '100%',
+    height: 240,
+    borderRadius: 16,
+    marginTop: 12,
+    backgroundColor: '#0F1B2D',
+  },
   container: { flex: 1, backgroundColor: '#07111F', padding: 20, paddingTop: 60 },
   title: { color: '#FFD166', fontSize: 34, fontWeight: '900', marginBottom: 6 },
   subtitle: { color: '#A7B0C0', fontSize: 16, marginBottom: 14 },
