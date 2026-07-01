@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image as ExpoImage } from 'expo-image';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../firebase/config';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
@@ -114,6 +116,12 @@ type PredictionItem = {
   reason: string;
   xp: number;
   createdAt: string;
+  createdAtUtc?: string;
+  status?: 'pending' | 'locked' | 'scored';
+  potentialXp?: number;
+  pointsAwarded?: number;
+  cycleId?: string;
+  matchFinalAtUtc?: string;
 };
 
 const WHEEL_SIZE = 250;
@@ -143,6 +151,87 @@ function sectorPath(startAngle: number, endAngle: number) {
     `A ${RADIUS} ${RADIUS} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`,
     'Z',
   ].join(' ');
+}
+
+
+function getUtcWeekCycleId(date = new Date()) {
+  const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = utc.getUTCDay(); // Sunday 0, Monday 1
+  const daysSinceMonday = (day + 6) % 7;
+  utc.setUTCDate(utc.getUTCDate() - daysSinceMonday);
+  return utc.toISOString().slice(0, 10); // Monday date in UTC
+}
+
+function getNextMondayUtcLabel(date = new Date()) {
+  const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = utc.getUTCDay();
+  const daysUntilNextMonday = ((8 - day) % 7) || 7;
+  utc.setUTCDate(utc.getUTCDate() + daysUntilNextMonday);
+  return `${utc.toISOString().slice(0, 10)} 00:00 UTC`;
+}
+
+function predictorRankTitle(index: number, xp: number) {
+  if (xp <= 0) return '⏳ Pending Predictor';
+  if (index === 0) return '🐐 GOAT Predictor';
+  if (index === 1) return '💎 Diamond Predictor';
+  if (index === 2) return '🥇 Gold Predictor';
+  if (index >= 3 && index <= 9) return '🔥 Super Predictor';
+  if (index >= 10 && index <= 24) return '⭐ Rising Predictor';
+  return '⚽ Fan Predictor';
+}
+
+function predictorRankNote(index: number, xp: number) {
+  if (xp <= 0) return 'Waiting for final match results';
+  if (index === 0) return 'Only one GOAT per weekly cycle';
+  if (index === 1) return 'Rank #2';
+  if (index === 2) return 'Rank #3';
+  if (index >= 3 && index <= 9) return 'Rank #4–10';
+  if (index >= 10 && index <= 24) return 'Rank #11–25';
+  return 'Active predictor';
+}
+
+function openSpotTitle(index: number) {
+  if (index === 0) return '🐐 GOAT';
+  if (index === 1) return '💎 Diamond';
+  if (index === 2) return '🥇 Gold';
+  return 'Open Spot';
+}
+
+function comparePredictorRows(a: any, b: any) {
+  // Ranking order:
+  // 1. Points
+  // 2. Accuracy
+  // 3. Correct predictions
+  // 4. Difficulty / underdog points
+  // 5. Earlier prediction behavior
+  // 6. Streak
+  // 7. First to reach score
+  const pointDiff = (b.xp || 0) - (a.xp || 0);
+  if (pointDiff !== 0) return pointDiff;
+
+  const accuracyDiff = (b.accuracy || 0) - (a.accuracy || 0);
+  if (accuracyDiff !== 0) return accuracyDiff;
+
+  const correctDiff = (b.correctPicks || 0) - (a.correctPicks || 0);
+  if (correctDiff !== 0) return correctDiff;
+
+  const difficultyDiff = (b.underdogPoints || 0) - (a.underdogPoints || 0);
+  if (difficultyDiff !== 0) return difficultyDiff;
+
+  const earlyDiff = (b.earlyPickPoints || 0) - (a.earlyPickPoints || 0);
+  if (earlyDiff !== 0) return earlyDiff;
+
+  const streakDiff = (b.streak || 0) - (a.streak || 0);
+  if (streakDiff !== 0) return streakDiff;
+
+  const aReached = a.reachedScoreAtUtc ? new Date(a.reachedScoreAtUtc).getTime() : Number.MAX_SAFE_INTEGER;
+  const bReached = b.reachedScoreAtUtc ? new Date(b.reachedScoreAtUtc).getTime() : Number.MAX_SAFE_INTEGER;
+
+  return aReached - bReached;
+}
+
+function scientificPointRuleSummary() {
+  return 'Correct result + confidence + difficulty + early pick + streak. Points only count after final result.';
 }
 
 function labelFontSize(name: string) {
@@ -273,6 +362,7 @@ export default function PredictionScreen() {
         `\nPick: ${newPrediction.pick}` +
         `\nConfidence: ${newPrediction.confidence}%` +
         `\nReason: ${newPrediction.reason}` +
+        `\nStatus: Pending until match is final` +
         `\n\nPosted from Soccer Daily Predictions.`;
 
       await addDoc(collection(db, 'fanWall'), {
@@ -303,6 +393,8 @@ export default function PredictionScreen() {
 
     const xp = confidence >= 80 ? 25 : confidence >= 60 ? 15 : 10;
 
+    const now = new Date();
+
     const newPrediction: PredictionItem = {
       id: Date.now().toString(),
       match: selectedMatch.title,
@@ -310,7 +402,12 @@ export default function PredictionScreen() {
       confidence,
       reason: reason.trim() || 'No reason added.',
       xp,
-      createdAt: new Date().toLocaleString(),
+      potentialXp: xp,
+      pointsAwarded: 0,
+      status: 'pending',
+      cycleId: 'pending-final-result',
+      createdAt: now.toLocaleString(),
+      createdAtUtc: now.toISOString(),
     };
 
     const updated = [newPrediction, ...history].slice(0, 10);
@@ -324,7 +421,7 @@ export default function PredictionScreen() {
     setConfidence(60);
     setSpinResult('');
 
-    Alert.alert('Prediction Saved', postedToFanZone ? `You earned ${xp} XP and posted to Fan Zone.` : `You earned ${xp} XP. Fan Zone post could not be created.`);
+    Alert.alert('Prediction Saved', postedToFanZone ? `Prediction saved as pending. Potential XP: ${xp}. Points count after the match is final.` : `Prediction saved as pending. Potential XP: ${xp}. Fan Zone post could not be created.`);
   }
 
   async function clearHistory() {
@@ -345,12 +442,145 @@ export default function PredictionScreen() {
   const rightLine = polarPoint(120);
   const leftLine = polarPoint(240);
 
+  const authUser = getAuth().currentUser;
+  const currentCycleId = getUtcWeekCycleId(new Date());
+  const nextResetLabel = getNextMondayUtcLabel(new Date());
+  const displayName = authUser?.displayName || authUser?.email?.split('@')[0] || 'You';
+  const profilePhotoUrl = authUser?.photoURL || '';
+
+  const scoredPredictions = history.filter((item) => item.status === 'scored');
+  const pendingPredictions = history.filter((item) => item.status !== 'scored');
+
+  const scoredXp = scoredPredictions.reduce(
+    (total, item) => total + (item.pointsAwarded ?? item.xp ?? 0),
+    0
+  );
+
+  const predictorRows = [
+    {
+      id: 'current-user',
+      name: displayName,
+      photoUrl: profilePhotoUrl,
+      xp: scoredXp,
+      pending: pendingPredictions.length,
+      total: history.length,
+      accuracy: scoredPredictions.length > 0 ? 100 : 0,
+      correctPicks: scoredPredictions.length,
+      underdogPoints: 0,
+      earlyPickPoints: 0,
+      streak: 0,
+      reachedScoreAtUtc: scoredPredictions[0]?.matchFinalAtUtc || scoredPredictions[0]?.createdAtUtc || '',
+    },
+  ].sort(comparePredictorRows);
+
+  const topPredictorSlots = [0, 1, 2].map((index) => ({
+    index,
+    row: predictorRows[index],
+    title: openSpotTitle(index),
+  }));
+
+  const otherPredictors = predictorRows.slice(3);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>🔮 Predictions</Text>
       <Text style={styles.subtitle}>
         Choose a match, spin the pro soccer selector, and save your fan prediction.
       </Text>
+
+      <View style={styles.topLeagueCard}>
+        <Text style={styles.topLeagueTitle}>🏆 Weekly Predictor League</Text>
+        <Text style={styles.topLeagueSub}>
+          One GOAT only. Weekly reset Monday 00:00 UTC. Tie-breakers: points, accuracy, correct picks, difficulty, early picks, streak, then first to reach score.
+        </Text>
+
+        <View style={styles.podiumGrid}>
+          {topPredictorSlots.map((slot) => (
+            <View
+              key={slot.index}
+              style={[
+                styles.podiumBox,
+                slot.index === 0 && styles.goatPodiumBox,
+                slot.index === 1 && styles.diamondPodiumBox,
+                slot.index === 2 && styles.goldPodiumBox,
+              ]}
+            >
+              <Text style={styles.podiumRank}>{slot.title}</Text>
+
+              {slot.row?.photoUrl ? (
+                <ExpoImage source={{ uri: slot.row.photoUrl }} style={styles.podiumAvatarImage} contentFit="cover" />
+              ) : (
+                <View style={styles.podiumAvatarFallback}>
+                  <Text style={styles.podiumAvatarText}>
+                    {slot.row ? slot.row.name.charAt(0).toUpperCase() : '?'}
+                  </Text>
+                </View>
+              )}
+
+              <Text style={styles.podiumName}>
+                {slot.row ? slot.row.name : 'Open spot'}
+              </Text>
+              <Text style={styles.podiumXp}>
+                {slot.row ? `${slot.row.xp} XP` : 'Climb here'}
+              </Text>
+              <Text style={styles.podiumTiny}>
+                {slot.index === 0 ? 'Rank #1 only' : slot.index === 1 ? 'Rank #2' : 'Rank #3'}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.leagueRuleStrip}>
+          <Text style={styles.leagueRuleText}>Cycle: {currentCycleId}</Text>
+          <Text style={styles.leagueRuleText}>Next reset: {nextResetLabel}</Text>
+          <Text style={styles.leagueRuleSmall}>
+            Points count only after match final. Live games at reset count next cycle.
+          </Text>
+        </View>
+
+          <Pressable style={styles.rulesLinkButton} onPress={() => router.push('/prediction-rules' as any)}>
+            <Text style={styles.rulesLinkText}>📘 Scoring & Rules Book</Text>
+            <Text style={styles.rulesLinkSub}>{scientificPointRuleSummary()}</Text>
+          </Pressable>
+
+        <View style={styles.chaserHeaderRow}>
+          <Text style={styles.chaserTitle}>🔥 Chasing the Top</Text>
+          <Text style={styles.chaserSub}>Super • Rising • Fan</Text>
+        </View>
+
+        {otherPredictors.length > 0 ? (
+          otherPredictors.map((row, index) => {
+            const realIndex = index + 3;
+            return (
+              <View key={row.id} style={styles.chaserRow}>
+                <Text style={styles.chaserRank}>#{realIndex + 1}</Text>
+
+                {row.photoUrl ? (
+                  <ExpoImage source={{ uri: row.photoUrl }} style={styles.chaserAvatarImage} contentFit="cover" />
+                ) : (
+                  <View style={styles.chaserAvatarFallback}>
+                    <Text style={styles.chaserAvatarText}>{row.name.charAt(0).toUpperCase()}</Text>
+                  </View>
+                )}
+
+                <View style={styles.chaserInfo}>
+                  <Text style={styles.chaserName}>{row.name}</Text>
+                  <Text style={styles.chaserBadge}>{predictorRankTitle(realIndex, row.xp)}</Text>
+                  <Text style={styles.chaserStats}>
+                    XP: {row.xp} • Pending: {row.pending} • Picks: {row.total}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        ) : (
+          <View style={styles.emptyChaserBox}>
+            <Text style={styles.emptyChaserText}>
+              More predictors will appear here as users join and scored results are confirmed.
+            </Text>
+          </View>
+        )}
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>⚽ Choose Match</Text>
@@ -728,6 +958,253 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 20,
   },
+  topLeagueCard: {
+    backgroundColor: '#061322',
+    borderRadius: 30,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.45)',
+    shadowColor: '#000',
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  topLeagueTitle: {
+    color: '#FFD166',
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  topLeagueSub: {
+    color: '#DDE7F0',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  podiumGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  podiumBox: {
+    flex: 1,
+    backgroundColor: '#111C2E',
+    borderRadius: 22,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.22)',
+    minHeight: 184,
+  },
+  podiumRank: {
+    color: '#FFD166',
+    fontSize: 14,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
+  podiumAvatarImage: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#243044',
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.75)',
+  },
+  podiumAvatarFallback: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#243044',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.75)',
+  },
+  podiumAvatarText: {
+    color: '#FFD166',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  podiumName: {
+    color: 'white',
+    fontWeight: '900',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  podiumXp: {
+    color: '#07111F',
+    backgroundColor: '#FFD166',
+    overflow: 'hidden',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  podiumTiny: {
+    color: '#6EE7B7',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  leagueRuleStrip: {
+    backgroundColor: 'rgba(255, 209, 102, 0.14)',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.24)',
+  },
+  leagueRuleText: {
+    color: '#FFD166',
+    fontWeight: '900',
+    fontSize: 12,
+    marginBottom: 3,
+  },
+  leagueRuleSmall: {
+    color: '#E5E7EB',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 5,
+  },
+  chaserHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  chaserTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  chaserSub: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  chaserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#101D31',
+    borderRadius: 16,
+    padding: 10,
+    marginBottom: 10,
+  },
+  chaserRank: {
+    color: '#FFD166',
+    fontWeight: '900',
+    width: 34,
+  },
+  chaserAvatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#243044',
+    marginRight: 10,
+  },
+  chaserAvatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#243044',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  chaserAvatarText: {
+    color: '#FFD166',
+    fontWeight: '900',
+  },
+  chaserInfo: {
+    flex: 1,
+  },
+  chaserName: {
+    color: 'white',
+    fontWeight: '900',
+  },
+  chaserBadge: {
+    color: '#FFD166',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  chaserStats: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  emptyChaserBox: {
+    backgroundColor: '#101D31',
+    borderRadius: 16,
+    padding: 12,
+  },
+  emptyChaserText: {
+    color: '#A7B0C0',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  goatPodiumBox: {
+    backgroundColor: '#1F1604',
+    borderColor: '#FFD166',
+    borderWidth: 2,
+    transform: [{ scale: 1.04 }],
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  diamondPodiumBox: {
+    backgroundColor: '#071A2D',
+    borderColor: '#67E8F9',
+    borderWidth: 2,
+    shadowColor: '#67E8F9',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 6,
+  },
+  goldPodiumBox: {
+    backgroundColor: '#221A08',
+    borderColor: '#FACC15',
+    borderWidth: 2,
+    shadowColor: '#FACC15',
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 6,
+  },
+  rulesLinkButton: {
+    backgroundColor: 'rgba(96, 165, 250, 0.14)',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.35)',
+  },
+  rulesLinkText: {
+    color: '#93C5FD',
+    fontSize: 15,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  rulesLinkSub: {
+    color: '#DDE7F0',
+    fontSize: 12,
+    lineHeight: 17,
+  },
   card: {
     backgroundColor: '#111C2E',
     padding: 18,
@@ -1060,6 +1537,139 @@ const styles = StyleSheet.create({
     color: '#07111F',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  predictorLeagueCard: {
+    backgroundColor: '#081827',
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+  },
+  leagueTitle: {
+    color: '#FFD166',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  leagueSubtitle: {
+    color: '#DDE7F0',
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 12,
+  },
+  utcRuleCard: {
+    backgroundColor: 'rgba(255, 209, 102, 0.12)',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.24)',
+  },
+  utcRuleText: {
+    color: '#FFD166',
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  utcRuleSmall: {
+    color: '#E5E7EB',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 6,
+  },
+  rankRulesBox: {
+    backgroundColor: '#101D31',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+  },
+  rankRulesTitle: {
+    color: 'white',
+    fontWeight: '900',
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  rankRulesText: {
+    color: '#A7B0C0',
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  predictorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111C2E',
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 12,
+  },
+  predictorRankNumber: {
+    color: '#FFD166',
+    fontWeight: '900',
+    fontSize: 16,
+    width: 34,
+  },
+  predictorAvatarImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    marginRight: 12,
+    backgroundColor: '#243044',
+  },
+  predictorAvatarFallback: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    marginRight: 12,
+    backgroundColor: '#243044',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+  },
+  predictorAvatarText: {
+    color: '#FFD166',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  predictorInfo: {
+    flex: 1,
+  },
+  predictorName: {
+    color: 'white',
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  predictorTitle: {
+    color: '#FFD166',
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  predictorNote: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  predictorStats: {
+    color: '#DDE7F0',
+    fontSize: 12,
+    marginTop: 6,
+  },
+  pendingInfoBox: {
+    backgroundColor: 'rgba(96, 165, 250, 0.12)',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.24)',
+  },
+  pendingInfoTitle: {
+    color: '#93C5FD',
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  pendingInfoText: {
+    color: '#DDE7F0',
+    fontSize: 13,
+    lineHeight: 19,
   },
   historyHeader: {
     flexDirection: 'row',
