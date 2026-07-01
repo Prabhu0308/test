@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const [savedClub, setSavedClub] = useState('');
   const [savedNational, setSavedNational] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const displayName =
@@ -63,6 +64,7 @@ export default function ProfileScreen() {
       if (snap.exists()) {
         const data = snap.data();
         setPhotoUrl(data.photoUrl || '');
+        setCoverPhotoUrl(data.coverPhotoUrl || '');
 
         if (data.favoriteClubTeam) {
           setSavedClub(data.favoriteClubTeam);
@@ -220,6 +222,63 @@ export default function ProfileScreen() {
     }, [])
   );
 
+
+  async function uploadCoverPhoto() {
+    try {
+      const user = getAuth().currentUser;
+
+      if (!user) {
+        Alert.alert('Login required', 'Please login first.');
+        return;
+      }
+
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Please allow photo access.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.85,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        return;
+      }
+
+      const uri = result.assets[0].uri;
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const imageRef = ref(storage, `profile-covers/${user.uid}/${Date.now()}.jpg`);
+
+      await uploadBytes(imageRef, blob, {
+        contentType: 'image/jpeg',
+      });
+
+      const downloadUrl = await getDownloadURL(imageRef);
+
+      await setDoc(
+        doc(db, 'userProfiles', user.uid),
+        {
+          coverPhotoUrl: downloadUrl,
+          updatedAt: Date.now(),
+        },
+        { merge: true }
+      );
+
+      setCoverPhotoUrl(downloadUrl);
+      Alert.alert('Updated', 'Your Home background photo was updated.');
+    } catch (error) {
+      console.log(error);
+      Alert.alert('Error', 'Could not upload cover photo.');
+    }
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
@@ -229,6 +288,20 @@ export default function ProfileScreen() {
 
       <View style={styles.card}>
         <View style={styles.profileRow}>
+          <View style={styles.coverPhotoBox}>
+            {coverPhotoUrl ? (
+              <Image source={{ uri: coverPhotoUrl }} style={styles.coverPhotoPreview} />
+            ) : (
+              <View style={styles.coverPhotoPlaceholder}>
+                <Text style={styles.coverPhotoPlaceholderText}>🏟️ Home Background Photo</Text>
+              </View>
+            )}
+
+            <Pressable style={styles.coverPhotoButton} onPress={uploadCoverPhoto}>
+              <Text style={styles.coverPhotoButtonText}>Upload Home Background Photo</Text>
+            </Pressable>
+          </View>
+
           {photoUrl ? (
             <Image source={{ uri: photoUrl }} style={styles.profileImage} />
           ) : (
@@ -309,6 +382,10 @@ export default function ProfileScreen() {
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Tools</Text>
+
+        <Pressable style={styles.toolButton} onPress={() => router.push('/training' as any)}>
+          <Text style={styles.toolText}>🏋️ Training & Fitness</Text>
+        </Pressable>
 
         <Pressable style={styles.toolButton} onPress={() => router.push('/studio' as any)}>
           <Text style={styles.toolText}>🎙️ Open Soccer Daily Studio</Text>
@@ -528,4 +605,46 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '900',
   },
+  coverPhotoBox: {
+    width: '100%',
+    backgroundColor: '#111C2E',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    borderRadius: 20,
+    padding: 12,
+    marginBottom: 18,
+  },
+  coverPhotoPreview: {
+    width: '100%',
+    height: 150,
+    borderRadius: 16,
+    marginBottom: 10,
+  },
+  coverPhotoPlaceholder: {
+    width: '100%',
+    height: 150,
+    borderRadius: 16,
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  coverPhotoPlaceholderText: {
+    color: '#CBD5E1',
+    fontWeight: '800',
+  },
+  coverPhotoButton: {
+    backgroundColor: '#FFD166',
+    padding: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  coverPhotoButtonText: {
+    color: '#07111F',
+    fontWeight: '900',
+    fontSize: 14,
+  },
+
 });
