@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import {collection, doc, getDoc, getDocs, limit, orderBy, query} from 'firebase/firestore';
 import { useCallback, useRef, useState } from 'react';
 import { db } from '../../firebase/config';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const languages = [
   { code: 'en', label: 'English' },
@@ -166,6 +166,7 @@ export default function HomeScreen() {
   const [showLanguages, setShowLanguages] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [homePhotoUrl, setHomePhotoUrl] = useState('');
+  const [homeCoverPhotoUrl, setHomeCoverPhotoUrl] = useState('');
   const [homeClubTeam, setHomeClubTeam] = useState('');
   const [homeNationalTeam, setHomeNationalTeam] = useState('');
   const searchInputRef = useRef<TextInput>(null);
@@ -189,9 +190,15 @@ export default function HomeScreen() {
       const snap = await getDocs(q);
       let unreadCount = 0;
 
+      const user = getAuth().currentUser;
+      const currentEmail = user?.email || '';
+
       snap.docs.forEach((docSnap) => {
         const data: any = docSnap.data();
-        if (!data.read) {
+        const belongsToMe =
+          !data.targetEmail || data.targetEmail === currentEmail;
+
+        if (!data.read && belongsToMe) {
           unreadCount += 1;
         }
       });
@@ -216,6 +223,7 @@ export default function HomeScreen() {
       if (snap.exists()) {
         const data = snap.data();
         setHomePhotoUrl(data.photoUrl || '');
+          setHomeCoverPhotoUrl(data.coverPhotoUrl || '');
         setHomeClubTeam(data.favoriteClubTeam || localClub || '');
         setHomeNationalTeam(data.favoriteNationalTeam || localNational || '');
       }
@@ -277,6 +285,10 @@ export default function HomeScreen() {
   const selectedLanguage =
     languageOptions.find((item) => item.code === language) || languageOptions[0];
 
+  const homeUser = getAuth().currentUser;
+  const homeUserName =
+    homeUser?.displayName || homeUser?.email?.split('@')[0] || 'Soccer Fan';
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.homeLanguageBox}>
@@ -334,28 +346,55 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.hero}>
-        <Text style={styles.logo}>⚽</Text>
-        <Text style={styles.appName}>{t.app}</Text>
-        <Text style={styles.title}>{t.welcome}</Text>
-        <Text style={styles.subtitle}>{t.hero}</Text>
-      </View>
+      {(homeCoverPhotoUrl || homePhotoUrl) ? (
+        <ImageBackground
+          source={{ uri: homeCoverPhotoUrl || homePhotoUrl }}
+          style={styles.personalHero}
+          imageStyle={styles.personalHeroImage}
+        >
+          <View style={styles.personalHeroOverlay}>
+            <View style={styles.personalHeroTop}>
+              <Text style={styles.personalAppName}>⚽ {t.app}</Text>
+              <Text style={styles.personalWelcome}>My Soccer Home</Text>
+            </View>
 
-      <View style={styles.homeProfileCard}>
-        {homePhotoUrl ? (
-          <Image source={{ uri: homePhotoUrl }} style={styles.homeAvatar} />
-        ) : (
-          <View style={styles.homeAvatarFallback}>
-            <Text style={styles.homeAvatarText}>⚽</Text>
+            <View style={styles.personalHeroBottom}>
+              {homePhotoUrl ? (
+                <Image source={{ uri: homePhotoUrl }} style={styles.personalAvatar} />
+              ) : (
+                <View style={styles.personalAvatarFallback}>
+                  <Text style={styles.personalAvatarText}>⚽</Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.personalName}>{homeUserName}</Text>
+                <Text style={styles.personalBadge}>🏟️ Club: {homeClubTeam || 'Not selected'}</Text>
+                <Text style={styles.personalBadge}>🌎 National: {homeNationalTeam || 'Not selected'}</Text>
+                <Text style={styles.personalBadge}>🌐 Language: {selectedLanguage.flag} {selectedLanguage.label}</Text>
+              </View>
+            </View>
           </View>
-        )}
+        </ImageBackground>
+      ) : (
+        <View style={styles.personalHeroFallback}>
+          <View style={styles.personalHeroTop}>
+            <Text style={styles.personalAppName}>⚽ {t.app}</Text>
+            <Text style={styles.personalWelcome}>My Soccer Home</Text>
+          </View>
 
-        <View style={{ flex: 1 }}>
-          <Text style={styles.homeProfileTitle}>My Soccer Profile</Text>
-          <Text style={styles.homeProfileText}>Club: {homeClubTeam || 'Not selected'}</Text>
-          <Text style={styles.homeProfileText}>National: {homeNationalTeam || 'Not selected'}</Text>
+          <View style={styles.personalHeroBottom}>
+            <View style={styles.personalAvatarFallback}>
+              <Text style={styles.personalAvatarText}>⚽</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.personalName}>{homeUserName}</Text>
+              <Text style={styles.personalBadge}>🏟️ Club: {homeClubTeam || 'Not selected'}</Text>
+              <Text style={styles.personalBadge}>🌎 National: {homeNationalTeam || 'Not selected'}</Text>
+                <Text style={styles.personalBadge}>🌐 Language: {selectedLanguage.flag} {selectedLanguage.label}</Text>
+            </View>
+          </View>
         </View>
-      </View>
+      )}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.quick}</Text>
@@ -373,12 +412,7 @@ export default function HomeScreen() {
 
           <Pressable style={styles.quickButton} onPress={() => router.push('/fan-wall' as any)}>
             <Text style={styles.quickIcon}>🔥</Text>
-            <Text style={styles.quickText}>{t.fanWall}</Text>
-          </Pressable>
-
-          <Pressable style={styles.quickButton} onPress={() => router.push('/fans-club' as any)}>
-            <Text style={styles.quickIcon}>🏟️</Text>
-            <Text style={styles.quickText}>Fans Club</Text>
+            <Text style={styles.quickText}>Fan Zone</Text>
           </Pressable>
 
           <Pressable style={styles.quickButton} onPress={() => router.push('/tv' as any)}>
@@ -396,15 +430,21 @@ export default function HomeScreen() {
             <Text style={styles.quickText}>{t.stats}</Text>
           </Pressable>
 
-          <Pressable style={[styles.quickButton, styles.leaguesQuickButton]} onPress={() => router.push('/leagues-stats' as any)}>
-            <Text style={styles.quickIcon}>🏆</Text>
-            <Text style={styles.quickText}>Leagues & Stats</Text>
+          
+
+          <Pressable style={styles.quickButton} onPress={() => router.push('/daily-challenge' as any)}>
+            <Text style={styles.quickIcon}>🔥</Text>
+            <Text style={styles.quickText}>Daily Challenge</Text>
           </Pressable>
 
-          <Pressable style={styles.quickButton} onPress={() => router.push('/leaderboard' as any)}>
-            <Text style={styles.quickIcon}>🥇</Text>
-            <Text style={styles.quickText}>Leaderboard</Text>
+          
+
+          <Pressable style={styles.quickButton} onPress={() => router.push('/training' as any)}>
+            <Text style={styles.quickIcon}>🏋️</Text>
+            <Text style={styles.quickText}>Training & Fitness</Text>
           </Pressable>
+
+          
           {searchText.trim().toLowerCase() === 'handler' && (
             <Pressable style={[styles.quickButton, styles.adminQuickButton]} onPress={() => router.push('/admin' as any)}>
               <Text style={styles.quickIcon}>🛡️</Text>
@@ -618,6 +658,92 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  personalHero: {
+    height: 285,
+    borderRadius: 28,
+    overflow: 'hidden',
+    marginBottom: 18,
+    backgroundColor: '#111C2E',
+    borderWidth: 1,
+    borderColor: '#22314A',
+  },
+  personalHeroImage: {
+    borderRadius: 28,
+  },
+  personalHeroOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(7, 17, 31, 0.55)',
+    padding: 18,
+    justifyContent: 'space-between',
+  },
+  personalHeroFallback: {
+    height: 285,
+    borderRadius: 28,
+    marginBottom: 18,
+    backgroundColor: '#111C2E',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    padding: 18,
+    justifyContent: 'space-between',
+  },
+  personalHeroTop: {
+    alignItems: 'flex-start',
+  },
+  personalAppName: {
+    color: '#FFD166',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  personalWelcome: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: '900',
+    marginTop: 8,
+  },
+  personalHeroBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 17, 31, 0.72)',
+    borderRadius: 22,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+  },
+  personalAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#FFD166',
+  },
+  personalAvatarFallback: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginRight: 12,
+    backgroundColor: '#07111F',
+    borderWidth: 2,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  personalAvatarText: {
+    fontSize: 30,
+  },
+  personalName: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  personalBadge: {
+    color: '#CBD5E1',
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+  },
+
   card: {
     backgroundColor: '#111C2E',
     borderWidth: 1,
