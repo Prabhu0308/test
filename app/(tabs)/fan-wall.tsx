@@ -961,6 +961,13 @@ export default function FanWallScreen() {
       <Text style={styles.subtitle}>Fan Wall + Fans Club in one place</Text>
 
       <View style={styles.myFanRoomCard}>
+        <View pointerEvents="none" style={styles.myRoomPattern}>
+          <Text style={[styles.myRoomBallBig, { top: -18, right: -12 }]}>⚽</Text>
+          <Text style={[styles.myRoomBallSmall, { bottom: 18, left: 18 }]}>⚽</Text>
+          <View style={styles.myRoomFieldLineOne} />
+          <View style={styles.myRoomFieldLineTwo} />
+          <View style={styles.myRoomCenterCircle} />
+        </View>
         <View style={styles.myFanRoomTop}>
           {myFanPhotoUrl ? (
             <ExpoImage source={{ uri: myFanPhotoUrl }} style={styles.myFanAvatar} contentFit="cover" />
@@ -1908,7 +1915,70 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
     elevation: 5,
+    position: 'relative',
+    overflow: 'hidden',
   },
+  myRoomPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  myRoomBall: {
+    position: 'absolute',
+    fontSize: 34,
+    opacity: 0.06,
+  },
+
+  myRoomPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  myRoomBallBig: {
+    position: 'absolute',
+    fontSize: 118,
+    opacity: 0.16,
+    transform: [{ rotate: '-14deg' }],
+  },
+  myRoomBallSmall: {
+    position: 'absolute',
+    fontSize: 58,
+    opacity: 0.14,
+    transform: [{ rotate: '12deg' }],
+  },
+  myRoomFieldLineOne: {
+    position: 'absolute',
+    left: -20,
+    right: -20,
+    top: 58,
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    transform: [{ rotate: '-8deg' }],
+  },
+  myRoomFieldLineTwo: {
+    position: 'absolute',
+    left: -20,
+    right: -20,
+    bottom: 54,
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.11)',
+    transform: [{ rotate: '8deg' }],
+  },
+  myRoomCenterCircle: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.12)',
+    right: 12,
+    bottom: -48,
+  },
+
   myFanRoomTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2383,17 +2453,34 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', marginBottom: 12 },
   roomButton: {
-    backgroundColor: '#F3F6FB',
-    borderWidth: 1,
-    borderColor: '#2B3D5E',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    marginBottom: 10,
+    backgroundColor: '#07111F',
+    borderRadius: 24,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 209, 102, 0.28)',
+    paddingVertical: 20,
+    paddingHorizontal: 22,
+    marginBottom: 14,
+    shadowColor: '#000000',
+    shadowOpacity: 0.14,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
-  followingButton: { borderColor: '#FFD166', backgroundColor: '#2A1F12' },
-  roomText: { color: '#FFD166', fontSize: 16, fontWeight: '900' },
-  roomSubtext: { color: '#A7B0C0', fontSize: 12, marginTop: 4 },
+  followingButton: {
+    backgroundColor: '#112015',
+    borderColor: '#34D399',
+  },
+  roomText: {
+    color: '#F8FAFC',
+    fontSize: 18,
+    fontWeight: '900',
+    marginBottom: 7,
+  },
+  roomSubtext: {
+    color: '#AAB6CA',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   backButton: { marginBottom: 12 },
   backText: { color: '#FFD166', fontSize: 15, fontWeight: '900' },
 
