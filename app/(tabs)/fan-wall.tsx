@@ -2090,14 +2090,14 @@ const styles = StyleSheet.create({
   subtitle: { color: '#A7B0C0', fontSize: 16, marginBottom: 14 },
 
   fanHubCard: {
-    backgroundColor: '#0A1424',
+    backgroundColor: '#081322',
     borderRadius: 28,
-    borderWidth: 1.3,
-    borderColor: 'rgba(255, 209, 102, 0.42)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(212, 175, 55, 0.45)',
     padding: 16,
     marginBottom: 18,
-    shadowColor: '#FFD166',
-    shadowOpacity: 0.14,
+    shadowColor: '#D4AF37',
+    shadowOpacity: 0.16,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 7,
@@ -2116,7 +2116,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   fanHubTitle: {
-    color: '#FFD166',
+    color: '#E8C766',
     fontSize: 23,
     fontWeight: '900',
     marginTop: 3,
@@ -2125,7 +2125,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   fanHubSubtitle: {
-    color: '#B8C4D8',
+    color: '#AEBBD0',
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
@@ -2139,10 +2139,10 @@ const styles = StyleSheet.create({
   fanHubButton: {
     width: '31.5%',
     minHeight: 102,
-    backgroundColor: '#07111F',
+    backgroundColor: '#06101D',
     borderRadius: 20,
     borderWidth: 1.2,
-    borderColor: '#24344F',
+    borderColor: '#243A5C',
     paddingVertical: 12,
     paddingHorizontal: 7,
     alignItems: 'center',
@@ -2150,10 +2150,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   fanHubButtonActive: {
-    backgroundColor: '#FFD166',
-    borderColor: '#FFD166',
-    shadowColor: '#FFD166',
-    shadowOpacity: 0.28,
+    backgroundColor: '#C9A227',
+    borderColor: '#F2D675',
+    shadowColor: '#F2D675',
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
@@ -2163,23 +2163,23 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   fanHubLabel: {
-    color: '#FFFFFF',
+    color: '#F5F7FB',
     fontSize: 12,
     fontWeight: '900',
     textAlign: 'center',
   },
   fanHubLabelActive: {
-    color: '#07111F',
+    color: '#06101D',
   },
   fanHubMeta: {
-    color: '#94A3B8',
+    color: '#8FA3C8',
     fontSize: 10,
     fontWeight: '800',
     marginTop: 4,
     textAlign: 'center',
   },
   fanHubMetaActive: {
-    color: '#07111F',
+    color: '#06101D',
   },
 
   searchInput: {
