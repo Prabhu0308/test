@@ -159,6 +159,81 @@ const text: any = {
   },
 };
 
+
+const homeUi: any = {
+  en: {
+    dailyChallenge: 'Daily Challenge',
+    trainingFitness: 'Training & Fitness',
+    tvMiniLabel: 'WATCH ON YOUTUBE',
+    tvTitle: 'Soccer Daily TV',
+    tvDescription: '{ui.tvDescription}',
+    tvButton: 'Open YouTube Channel',
+    tvNote: '{ui.tvNote}',
+    searchPlaceholder: '{ui.searchPlaceholder}',
+  },
+  es: {
+    dailyChallenge: 'Reto diario',
+    trainingFitness: 'Entrenamiento y condición física',
+    tvMiniLabel: 'VER EN YOUTUBE',
+    tvTitle: 'Soccer Daily TV',
+    tvDescription: 'Reacciones de fans, predicciones, charlas de partidos, ideas de entrenamiento y novedades beta de Soccer Daily.',
+    tvButton: 'Abrir canal de YouTube',
+    tvNote: 'Nuevos videos y actualizaciones beta llegarán pronto.',
+    searchPlaceholder: 'Buscar equipos, noticias, fans...',
+  },
+  ne: {
+    dailyChallenge: 'दैनिक फुटबल चुनौती',
+    trainingFitness: 'तालिम र फिटनेस',
+    tvMiniLabel: 'YOUTUBE मा हेर्नुहोस्',
+    tvTitle: 'Soccer Daily TV',
+    tvDescription: 'फ्यान प्रतिक्रिया, भविष्यवाणी, म्याच चर्चा, तालिम सुझाव र Soccer Daily beta अपडेटहरू हेर्नुहोस्।',
+    tvButton: 'YouTube च्यानल खोल्नुहोस्',
+    tvNote: 'नयाँ भिडियो र beta अपडेटहरू चाँडै आउँदैछन्।',
+    searchPlaceholder: 'टिम, समाचार, फ्यान खोज्नुहोस्...',
+  },
+  hi: {
+    dailyChallenge: 'दैनिक फुटबॉल चुनौती',
+    trainingFitness: 'ट्रेनिंग और फिटनेस',
+    tvMiniLabel: 'YOUTUBE पर देखें',
+    tvTitle: 'Soccer Daily TV',
+    tvDescription: 'फैन रिएक्शन, भविष्यवाणी, मैच चर्चा, ट्रेनिंग आइडिया और Soccer Daily beta अपडेट देखें।',
+    tvButton: 'YouTube चैनल खोलें',
+    tvNote: 'नए वीडियो और beta अपडेट जल्द आएँगे।',
+    searchPlaceholder: 'टीम, खबरें, फैंस खोजें...',
+  },
+  pt: {
+    dailyChallenge: 'Desafio diário',
+    trainingFitness: 'Treino e condicionamento',
+    tvMiniLabel: 'ASSISTA NO YOUTUBE',
+    tvTitle: 'Soccer Daily TV',
+    tvDescription: 'Reações dos fãs, previsões, conversas sobre jogos, ideias de treino e atualizações beta do Soccer Daily.',
+    tvButton: 'Abrir canal no YouTube',
+    tvNote: 'Novos vídeos e atualizações beta em breve.',
+    searchPlaceholder: 'Buscar times, notícias, fãs...',
+  },
+  fr: {
+    dailyChallenge: 'Défi quotidien',
+    trainingFitness: 'Entraînement et forme',
+    tvMiniLabel: 'REGARDER SUR YOUTUBE',
+    tvTitle: 'Soccer Daily TV',
+    tvDescription: 'Réactions des fans, prédictions, discussions de match, idées d’entraînement et mises à jour beta de Soccer Daily.',
+    tvButton: 'Ouvrir la chaîne YouTube',
+    tvNote: 'Nouvelles vidéos et mises à jour beta bientôt disponibles.',
+    searchPlaceholder: 'Rechercher équipes, actus, fans...',
+  },
+  ar: {
+    dailyChallenge: 'تحدي كرة القدم اليومي',
+    trainingFitness: 'التدريب واللياقة',
+    tvMiniLabel: 'شاهد على يوتيوب',
+    tvTitle: 'Soccer Daily TV',
+    tvDescription: 'ردود فعل المشجعين، التوقعات، نقاشات المباريات، أفكار التدريب، وتحديثات Soccer Daily التجريبية.',
+    tvButton: 'افتح قناة يوتيوب',
+    tvNote: 'فيديوهات جديدة وتحديثات تجريبية قريبًا.',
+    searchPlaceholder: 'ابحث عن الفرق، الأخبار، المشجعين...',
+  },
+};
+
+
 export default function HomeScreen() {
   async function openProtectedRoute(routeName: string) {
     const manualLogout = await AsyncStorage.getItem('soccerDailyManualLogout');
@@ -305,6 +380,8 @@ export default function HomeScreen() {
 
   const selectedLanguage =
     languageOptions.find((item) => item.code === language) || languageOptions[0];
+
+  const ui = homeUi[language] || homeUi.en;
 
   const homeUser = getAuth().currentUser;
   const homeUserName =
@@ -455,14 +532,14 @@ export default function HomeScreen() {
 
           <Pressable style={styles.quickButton} onPress={() => router.push('/daily-challenge' as any)}>
             <Text style={styles.quickIcon}>🔥</Text>
-            <Text style={styles.quickText}>Daily Challenge</Text>
+            <Text style={styles.quickText}>{ui.dailyChallenge}</Text>
           </Pressable>
 
           
 
           <Pressable style={styles.quickButton} onPress={() => router.push('/training' as any)}>
             <Text style={styles.quickIcon}>🏋️</Text>
-            <Text style={styles.quickText}>Training & Fitness</Text>
+            <Text style={styles.quickText}>{ui.trainingFitness}</Text>
           </Pressable>
 
           
@@ -483,18 +560,16 @@ export default function HomeScreen() {
           </View>
 
           <View style={{ flex: 1 }}>
-            <Text style={styles.tvMiniLabel}>WATCH ON YOUTUBE</Text>
-            <Text style={styles.tvTitle}>Soccer Daily TV</Text>
+            <Text style={styles.tvMiniLabel}>{ui.tvMiniLabel}</Text>
+            <Text style={styles.tvTitle}>{ui.tvTitle}</Text>
           </View>
         </View>
 
-        <Text style={styles.tvDescription}>
-          Fan reactions, predictions, match talk, training ideas, and Soccer Daily beta updates.
-        </Text>
+        <Text style={styles.tvDescription}>{ui.tvDescription}</Text>
 
         <Pressable style={styles.youtubeMegaButton} onPress={openSoccerDailyYouTube}>
           <Text style={styles.youtubePlay}>▶</Text>
-          <Text style={styles.youtubeMegaText}>Open YouTube Channel</Text>
+          <Text style={styles.youtubeMegaText}>{ui.tvButton}</Text>
         </Pressable>
       </View>
 
