@@ -956,7 +956,7 @@ export default function FanWallScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: 56, paddingBottom: 180 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: 56, paddingBottom: 180 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
       <Text style={styles.title}>🔥 Fan Zone</Text>
       <Text style={styles.subtitle}>Fan Wall + Fans Club in one place</Text>
 
@@ -1179,7 +1179,9 @@ export default function FanWallScreen() {
         returnKeyType="search"
         enablesReturnKeyAutomatically
         onSubmitEditing={() => Keyboard.dismiss()}
-      />
+      
+            blurOnSubmit={true}
+          />
 
       <View style={styles.filterRow}>
         <Pressable style={[styles.filterChip, !activeRoom && styles.activeChip]} onPress={() => setActiveRoom('')}>
@@ -1266,7 +1268,19 @@ export default function FanWallScreen() {
         <View style={styles.clubPickerCard}>
           {!selectedCountry ? (
             <>
-              <Text style={styles.sectionTitle}>{search ? '🔎 Club / Country Results' : '🌎 Pick Country'}</Text>
+                      {selectedCountry ? (
+          <Pressable
+            style={styles.clubBackButton}
+            onPress={() => {
+              setSelectedCountry(null);
+              setShowClubPicker(true);
+            }}
+          >
+            <Text style={styles.clubBackButtonText}>← Back to Countries</Text>
+          </Pressable>
+        ) : null}
+
+<Text style={styles.sectionTitle}>{search ? '🔎 Club / Country Results' : '🌎 Pick Country'}</Text>
 
               {!search ? (
                 <>
@@ -1599,7 +1613,10 @@ export default function FanWallScreen() {
 
                   {editingId === post.id ? (
                     <>
-                      <TextInput style={styles.editInput} value={editText} onChangeText={setEditText} multiline />
+                      <TextInput style={styles.editInput} value={editText} onChangeText={setEditText} multiline 
+          
+          
+          />
 
                       <View style={styles.row}>
                         <Pressable style={styles.smallButton} onPress={() => saveEdit(post.id)}>
@@ -1681,7 +1698,10 @@ export default function FanWallScreen() {
                         onChangeText={setCommentText}
                         returnKeyType="done"
                         onSubmitEditing={() => Keyboard.dismiss()}
-                      />
+                      
+          
+          
+          />
 
                       <Pressable style={styles.commentButton} onPress={() => submitComment(post)}>
                         <Text style={styles.commentButtonText}>Comment</Text>
@@ -2452,6 +2472,28 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', marginBottom: 12 },
+  clubBackButton: {
+    backgroundColor: '#FFD166',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#D6A73A',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  clubBackButtonText: {
+    color: '#07111F',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+
   roomButton: {
     backgroundColor: '#07111F',
     borderRadius: 24,
@@ -2707,7 +2749,14 @@ const styles = StyleSheet.create({
   likedAction: { color: '#FFD166', fontSize: 13, fontWeight: '900' },
   deleteAction: { color: '#FF6B6B', fontSize: 13, fontWeight: '900' },
 
-  commentBox: { marginTop: 14, backgroundColor: '#F3F6FB', borderRadius: 14, padding: 12 },
+  commentBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 14,
+    marginTop: 12,
+  },
   commentInput: {
     backgroundColor: '#FFFFFF',
     color: '#07111F',
@@ -2726,6 +2775,17 @@ const styles = StyleSheet.create({
   commentsList: { marginTop: 12, gap: 8 },
   commentCard: { backgroundColor: '#F3F6FB', borderRadius: 14, padding: 12 },
   commentUser: { color: '#FFD166', fontSize: 13, fontWeight: '900' },
-  commentBadge: { color: '#FFD166', fontSize: 11, fontWeight: '800', marginTop: 3 },
-  commentText: { color: '#D8DEE9', fontSize: 14, marginTop: 5, lineHeight: 20 },
+  commentBadge: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  commentText: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 8,
+    lineHeight: 20,
+  },
 });
