@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import {
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SOCCER_DAILY_YOUTUBE } from '../constants/socialLinks';
 
 const weeklyPlan = [
   {
@@ -91,19 +93,12 @@ const weeklyPlan = [
   },
 ];
 
-const SOCCER_DAILY_YOUTUBE = 'https://www.youtube.com/channel/UC-FNALunTqvcdrlFMo4nVfA';
 
 async function openSoccerDailyYouTube() {
   try {
-    const canOpen = await Linking.canOpenURL(SOCCER_DAILY_YOUTUBE);
-    if (!canOpen) {
-      console.log('YouTube link could not open:', SOCCER_DAILY_YOUTUBE);
-      return;
-    }
-
     await Linking.openURL(SOCCER_DAILY_YOUTUBE);
   } catch (error) {
-    console.log('YouTube link could not open:', SOCCER_DAILY_YOUTUBE);
+    console.log('Could not open Soccer Daily YouTube:', error);
   }
 }
 
