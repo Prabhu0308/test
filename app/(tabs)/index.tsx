@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import {collection, doc, getDoc, getDocs, limit, orderBy, query} from 'firebase/firestore';
 import { useCallback, useRef, useState } from 'react';
 import { db } from '../../firebase/config';
+import { SOCCER_DAILY_FACEBOOK, SOCCER_DAILY_THREADS, SOCCER_DAILY_X, SOCCER_DAILY_YOUTUBE } from '../../constants/socialLinks';
 import { Image, ImageBackground, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const languages = [
@@ -235,6 +236,14 @@ const homeUi: any = {
 
 
 export default function HomeScreen() {
+  async function openSocialLink(url: string) {
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      console.log('Could not open social link:', url);
+    }
+  }
+
   async function openProtectedRoute(routeName: string) {
     const manualLogout = await AsyncStorage.getItem('soccerDailyManualLogout');
     const auth = getAuth();
@@ -260,7 +269,7 @@ export default function HomeScreen() {
 
   async function openSoccerDailyYouTube() {
     try {
-      await Linking.openURL('https://www.youtube.com/channel/UC-FNALunTqvcdrlFMo4nVfA');
+      await Linking.openURL(SOCCER_DAILY_YOUTUBE);
     } catch (error) {
       console.log('YouTube open error:', error);
     }
@@ -573,16 +582,42 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.socialCard}>
+        <Text style={styles.socialTitle}>Follow Soccer Daily</Text>
+        <Text style={styles.socialSub}>Official updates, videos, and community posts</Text>
+
+        <View style={styles.socialRow}>
+          <Pressable style={styles.socialButton} onPress={() => openSocialLink(SOCCER_DAILY_YOUTUBE)}>
+            <Text style={styles.socialButtonText}>▶ YouTube</Text>
+          </Pressable>
+
+          <Pressable style={styles.socialButton} onPress={() => openSocialLink(SOCCER_DAILY_FACEBOOK)}>
+            <Text style={styles.socialButtonText}>f Facebook</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.socialRow}>
+          <Pressable style={styles.socialButton} onPress={() => openSocialLink(SOCCER_DAILY_THREADS)}>
+            <Text style={styles.socialButtonText}>@ Threads</Text>
+          </Pressable>
+
+          <Pressable style={styles.socialButton} onPress={() => openSocialLink(SOCCER_DAILY_X)}>
+            <Text style={styles.socialButtonText}>𝕏 X</Text>
+          </Pressable>
+        </View>
+      </View>
+
       <View style={styles.featuredCard}>
         <Text style={styles.featuredLabel}>{t.featured}</Text>
         <Text style={styles.matchTitle}>{t.matchup}</Text>
         <Text style={styles.line}>{t.matchText}</Text>
       </View>
 
-      <View style={styles.card}>
+      <Pressable style={styles.card} onPress={() => router.push('/community-guidelines' as any)}>
         <Text style={styles.cardTitle}>⚽ {t.community}</Text>
         <Text style={styles.line}>{t.communityText}</Text>
-      </View>
+        <Text style={styles.cardLink}>Read Community Rules →</Text>
+      </Pressable>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>🚀 {t.coming}</Text>
@@ -1049,6 +1084,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 8,
   },
+  cardLink: {
+    color: '#FFD166',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 10,
+  },
+
   line: {
     color: 'white',
     fontSize: 15,
@@ -1167,4 +1209,45 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
+  socialCard: {
+    backgroundColor: '#0B1526',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+    padding: 16,
+    marginTop: 16,
+    marginBottom: 18,
+  },
+  socialTitle: {
+    color: '#FFD166',
+    fontSize: 18,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  socialSub: {
+    color: '#DDE7F0',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  socialButton: {
+    flex: 1,
+    backgroundColor: '#07111F',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  socialButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+
 });
