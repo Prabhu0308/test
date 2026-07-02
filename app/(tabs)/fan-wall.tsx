@@ -262,6 +262,8 @@ export default function FanWallScreen() {
   const [followedTeams, setFollowedTeams] = useState<string[]>([]);
   const [followingUsers, setFollowingUsers] = useState<string[]>([]);
   const [showFollowingList, setShowFollowingList] = useState(false);
+  const [showFollowedTeamsList, setShowFollowedTeamsList] = useState(false);
+  const [showMyPostsOnly, setShowMyPostsOnly] = useState(false);
   const [followerCounts, setFollowerCounts] = useState<any>({});
   const [activeRoom, setActiveRoom] = useState(routeRoom);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -805,6 +807,19 @@ export default function FanWallScreen() {
   const myFanPhotoUrl = myFanAccount?.photoUrl || '';
   const myMainRoom = activeRoom || savedFanBadge || 'General Fan Wall';
 
+  function openFollowingUsersList() {
+    setShowFollowingList((prev) => !prev);
+  }
+
+  function openFollowedTeamsList() {
+    setShowFollowedTeamsList((prev) => !prev);
+  }
+
+  function openMyPostsList() {
+    setShowMyPostsOnly((prev) => !prev);
+  }
+
+
   async function reportPost(post: FanPost) {
     const auth = getAuth();
     const currentUser = auth.currentUser;
@@ -900,21 +915,59 @@ export default function FanWallScreen() {
         </View>
 
         <View style={styles.myFanStatsRow}>
-          <View style={styles.myFanStatBox}>
+          <Pressable style={styles.myFanStatBox} onPress={openFollowedTeamsList}>
             <Text style={styles.myFanStatNumber}>{followedTeams.length}</Text>
-            <Text style={styles.myFanStatLabel}>Teams</Text>
-          </View>
+            <Text style={styles.myFanStatLabel}>Teams {showFollowedTeamsList ? '▲' : '▼'}</Text>
+          </Pressable>
 
-          <View style={styles.myFanStatBox}>
+          <Pressable style={styles.myFanStatBox} onPress={openFollowingUsersList}>
             <Text style={styles.myFanStatNumber}>{followingUsers.length}</Text>
             <Text style={styles.myFanStatLabel}>Following</Text>
-          </View>
+          </Pressable>
 
-          <View style={styles.myFanStatBox}>
+          <Pressable style={styles.myFanStatBox} onPress={openMyPostsList}>
             <Text style={styles.myFanStatNumber}>{visiblePosts.length}</Text>
-            <Text style={styles.myFanStatLabel}>Posts</Text>
-          </View>
+            <Text style={styles.myFanStatLabel}>Posts {showMyPostsOnly ? '▲' : '▼'}</Text>
+          </Pressable>
         </View>
+
+        {showFollowedTeamsList ? (
+          <View style={styles.compactFollowPanel}>
+            <Text style={styles.compactFollowTitle}>Teams you follow</Text>
+            {followedTeams.length ? (
+              <View style={styles.compactChipWrap}>
+                {followedTeams.map((team) => (
+                  <Pressable
+                    key={team}
+                    style={[styles.compactTeamChip, activeRoom === team && styles.compactTeamChipActive]}
+                    onPress={() => {
+                      setActiveRoom(team);
+                      setShowClubPicker(false);
+                    }}
+                  >
+                    <Text
+                      style={[styles.compactTeamChipText, activeRoom === team && styles.compactTeamChipTextActive]}
+                      numberOfLines={1}
+                    >
+                      {team}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.compactEmptyText}>No followed teams yet. Tap Pick / Follow Club.</Text>
+            )}
+          </View>
+        ) : null}
+
+        {showMyPostsOnly ? (
+          <View style={styles.compactFollowPanel}>
+            <Text style={styles.compactFollowTitle}>My posts</Text>
+            <Text style={styles.compactEmptyText}>
+              Showing posts in the current room below. Open All Fan Wall to see all posts.
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.myFanActionsRow}>
           <Pressable
@@ -947,7 +1000,7 @@ export default function FanWallScreen() {
 
         <Pressable
           style={styles.viewFollowingBigButton}
-          onPress={() => setShowFollowingList(!showFollowingList)}
+          onPress={openFollowingUsersList}
         >
           <Text style={styles.viewFollowingBigText}>
             👤 View Following Users ({followingUsers.length}) {showFollowingList ? '▲' : '▼'}
@@ -1011,7 +1064,7 @@ export default function FanWallScreen() {
 
         <Pressable
           style={styles.followingToggle}
-          onPress={() => setShowFollowingList(!showFollowingList)}
+          onPress={openFollowingUsersList}
         >
           <Text style={styles.followingTitle}>
             👤 Following Users ({followingUsers.length}) {showFollowingList ? '▲' : '▼'}
@@ -1699,10 +1752,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#07111F',
     borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: '#22314A',
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   myFanStatNumber: {
     color: '#FFFFFF',
@@ -1715,6 +1769,53 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 2,
   },
+  compactFollowPanel: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    borderRadius: 16,
+    padding: 10,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  compactFollowTitle: {
+    color: '#FFD166',
+    fontSize: 13,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  compactChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  compactTeamChip: {
+    maxWidth: '100%',
+    backgroundColor: '#0B1526',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+  },
+  compactTeamChipActive: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+  },
+  compactTeamChipText: {
+    color: '#DDE7F0',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  compactTeamChipTextActive: {
+    color: '#07111F',
+  },
+  compactEmptyText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
   myFanActionsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -1780,12 +1881,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F1B2D',
   },
   followingToggle: {
-    backgroundColor: 'rgba(255, 209, 102, 0.10)',
-    borderRadius: 16,
-    padding: 12,
+    backgroundColor: '#111C2E',
+    borderWidth: 1.5,
+    borderColor: '#FFD166',
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    marginTop: 14,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 209, 102, 0.25)',
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   followingHelp: {
     color: '#A7B0C0',
@@ -1794,32 +1902,36 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   followingListBox: {
-    backgroundColor: '#101D31',
-    borderRadius: 16,
-    padding: 10,
-    marginBottom: 14,
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    borderRadius: 14,
+    padding: 8,
+    marginTop: 8,
+    gap: 6,
   },
   followingPersonBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111C2E',
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 8,
+    backgroundColor: '#0B1526',
+    borderRadius: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#22314A',
   },
   followingAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#243044',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFD166',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 209, 102, 0.35)',
+    marginRight: 8,
   },
   followingAvatarText: {
-    color: '#FFD166',
+    color: '#07111F',
+    fontSize: 12,
     fontWeight: '900',
   },
   followingPersonInfo: {
@@ -1827,12 +1939,14 @@ const styles = StyleSheet.create({
   },
   followingPersonName: {
     color: '#FFFFFF',
-    fontWeight: '900',
+    fontSize: 12,
+    fontWeight: '800',
   },
   followingPersonSub: {
-    color: '#A7B0C0',
-    fontSize: 12,
-    marginTop: 2,
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 1,
   },
   container: { flex: 1, backgroundColor: '#07111F', padding: 20, paddingTop: 60 },
   title: { color: '#FFD166', fontSize: 34, fontWeight: '900', marginBottom: 6 },
@@ -2032,9 +2146,8 @@ const styles = StyleSheet.create({
 
   followingTitle: {
     color: '#FFD166',
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: '900',
-    marginTop: 14,
   },
   teamBadgeBox: {
     alignSelf: 'flex-start',
