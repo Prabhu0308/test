@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import {collection, doc, getDoc, getDocs, limit, orderBy, query} from 'firebase/firestore';
 import { useCallback, useRef, useState } from 'react';
 import { db } from '../../firebase/config';
-import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, ImageBackground, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const languages = [
   { code: 'en', label: 'English' },
@@ -182,6 +182,15 @@ export default function HomeScreen() {
   const [homeClubTeam, setHomeClubTeam] = useState('');
   const [homeNationalTeam, setHomeNationalTeam] = useState('');
   const searchInputRef = useRef<TextInput>(null);
+
+  async function openSoccerDailyYouTube() {
+    try {
+      await Linking.openURL('https://www.youtube.com/channel/UC-FNALunTqvcdrlFMo4nVfA');
+    } catch (error) {
+      console.log('YouTube open error:', error);
+    }
+  }
+
 
   useFocusEffect(
     useCallback(() => {
@@ -464,6 +473,29 @@ export default function HomeScreen() {
             </Pressable>
           )}
         </View>
+      </View>
+
+
+      <View style={styles.tvGlowCard}>
+        <View style={styles.tvTopRow}>
+          <View style={styles.tvIconCircle}>
+            <Text style={styles.tvIcon}>📺</Text>
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.tvMiniLabel}>WATCH ON YOUTUBE</Text>
+            <Text style={styles.tvTitle}>Soccer Daily TV</Text>
+          </View>
+        </View>
+
+        <Text style={styles.tvDescription}>
+          Fan reactions, predictions, match talk, training ideas, and Soccer Daily beta updates.
+        </Text>
+
+        <Pressable style={styles.youtubeMegaButton} onPress={openSoccerDailyYouTube}>
+          <Text style={styles.youtubePlay}>▶</Text>
+          <Text style={styles.youtubeMegaText}>Open YouTube Channel</Text>
+        </Pressable>
       </View>
 
       <View style={styles.featuredCard}>
@@ -775,6 +807,80 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
+
+  tvGlowCard: {
+    marginTop: 18,
+    marginBottom: 22,
+    padding: 22,
+    borderRadius: 30,
+    backgroundColor: '#101B2D',
+    borderWidth: 2,
+    borderColor: '#FFD166',
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  tvTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 14,
+  },
+  tvIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tvIcon: {
+    fontSize: 32,
+  },
+  tvMiniLabel: {
+    color: '#8FA3B8',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  tvTitle: {
+    color: '#FFD166',
+    fontSize: 30,
+    fontWeight: '900',
+    marginTop: 3,
+  },
+  tvDescription: {
+    color: '#E6EEF8',
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 18,
+  },
+  youtubeMegaButton: {
+    minHeight: 64,
+    borderRadius: 22,
+    backgroundColor: '#FFD166',
+    borderWidth: 2,
+    borderColor: '#FFE8A8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  youtubePlay: {
+    color: '#07111F',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  youtubeMegaText: {
+    color: '#07111F',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+
   leaguesQuickButton: {
     borderColor: '#FFD166',
   },

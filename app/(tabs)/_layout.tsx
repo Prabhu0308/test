@@ -46,18 +46,18 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="prediction"
+        name="fan-wall"
         options={{
-          title: 'Prediction',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🔮" focused={focused} />,
+          title: 'Fan Zone',
+          tabBarIcon: ({ focused }) => <TabIcon icon="🔥" focused={focused} />,
         }}
       />
 
       <Tabs.Screen
-        name="tv"
+        name="prediction"
         options={{
-          title: 'TV',
-          tabBarIcon: ({ focused }) => <TabIcon icon="📺" focused={focused} />,
+          title: 'Prediction',
+          tabBarIcon: ({ focused }) => <TabIcon icon="🔮" focused={focused} />,
         }}
       />
 
@@ -70,11 +70,11 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen name="news" options={{ href: null }} />
-      <Tabs.Screen name="fan-wall" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="leaderboard" options={{ href: null }} />
       <Tabs.Screen name="login" options={{ href: null }} />
       <Tabs.Screen name="leagues" options={{ href: null }} />
+      <Tabs.Screen name="tv" options={{ href: null }} />
     </Tabs>
   );
 }
