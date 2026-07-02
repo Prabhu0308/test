@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { ResizeMode, Video } from 'expo-av';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import {
@@ -44,6 +45,7 @@ type FanPost = {
   comments?: any[];
   gifUrl?: string;
   imageUrl?: string;
+  videoUrl?: string;
   createdAt?: any;
   editedAt?: any;
 };
@@ -254,6 +256,9 @@ export default function FanWallScreen() {
   const [postText, setPostText] = useState('');
   const [selectedGifUrl, setSelectedGifUrl] = useState('');
   const [selectedImageUri, setSelectedImageUri] = useState('');
+  const [selectedVideoUri, setSelectedVideoUri] = useState('');
+  const [selectedVideoDuration, setSelectedVideoDuration] = useState(0);
+  const [uploadingPostVideo, setUploadingPostVideo] = useState(false);
   const [uploadingPostPhoto, setUploadingPostPhoto] = useState(false);
   const [posts, setPosts] = useState<FanPost[]>([]);
   const [accounts, setAccounts] = useState<FanAccount[]>([]);
@@ -641,6 +646,74 @@ export default function FanWallScreen() {
     }
   }
 
+  async function pickFanPostVideo() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Please allow photo library access to choose a video.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        allowsEditing: true,
+        quality: 0.75,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+
+      const durationMs = asset.duration || 0;
+      const durationSeconds = durationMs / 1000;
+
+      if (durationMs && durationSeconds > 30) {
+        Alert.alert('Video too long', 'Please choose a video that is 30 seconds or shorter.');
+        return;
+      }
+
+      setSelectedImageUri('');
+      setSelectedVideoUri('');
+      setSelectedVideoDuration(0);
+      setSelectedVideoUri(asset.uri);
+      setSelectedVideoDuration(durationSeconds);
+    } catch (error) {
+      console.log('Pick video error:', error);
+      Alert.alert('Error', 'Could not choose video.');
+    }
+  }
+
+  async function uploadFanPostVideo() {
+    if (!selectedVideoUri) return '';
+
+    if (!currentUid) {
+      Alert.alert('Login required', 'Please login first.');
+      return '';
+    }
+
+    try {
+      setUploadingPostVideo(true);
+
+      const response = await fetch(selectedVideoUri);
+      const blob = await response.blob();
+
+      const videoRef = ref(storage, `fan-wall/${currentUid}/${Date.now()}.mp4`);
+      await uploadBytes(videoRef, blob, {
+        contentType: 'video/mp4',
+      });
+
+      return await getDownloadURL(videoRef);
+    } catch (error) {
+      console.log('Upload fan post video error:', error);
+      Alert.alert('Upload failed', 'Could not upload video.');
+      return '';
+    } finally {
+      setUploadingPostVideo(false);
+    }
+  }
+
   async function submitPost() {
     const finalGifUrl = selectedGifUrl || extractGifUrl(postText);
     const cleanText = removeGifUrl(postText).trim();
@@ -650,21 +723,24 @@ export default function FanWallScreen() {
       return;
     }
 
-    if (!cleanText && !finalGifUrl && !selectedImageUri) {
-      Alert.alert('Empty Post', 'Please write something or choose a GIF first.');
+    if (!cleanText && !finalGifUrl && !selectedImageUri && !selectedVideoUri) {
+      Alert.alert('Empty Post', 'Please write something, add a photo, add a video, or choose a GIF first.');
       return;
     }
 
     const badge = activeRoom || savedFanBadge || 'General Fan Wall';
     const uploadedImageUrl = await uploadFanPostPhoto();
+    const uploadedVideoUrl = await uploadFanPostVideo();
 
     if (selectedImageUri && !uploadedImageUrl) return;
+    if (selectedVideoUri && !uploadedVideoUrl) return;
 
     try {
       await addDoc(collection(db, 'fanWall'), {
         text: cleanText,
         gifUrl: finalGifUrl,
         imageUrl: uploadedImageUrl,
+        videoUrl: uploadedVideoUrl,
         userEmail: currentEmail,
         userId: currentUid,
         badge,
@@ -1513,6 +1589,38 @@ export default function FanWallScreen() {
           ) : null}
         </View>
 
+        <View style={styles.videoComposerBox}>
+          <Pressable style={styles.videoButton} onPress={pickFanPostVideo} disabled={uploadingPostVideo}>
+            <Text style={styles.videoButtonText}>
+              {uploadingPostVideo ? 'Uploading video...' : '🎥 Add 30s Video'}
+            </Text>
+          </Pressable>
+
+          {selectedVideoUri ? (
+            <View style={styles.videoPreviewBox}>
+              <Video
+                source={{ uri: selectedVideoUri }}
+                style={styles.videoPreview}
+                useNativeControls
+                resizeMode={ResizeMode.COVER}
+                isLooping={false}
+              />
+              <Text style={styles.videoLimitText}>
+                {selectedVideoDuration ? `${Math.round(selectedVideoDuration)}s selected` : 'Video selected'}
+              </Text>
+              <Pressable
+                style={styles.removePhotoButton}
+                onPress={() => {
+                  setSelectedVideoUri('');
+                  setSelectedVideoDuration(0);
+                }}
+              >
+                <Text style={styles.removePhotoText}>Remove Video</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+
         <View style={styles.gifPickerCard}>
           <Text style={styles.gifTitle}>🎞️ Add GIF</Text>
 
@@ -1649,6 +1757,16 @@ export default function FanWallScreen() {
                       ) : null}
                     </>
                   )}
+
+                  {post.videoUrl ? (
+                    <Video
+                      source={{ uri: post.videoUrl }}
+                      style={styles.postVideo}
+                      useNativeControls
+                      resizeMode={ResizeMode.COVER}
+                      isLooping={false}
+                    />
+                  ) : null}
 
                   {(post.gifUrl || extractGifUrl(post.text)) ? (
                     <ExpoImage
@@ -2157,6 +2275,53 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
   },
+  videoComposerBox: {
+    marginTop: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 12,
+  },
+  videoButton: {
+    backgroundColor: '#0B1526',
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoButtonText: {
+    color: '#FFD166',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  videoPreviewBox: {
+    marginTop: 12,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#E5E7EB',
+  },
+  videoPreview: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#000000',
+  },
+  videoLimitText: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '800',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+  },
+  postVideo: {
+    width: '100%',
+    height: 240,
+    borderRadius: 18,
+    marginTop: 12,
+    backgroundColor: '#000000',
+  },
+
   photoComposerBox: {
     marginTop: 10,
     marginBottom: 10,
