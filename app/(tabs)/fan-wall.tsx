@@ -196,6 +196,27 @@ function getCountryAccent(country: string) {
   return accents[country] || '#FFD166';
 }
 
+
+function getCountryJerseyTheme(country: string) {
+  const themes: Record<string, any> = {
+    USA: { border: '#60A5FA', stripe: '#60A5FA', jersey: '🇺🇸' },
+    Mexico: { border: '#34D399', stripe: '#34D399', jersey: '🇲🇽' },
+    England: { border: '#E5E7EB', stripe: '#E5E7EB', jersey: '🏴' },
+    Spain: { border: '#FBBF24', stripe: '#FBBF24', jersey: '🇪🇸' },
+    Germany: { border: '#F87171', stripe: '#F87171', jersey: '🇩🇪' },
+    France: { border: '#60A5FA', stripe: '#60A5FA', jersey: '🇫🇷' },
+    Italy: { border: '#34D399', stripe: '#34D399', jersey: '🇮🇹' },
+    Portugal: { border: '#34D399', stripe: '#34D399', jersey: '🇵🇹' },
+    Brazil: { border: '#FACC15', stripe: '#FACC15', jersey: '🇧🇷' },
+  };
+
+  return themes[country] || {
+    border: '#FFD166',
+    stripe: '#FFD166',
+    jersey: '⚽',
+  };
+}
+
 function extractGifUrl(value?: string) {
   if (!value) return '';
   const match = value.match(/https?:\/\/\S+?(?:\.gif|\.webp)(?:\?\S*)?/i);
@@ -1041,15 +1062,28 @@ export default function FanWallScreen() {
                     {popularCountryResults.map((country) => (
                       <Pressable
                         key={country}
-                        style={[styles.countryTile, { borderColor: getCountryAccent(country), shadowColor: getCountryAccent(country) }]}
+                        style={styles.countryTile}
                         onPress={() => {
                           setSelectedCountry(country);
                           setSearchText('');
                         }}
                       >
-                        <Text style={[styles.countryTileFlag, { textShadowColor: getCountryAccent(country), textShadowRadius: 8 }]}>{countryFlag(country)}</Text>
-                        <Text style={[styles.countryTileName, { color: getCountryAccent(country) }]}>{countryLabel(country)}</Text>
-                        <Text style={[styles.countryTileSub, { color: "#DDE7F0" }]}>Teams →</Text>
+                        <View
+                          style={[
+                            styles.countryAccentBar,
+                            { backgroundColor: getCountryAccent(country) },
+                          ]}
+                        />
+
+                        <Text style={styles.countryTileFlag}>
+                          {country === 'England' ? 'ENG' : countryFlag(country)}
+                        </Text>
+
+                        <Text style={styles.countryTileName} numberOfLines={1}>
+                          {countryLabel(country)}
+                        </Text>
+
+                        <Text style={styles.countryTileSub}>Teams →</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -1506,43 +1540,71 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 10,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   countryTile: {
     width: '31.5%',
-    minHeight: 132,
+    minHeight: 124,
     backgroundColor: '#07111F',
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1.4,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    marginBottom: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    marginBottom: 12,
     justifyContent: 'space-between',
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    overflow: 'hidden',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
+  jerseyBadge: {
+    width: 0,
+    height: 0,
+  },
+  jerseyBadgeText: {
+    fontSize: 0,
+  },
+
+  countryAccentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 5,
+  },
+  countryJerseyStripe: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    borderTopLeftRadius: 18,
+    borderBottomLeftRadius: 18,
+  },
+
   countryTileFlag: {
-    fontSize: 24,
-    marginBottom: 10,
+    fontSize: 22,
+    marginBottom: 8,
   },
   countryTileName: {
+    color: '#FFD166',
     fontSize: 15,
     fontWeight: '900',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   countryTileSub: {
+    color: '#DDE7F0',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   moreCountriesButton: {
     marginTop: 8,
     backgroundColor: '#2B3138',
-    borderRadius: 24,
-    borderWidth: 1.5,
+    borderRadius: 22,
+    borderWidth: 1,
     borderColor: 'rgba(255, 209, 102, 0.45)',
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
