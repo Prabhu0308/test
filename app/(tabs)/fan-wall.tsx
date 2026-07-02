@@ -217,6 +217,7 @@ export default function FanWallScreen() {
   const [savedFanBadge, setSavedFanBadge] = useState('');
   const [followedTeams, setFollowedTeams] = useState<string[]>([]);
   const [followingUsers, setFollowingUsers] = useState<string[]>([]);
+  const [showFollowingList, setShowFollowingList] = useState(false);
   const [followerCounts, setFollowerCounts] = useState<any>({});
   const [activeRoom, setActiveRoom] = useState(routeRoom);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -760,6 +761,49 @@ export default function FanWallScreen() {
   const myFanPhotoUrl = myFanAccount?.photoUrl || '';
   const myMainRoom = activeRoom || savedFanBadge || 'General Fan Wall';
 
+  async function reportPost(post: FanPost) {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      Alert.alert('Login needed', 'Please login before reporting.');
+      return;
+    }
+
+    Alert.alert(
+      'Report this post?',
+      'Our team will review this post for safety.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await addDoc(collection(db, 'reports'), {
+                postId: post.id,
+                postText: post.text || '',
+                postImageUrl: post.imageUrl || '',
+                postOwnerEmail: post.userEmail || '',
+                postOwnerId: post.userId || '',
+                reporterEmail: currentUser.email || '',
+                reporterId: currentUser.uid,
+                reason: 'User reported from Fan Zone',
+                status: 'active',
+                createdAt: serverTimestamp(),
+              });
+
+              Alert.alert('Reported', 'Thanks. Our team will review this post.');
+            } catch (error) {
+              console.log('Report error:', error);
+              Alert.alert('Error', 'Could not report this post.');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   async function sharePost(post: FanPost) {
     try {
       await Share.share({
@@ -837,6 +881,15 @@ export default function FanWallScreen() {
             <Text style={styles.myFanActionText}>📸 Profile Photo</Text>
           </Pressable>
         </View>
+
+        <Pressable
+          style={styles.viewFollowingBigButton}
+          onPress={() => setShowFollowingList(!showFollowingList)}
+        >
+          <Text style={styles.viewFollowingBigText}>
+            👤 View Following Users ({followingUsers.length}) {showFollowingList ? '▲' : '▼'}
+          </Text>
+        </Pressable>
       </View>
 
       <TextInput
@@ -893,7 +946,39 @@ export default function FanWallScreen() {
           <Text style={styles.mutedText}>No followed teams yet. Pick a country or club below.</Text>
         )}
 
-        <Text style={styles.followingTitle}>👤 Following Users</Text>
+        <Pressable
+          style={styles.followingToggle}
+          onPress={() => setShowFollowingList(!showFollowingList)}
+        >
+          <Text style={styles.followingTitle}>
+            👤 Following Users ({followingUsers.length}) {showFollowingList ? '▲' : '▼'}
+          </Text>
+          <Text style={styles.followingHelp}>Tap to see who you follow</Text>
+        </Pressable>
+
+        {showFollowingList ? (
+          <View style={styles.followingListBox}>
+            {followingUsers.length ? (
+              followingUsers.map((item, index) => (
+                <View key={`${item}-${index}`} style={styles.followingPersonBox}>
+                  <View style={styles.followingAvatar}>
+                    <Text style={styles.followingAvatarText}>
+                      {String(item).charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.followingPersonInfo}>
+                    <Text style={styles.followingPersonName}>
+                      {String(item).replace('email:', '').replace('uid:', '')}
+                    </Text>
+                    <Text style={styles.followingPersonSub}>Following</Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.mutedText}>You are not following anyone yet.</Text>
+            )}
+          </View>
+        ) : null}
         {followingUsers.length ? (
           <Text style={styles.mutedText}>{followingUsers.length} user(s) followed</Text>
         ) : (
@@ -1239,7 +1324,13 @@ export default function FanWallScreen() {
                     <Pressable onPress={() => sharePost(post)}>
                       <Text style={styles.action}>↗ Share</Text>
                     </Pressable>
+
                   </View>
+
+                  <Pressable style={styles.reportBigButton} onPress={() => reportPost(post)}>
+                    <Text style={styles.reportBigButtonText}>🚩 Report this post</Text>
+                    <Text style={styles.reportBigSubText}>Safety review by Soccer Daily</Text>
+                  </Pressable>
 
                   {commentPostId === post.id ? (
                     <View style={styles.commentBox}>
@@ -1295,6 +1386,43 @@ export default function FanWallScreen() {
 }
 
 const styles = StyleSheet.create({
+  reportBigButton: {
+    marginTop: 10,
+    marginBottom: 8,
+    backgroundColor: 'rgba(255, 77, 79, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 77, 79, 0.45)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  reportBigButtonText: {
+    color: '#FFB4B4',
+    fontSize: 14,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  reportBigSubText: {
+    color: '#A7B0C0',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 3,
+  },
+  viewFollowingBigButton: {
+    marginTop: 12,
+    backgroundColor: 'rgba(255, 209, 102, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.38)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  viewFollowingBigText: {
+    color: '#FFD166',
+    fontWeight: '900',
+    textAlign: 'center',
+  },
   countryGroupLabel: {
     color: '#94A3B8',
     fontSize: 13,
@@ -1513,6 +1641,61 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 12,
     backgroundColor: '#0F1B2D',
+  },
+  followingToggle: {
+    backgroundColor: 'rgba(255, 209, 102, 0.10)',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.25)',
+  },
+  followingHelp: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '700',
+  },
+  followingListBox: {
+    backgroundColor: '#101D31',
+    borderRadius: 16,
+    padding: 10,
+    marginBottom: 14,
+  },
+  followingPersonBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111C2E',
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 8,
+  },
+  followingAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#243044',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+  },
+  followingAvatarText: {
+    color: '#FFD166',
+    fontWeight: '900',
+  },
+  followingPersonInfo: {
+    flex: 1,
+  },
+  followingPersonName: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+  followingPersonSub: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    marginTop: 2,
   },
   container: { flex: 1, backgroundColor: '#07111F', padding: 20, paddingTop: 60 },
   title: { color: '#FFD166', fontSize: 34, fontWeight: '900', marginBottom: 6 },

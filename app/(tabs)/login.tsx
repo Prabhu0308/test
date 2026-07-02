@@ -63,6 +63,7 @@ export default function LoginScreen() {
 
       if (mode === 'signup') {
         const result = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        await AsyncStorage.removeItem('soccerDailyManualLogout');
 
         await updateProfile(result.user, {
           displayName: cleanName,
@@ -74,6 +75,7 @@ export default function LoginScreen() {
         router.replace('/profile' as any);
       } else {
         const result = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        await AsyncStorage.removeItem('soccerDailyManualLogout');
 
         await saveLocalUser(result.user.displayName || cleanEmail.split('@')[0], cleanEmail);
 

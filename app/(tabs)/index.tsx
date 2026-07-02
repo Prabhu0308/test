@@ -160,6 +160,18 @@ const text: any = {
 };
 
 export default function HomeScreen() {
+  async function openProtectedRoute(routeName: string) {
+    const manualLogout = await AsyncStorage.getItem('soccerDailyManualLogout');
+    const auth = getAuth();
+
+    if (manualLogout === 'true' || !auth.currentUser) {
+      router.push('/login' as any);
+      return;
+    }
+
+    router.push(routeName as any);
+  }
+
   const [notificationBadgeCount, setNotificationBadgeCount] = useState(0);
   const [language, setLanguage] = useState('en');
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
@@ -231,7 +243,7 @@ export default function HomeScreen() {
   }
 
   async function openNotificationsAndClear() {
-    router.push('/notifications' as any);
+    openProtectedRoute('/notifications');
   }
 
   async function loadLanguage() {
@@ -410,7 +422,7 @@ export default function HomeScreen() {
             <Text style={styles.quickText}>{newsLabel[language] || newsLabel.en}</Text>
           </Pressable>
 
-          <Pressable style={styles.quickButton} onPress={() => router.push('/fan-wall' as any)}>
+          <Pressable style={styles.quickButton} onPress={() => openProtectedRoute('/fan-wall')}>
             <Text style={styles.quickIcon}>🔥</Text>
             <Text style={styles.quickText}>Fan Zone</Text>
           </Pressable>
@@ -420,7 +432,7 @@ export default function HomeScreen() {
             <Text style={styles.quickText}>{t.tv}</Text>
           </Pressable>
 
-          <Pressable style={styles.quickButton} onPress={() => router.push('/studio' as any)}>
+          <Pressable style={styles.quickButton} onPress={() => openProtectedRoute('/studio')}>
             <Text style={styles.quickIcon}>🎙️</Text>
             <Text style={styles.quickText}>{t.studio}</Text>
           </Pressable>

@@ -184,6 +184,7 @@ export default function ProfileScreen() {
         text: 'Log Out',
         style: 'destructive',
         onPress: async () => {
+          await AsyncStorage.setItem('soccerDailyManualLogout', 'true');
           await signOut(auth);
           router.replace('/login' as any);
         },
