@@ -827,6 +827,15 @@ export default function FanWallScreen() {
   }
 
 
+  function openClubPickerPanel() {
+    setActiveFanHub('clubs');
+    setShowClubPicker(true);
+    setSelectedCountry(null);
+    setShowFollowedTeamsList(false);
+    setShowFollowingList(false);
+    setShowMyPostsOnly(false);
+  }
+
   function openFanHub(section: string) {
     setActiveFanHub(section);
     setShowFollowedTeamsList(false);
@@ -1058,7 +1067,7 @@ export default function FanWallScreen() {
 
           <Pressable
             style={styles.myFanActionButton}
-            onPress={() => setShowClubPicker(true)}
+            onPress={openClubPickerPanel}
           >
             <Text style={styles.myFanActionText}>🏟️ Pick Club</Text>
           </Pressable>
@@ -1107,7 +1116,7 @@ export default function FanWallScreen() {
 
           <Pressable
             style={[styles.fanHubButton, activeFanHub === 'clubs' && styles.fanHubButtonActive]}
-            onPress={() => openFanHub('clubs')}
+            onPress={openClubPickerPanel}
           >
             <Text style={styles.fanHubIcon}>🏟️</Text>
             <Text style={[styles.fanHubLabel, activeFanHub === 'clubs' && styles.fanHubLabelActive]}>Clubs</Text>
@@ -1170,7 +1179,7 @@ export default function FanWallScreen() {
           <Text style={[styles.filterChipText, !activeRoom && styles.activeChipText]}>All Fan Wall</Text>
         </Pressable>
 
-        <Pressable style={[styles.filterChip, showClubPicker && styles.activeChip]} onPress={() => setShowClubPicker(!showClubPicker)}>
+        <Pressable style={[styles.filterChip, showClubPicker && styles.activeChip]} onPress={openClubPickerPanel}>
           <Text style={[styles.filterChipText, showClubPicker && styles.activeChipText]}>Pick / Follow Club</Text>
         </Pressable>
       </View>
@@ -2297,16 +2306,27 @@ const styles = StyleSheet.create({
   filterRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   filterChip: {
     flex: 1,
-    backgroundColor: '#111C2E',
-    borderWidth: 1,
-    borderColor: '#D8E0EC',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.4,
+    borderColor: '#CBD5E1',
     borderRadius: 999,
-    paddingVertical: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  activeChip: { backgroundColor: '#FFD166', borderColor: '#FFD166' },
-  filterChipText: { color: '#FFD166', fontSize: 13, fontWeight: '900' },
-  activeChipText: { color: '#07111F' },
+  activeChip: {
+    backgroundColor: '#0B1526',
+    borderColor: '#0B1526',
+  },
+  filterChipText: {
+    color: '#07111F',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  activeChipText: {
+    color: '#FFD166',
+  },
 
   roomHeaderBox: {
     backgroundColor: '#2A1F12',
@@ -2520,14 +2540,17 @@ const styles = StyleSheet.create({
   postGif: { width: '100%', height: 220, borderRadius: 14, marginTop: 12, backgroundColor: '#F3F6FB' },
 
   editInput: {
-    backgroundColor: '#F3F6FB',
-    borderWidth: 1,
-    borderColor: '#2B3D5E',
-    borderRadius: 14,
-    color: '#FFFFFF',
-    minHeight: 70,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: '#FFFFFF',
+    color: '#07111F',
+    borderWidth: 1.4,
+    borderColor: '#CBD5E1',
+    borderRadius: 18,
+    minHeight: 110,
+    padding: 16,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlignVertical: 'top',
+    marginTop: 12,
   },
   row: { flexDirection: 'row', gap: 10, marginTop: 10 },
   smallButton: { flex: 1, backgroundColor: '#FFD166', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
@@ -2598,7 +2621,19 @@ const styles = StyleSheet.create({
   deleteAction: { color: '#FF6B6B', fontSize: 13, fontWeight: '900' },
 
   commentBox: { marginTop: 14, backgroundColor: '#F3F6FB', borderRadius: 14, padding: 12 },
-  commentInput: { color: '#FFFFFF', minHeight: 45 },
+  commentInput: {
+    backgroundColor: '#FFFFFF',
+    color: '#07111F',
+    borderWidth: 1.4,
+    borderColor: '#CBD5E1',
+    borderRadius: 18,
+    minHeight: 74,
+    padding: 14,
+    fontSize: 15,
+    fontWeight: '700',
+    textAlignVertical: 'top',
+    marginTop: 12,
+  },
   commentButton: { backgroundColor: '#FFD166', borderRadius: 12, paddingVertical: 10, marginTop: 8, alignItems: 'center' },
   commentButtonText: { color: '#07111F', fontWeight: '900' },
   commentsList: { marginTop: 12, gap: 8 },
