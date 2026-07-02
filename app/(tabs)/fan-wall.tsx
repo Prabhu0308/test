@@ -922,7 +922,7 @@ export default function FanWallScreen() {
 
           <Pressable style={styles.myFanStatBox} onPress={openFollowingUsersList}>
             <Text style={styles.myFanStatNumber}>{followingUsers.length}</Text>
-            <Text style={styles.myFanStatLabel}>Following</Text>
+            <Text style={styles.myFanStatLabel}>Following {showFollowingList ? '▲' : '▼'}</Text>
           </Pressable>
 
           <Pressable style={styles.myFanStatBox} onPress={openMyPostsList}>
@@ -933,7 +933,7 @@ export default function FanWallScreen() {
 
         {showFollowedTeamsList ? (
           <View style={styles.compactFollowPanel}>
-            <Text style={styles.compactFollowTitle}>Teams you follow</Text>
+            <Text style={styles.compactFollowTitle}>⭐ Teams you follow</Text>
             {followedTeams.length ? (
               <View style={styles.compactChipWrap}>
                 {followedTeams.map((team) => (
@@ -955,16 +955,35 @@ export default function FanWallScreen() {
                 ))}
               </View>
             ) : (
-              <Text style={styles.compactEmptyText}>No followed teams yet. Tap Pick / Follow Club.</Text>
+              <Text style={styles.compactEmptyText}>No followed teams yet. Tap Pick Club.</Text>
+            )}
+          </View>
+        ) : null}
+
+        {showFollowingList ? (
+          <View style={styles.compactFollowPanel}>
+            <Text style={styles.compactFollowTitle}>👤 Users you follow</Text>
+            {followingUsers.length ? (
+              <View style={styles.compactChipWrap}>
+                {followingUsers.map((item, index) => (
+                  <View key={`${item}-${index}`} style={styles.compactUserChip}>
+                    <Text style={styles.compactUserText} numberOfLines={1}>
+                      {String(item).replace('email:', '').replace('uid:', '')}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.compactEmptyText}>You are not following anyone yet.</Text>
             )}
           </View>
         ) : null}
 
         {showMyPostsOnly ? (
           <View style={styles.compactFollowPanel}>
-            <Text style={styles.compactFollowTitle}>My posts</Text>
+            <Text style={styles.compactFollowTitle}>📝 Posts</Text>
             <Text style={styles.compactEmptyText}>
-              Showing posts in the current room below. Open All Fan Wall to see all posts.
+              Tap All Fan Wall for all posts, or open your active room to see room posts below.
             </Text>
           </View>
         ) : null}
@@ -1351,33 +1370,10 @@ export default function FanWallScreen() {
                 <View key={post.id} style={styles.card}>
                 {/* Soccer Daily three dot report menu */}
                 <Pressable
-                  style={{
-                    position: 'absolute',
-                    top: 12,
-                    right: 12,
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: '#0B1526',
-                    borderWidth: 1,
-                    borderColor: '#FFD166',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 50,
-                    elevation: 10,
-                  }}
+                  style={styles.postThreeDotButton}
                   onPress={() => reportPost(post)}
                 >
-                  <Text
-                    style={{
-                      color: '#FFD166',
-                      fontSize: 28,
-                      fontWeight: '900',
-                      lineHeight: 28,
-                    }}
-                  >
-                    ⋯
-                  </Text>
+                  <Text style={styles.postThreeDotText}>⋯</Text>
                 </Pressable>
 
                   <Text style={styles.user}>{userDisplayName(post)}</Text>
@@ -1769,6 +1765,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 2,
   },
+
   compactFollowPanel: {
     backgroundColor: '#07111F',
     borderWidth: 1,
@@ -1809,6 +1806,20 @@ const styles = StyleSheet.create({
   },
   compactTeamChipTextActive: {
     color: '#07111F',
+  },
+  compactUserChip: {
+    maxWidth: '100%',
+    backgroundColor: '#0B1526',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+  },
+  compactUserText: {
+    color: '#DDE7F0',
+    fontSize: 12,
+    fontWeight: '800',
   },
   compactEmptyText: {
     color: '#94A3B8',
@@ -1875,10 +1886,11 @@ const styles = StyleSheet.create({
   },
   postImage: {
     width: '100%',
-    height: 240,
-    borderRadius: 16,
-    marginTop: 12,
-    backgroundColor: '#0F1B2D',
+    height: 230,
+    borderRadius: 18,
+    marginTop: 8,
+    marginBottom: 12,
+    backgroundColor: '#07111F',
   },
   followingToggle: {
     backgroundColor: '#111C2E',
@@ -2161,7 +2173,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   teamBadgeText: { color: '#FFD166', fontSize: 12, fontWeight: '900' },
-  postText: { color: '#FFFFFF', fontSize: 16, lineHeight: 23 },
+  postText: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
   translateText: { color: '#FFD166', fontSize: 12, fontWeight: '900', marginTop: 6 },
   postGif: { width: '100%', height: 220, borderRadius: 14, marginTop: 12, backgroundColor: '#07111F' },
 
@@ -2181,7 +2199,16 @@ const styles = StyleSheet.create({
   cancelButton: { flex: 1, backgroundColor: '#07111F', borderWidth: 1, borderColor: '#2B3D5E', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   cancelText: { color: '#A7B0C0', fontWeight: '900' },
 
-  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 14 },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#1E2A3F',
+    paddingTop: 12,
+    marginTop: 10,
+    gap: 8,
+  },
   action: { color: '#A7B0C0', fontSize: 13, fontWeight: '800' },
   likedAction: { color: '#FFD166', fontSize: 13, fontWeight: '900' },
   deleteAction: { color: '#FF6B6B', fontSize: 13, fontWeight: '900' },
