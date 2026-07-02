@@ -144,7 +144,7 @@ function countryFlag(country: string) {
   const flags: any = {
     USA: '🇺🇸',
     Mexico: '🇲🇽',
-    England: '🏴',
+    England: '🇬🇧',
     Spain: '🇪🇸',
     Germany: '🇩🇪',
     France: '🇫🇷',
@@ -1273,7 +1273,7 @@ export default function FanWallScreen() {
                         />
 
                         <Text style={styles.countryTileFlag}>
-                          {country === 'England' ? 'ENG' : countryFlag(country)}
+                          {countryFlag(country)}
                         </Text>
 
                         <Text style={styles.countryTileName} numberOfLines={1}>
@@ -1289,23 +1289,62 @@ export default function FanWallScreen() {
                     style={styles.moreCountriesButton}
                     onPress={() => setShowMoreCountries(!showMoreCountries)}
                   >
-                    <Text style={styles.moreCountriesText}>
+                    <Text style={[
+                      styles.moreCountriesText,
+                      {
+                        color: '#FFD166',
+                        fontSize: 16,
+                        fontWeight: '900',
+                      },
+                    ]}>
                       🌎 More Countries {showMoreCountries ? '▲' : '▼'}
                     </Text>
                   </Pressable>
 
                   {showMoreCountries ? (
-                    <View style={styles.countryChipWrap}>
+                    <View style={[
+                        styles.countryChipWrap,
+                        {
+                          flexDirection: 'row',
+                          flexWrap: 'wrap',
+                          gap: 10,
+                          marginTop: 14,
+                          marginBottom: 6,
+                        },
+                      ]}>
                       {moreCountryResults.map((country) => (
                         <Pressable
                           key={country}
-                          style={styles.countryChip}
+                          style={[
+                            styles.countryChip,
+                            {
+                              backgroundColor: '#F8FAFC',
+                              borderWidth: 1.3,
+                              borderColor: '#FFD166',
+                              borderRadius: 999,
+                              paddingVertical: 10,
+                              paddingHorizontal: 14,
+                              marginBottom: 10,
+                              shadowColor: '#FFD166',
+                              shadowOpacity: 0.18,
+                              shadowRadius: 5,
+                              shadowOffset: { width: 0, height: 3 },
+                              elevation: 3,
+                            },
+                          ]}
                           onPress={() => {
                             setSelectedCountry(country);
                             setSearchText('');
                           }}
                         >
-                          <Text style={styles.countryChipText}>
+                          <Text style={[
+                              styles.countryChipText,
+                              {
+                                color: '#0B1526',
+                                fontSize: 12,
+                                fontWeight: '900',
+                              },
+                            ]}>
                             {countryFlag(country)} {countryLabel(country)}
                           </Text>
                         </Pressable>
@@ -1708,7 +1747,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   countryGroupLabel: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontSize: 13,
     fontWeight: '900',
     textTransform: 'uppercase',
@@ -1725,19 +1764,22 @@ const styles = StyleSheet.create({
   },
   countryTile: {
     width: '31.5%',
-    minHeight: 124,
-    backgroundColor: '#07111F',
-    borderRadius: 18,
-    borderWidth: 1.4,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    marginBottom: 12,
+    minHeight: 158,
+    backgroundColor: '#F7FAFF',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#0B1526',
+    paddingTop: 14,
+    paddingBottom: 14,
+    paddingHorizontal: 12,
+    marginBottom: 14,
     justifyContent: 'space-between',
     overflow: 'hidden',
-    shadowOpacity: 0.18,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.12,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
   jerseyBadge: {
     width: 0,
@@ -1765,30 +1807,51 @@ const styles = StyleSheet.create({
   },
 
   countryTileFlag: {
-    fontSize: 22,
+    fontSize: 24,
     marginBottom: 8,
   },
   countryTileName: {
-    color: '#FFD166',
-    fontSize: 15,
+    alignSelf: 'flex-start',
+    backgroundColor: '#F4C95D',
+    color: '#0B1526',
+    fontSize: 13,
     fontWeight: '900',
-    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 10,
+    borderWidth: 1.2,
+    borderColor: '#D6A73A',
+    shadowColor: '#7A5A12',
+    shadowOpacity: 0.28,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   countryTileSub: {
-    color: '#DDE7F0',
-    fontSize: 11,
-    fontWeight: '800',
+    alignSelf: 'flex-start',
+    backgroundColor: '#0B1526',
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#22314A',
   },
   moreCountriesButton: {
-    marginTop: 8,
-    backgroundColor: '#2B3138',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 209, 102, 0.45)',
+    backgroundColor: '#343C46',
+    borderRadius: 999,
+    borderWidth: 1.3,
+    borderColor: 'rgba(255, 209, 102, 0.55)',
     paddingVertical: 16,
     paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 12,
   },
   moreCountriesText: {
     color: '#FFD166',
@@ -1799,28 +1862,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 8,
+    marginTop: 14,
+    marginBottom: 6,
   },
-  countryChip: {
-    backgroundColor: '#07111F',
+  moreCountryChip: {
+    backgroundColor: '#F8FAFC',
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#D6DCE8',
     paddingVertical: 11,
     paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    marginBottom: 12,
+    minWidth: '31%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  countryChipText: {
-    color: '#E5E7EB',
-    fontSize: 14,
-    fontWeight: '900',
+  moreCountryChipText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '800',
   },
   myFanRoomCard: {
-    backgroundColor: '#0F1B2D',
-    borderRadius: 24,
+    backgroundColor: '#0B1526',
+    borderRadius: 30,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
     padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 209, 102, 0.28)',
+    marginBottom: 18,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
   myFanRoomTop: {
     flexDirection: 'row',
@@ -1834,7 +1912,7 @@ const styles = StyleSheet.create({
     borderRadius: 38,
     borderWidth: 2,
     borderColor: '#FFD166',
-    backgroundColor: '#07111F',
+    backgroundColor: '#F3F6FB',
   },
   myFanAvatarFallback: {
     width: 76,
@@ -1856,20 +1934,22 @@ const styles = StyleSheet.create({
   },
   myFanLabel: {
     color: '#94A3B8',
-    fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 3,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   myFanName: {
     color: '#FFD166',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
+    marginTop: 2,
   },
   myFanBadge: {
     color: '#E5E7EB',
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '900',
     marginTop: 4,
-    fontWeight: '700',
   },
   myFanStatsRow: {
     flexDirection: 'row',
@@ -1879,29 +1959,29 @@ const styles = StyleSheet.create({
   myFanStatBox: {
     flex: 1,
     backgroundColor: '#07111F',
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#24344F',
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   myFanStatNumber: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
   },
   myFanStatLabel: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 2,
+    color: '#AAB6CA',
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: 3,
   },
 
   compactFollowPanel: {
-    backgroundColor: '#07111F',
+    backgroundColor: '#101C2E',
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#24344F',
     borderRadius: 16,
     padding: 10,
     marginTop: 12,
@@ -1920,9 +2000,9 @@ const styles = StyleSheet.create({
   },
   compactTeamChip: {
     maxWidth: '100%',
-    backgroundColor: '#0B1526',
+    backgroundColor: '#07111F',
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#24344F',
     borderRadius: 999,
     paddingVertical: 7,
     paddingHorizontal: 10,
@@ -1932,29 +2012,29 @@ const styles = StyleSheet.create({
     borderColor: '#FFD166',
   },
   compactTeamChipText: {
-    color: '#DDE7F0',
+    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   compactTeamChipTextActive: {
     color: '#07111F',
   },
   compactUserChip: {
     maxWidth: '100%',
-    backgroundColor: '#0B1526',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#D8E0EC',
     borderRadius: 999,
     paddingVertical: 7,
     paddingHorizontal: 10,
   },
   compactUserText: {
-    color: '#DDE7F0',
+    color: '#1F2937',
     fontSize: 12,
     fontWeight: '800',
   },
   compactEmptyText: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1965,16 +2045,17 @@ const styles = StyleSheet.create({
   },
   myFanActionButton: {
     flex: 1,
-    backgroundColor: 'rgba(255, 209, 102, 0.14)',
-    borderRadius: 14,
-    paddingVertical: 11,
-    alignItems: 'center',
+    backgroundColor: '#2B3138',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 209, 102, 0.35)',
+    borderColor: 'rgba(255, 209, 102, 0.45)',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   myFanActionText: {
     color: '#FFD166',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '900',
   },
   photoComposerBox: {
@@ -2022,7 +2103,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     marginTop: 8,
     marginBottom: 12,
-    backgroundColor: '#07111F',
+    backgroundColor: '#F3F6FB',
   },
   followingToggle: {
     backgroundColor: '#111C2E',
@@ -2046,9 +2127,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   followingListBox: {
-    backgroundColor: '#07111F',
+    backgroundColor: '#F3F6FB',
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#D8E0EC',
     borderRadius: 14,
     padding: 8,
     marginTop: 8,
@@ -2057,12 +2138,12 @@ const styles = StyleSheet.create({
   followingPersonBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0B1526',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingVertical: 7,
     paddingHorizontal: 8,
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#D8E0EC',
   },
   followingAvatar: {
     width: 28,
@@ -2087,14 +2168,27 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   followingPersonSub: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontSize: 10,
     fontWeight: '700',
     marginTop: 1,
   },
-  container: { flex: 1, backgroundColor: '#07111F', padding: 20, paddingTop: 60 },
-  title: { color: '#FFD166', fontSize: 34, fontWeight: '900', marginBottom: 6 },
-  subtitle: { color: '#A7B0C0', fontSize: 16, marginBottom: 14 },
+  container: {
+    flex: 1,
+    backgroundColor: '#F3F6FB',
+  },
+  title: {
+    color: '#07111F',
+    fontSize: 42,
+    fontWeight: '900',
+  },
+  subtitle: {
+    color: '#475569',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 22,
+  },
 
   fanHubCard: {
     backgroundColor: '#061A16',
@@ -2188,15 +2282,16 @@ const styles = StyleSheet.create({
   },
 
   searchInput: {
-    backgroundColor: '#111C2E',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#22314A',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    color: '#FFFFFF',
-    fontSize: 15,
-    marginBottom: 12,
+    borderColor: '#D8E0EC',
+    color: '#07111F',
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 14,
   },
 
   filterRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
@@ -2204,7 +2299,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#111C2E',
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#D8E0EC',
     borderRadius: 999,
     paddingVertical: 10,
     alignItems: 'center',
@@ -2225,26 +2320,35 @@ const styles = StyleSheet.create({
   roomHeaderSubtext: { color: '#A7B0C0', fontSize: 13, marginTop: 4 },
 
   myTeamsCard: {
-    backgroundColor: '#0B1526',
-    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: '#24344F',
+    borderColor: '#D7E0EC',
     padding: 16,
     marginBottom: 18,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   myTeamsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   myTeamsTitle: { color: '#FFD166', fontSize: 16, fontWeight: '900' },
   myTeamsList: { gap: 8, marginTop: 10 },
   teamMiniChip: {
-    backgroundColor: '#07111F',
-    borderWidth: 1,
-    borderColor: '#2B3D5E',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.4,
+    borderColor: '#0B1526',
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
   },
   activeMiniChip: { backgroundColor: '#2A1F12', borderColor: '#FFD166' },
-  teamMiniChipText: { color: '#A7B0C0', fontSize: 12, fontWeight: '800' },
+  teamMiniChipText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '900',
+  },
   activeMiniChipText: { color: '#FFD166' },
   removeText: { color: '#FFD166', fontSize: 12, fontWeight: '900' },
   mutedText: { color: '#A7B0C0', marginTop: 8, fontSize: 13 },
@@ -2252,14 +2356,14 @@ const styles = StyleSheet.create({
   clubPickerCard: {
     backgroundColor: '#111C2E',
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#D8E0EC',
     borderRadius: 20,
     padding: 14,
     marginBottom: 14,
   },
   sectionTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', marginBottom: 12 },
   roomButton: {
-    backgroundColor: '#07111F',
+    backgroundColor: '#F3F6FB',
     borderWidth: 1,
     borderColor: '#2B3D5E',
     borderRadius: 16,
@@ -2276,13 +2380,13 @@ const styles = StyleSheet.create({
   searchResultCard: {
     backgroundColor: '#111C2E',
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#D8E0EC',
     borderRadius: 20,
     padding: 14,
     marginBottom: 14,
   },
   accountRow: {
-    backgroundColor: '#07111F',
+    backgroundColor: '#F3F6FB',
     borderWidth: 1,
     borderColor: '#2B3D5E',
     borderRadius: 14,
@@ -2314,7 +2418,7 @@ const styles = StyleSheet.create({
   gifTitle: { color: '#FFD166', fontWeight: '900', marginBottom: 8 },
   gifRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   gifButton: {
-    backgroundColor: '#07111F',
+    backgroundColor: '#F3F6FB',
     borderWidth: 1,
     borderColor: '#2B3D5E',
     borderRadius: 999,
@@ -2332,7 +2436,7 @@ const styles = StyleSheet.create({
   emptyCard: {
     backgroundColor: '#111C2E',
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#D8E0EC',
     borderRadius: 18,
     padding: 18,
     alignItems: 'center',
@@ -2343,7 +2447,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#111C2E',
     borderWidth: 1,
-    borderColor: '#22314A',
+    borderColor: '#D8E0EC',
     borderRadius: 18,
     padding: 16,
     marginBottom: 16,
@@ -2397,7 +2501,7 @@ const styles = StyleSheet.create({
   },
   teamBadgeText: { color: '#FFD166', fontSize: 12, fontWeight: '900' },
   postCounter: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontSize: 12,
     fontWeight: '800',
     textAlign: 'right',
@@ -2413,10 +2517,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   translateText: { color: '#FFD166', fontSize: 12, fontWeight: '900', marginTop: 6 },
-  postGif: { width: '100%', height: 220, borderRadius: 14, marginTop: 12, backgroundColor: '#07111F' },
+  postGif: { width: '100%', height: 220, borderRadius: 14, marginTop: 12, backgroundColor: '#F3F6FB' },
 
   editInput: {
-    backgroundColor: '#07111F',
+    backgroundColor: '#F3F6FB',
     borderWidth: 1,
     borderColor: '#2B3D5E',
     borderRadius: 14,
@@ -2428,7 +2532,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10, marginTop: 10 },
   smallButton: { flex: 1, backgroundColor: '#FFD166', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   smallButtonText: { color: '#07111F', fontWeight: '900' },
-  cancelButton: { flex: 1, backgroundColor: '#07111F', borderWidth: 1, borderColor: '#2B3D5E', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  cancelButton: { flex: 1, backgroundColor: '#F3F6FB', borderWidth: 1, borderColor: '#2B3D5E', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   cancelText: { color: '#A7B0C0', fontWeight: '900' },
 
   cleanLandingCard: {
@@ -2459,7 +2563,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0B1526',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: '#FFD166',
     alignItems: 'center',
@@ -2493,12 +2597,12 @@ const styles = StyleSheet.create({
   likedAction: { color: '#FFD166', fontSize: 13, fontWeight: '900' },
   deleteAction: { color: '#FF6B6B', fontSize: 13, fontWeight: '900' },
 
-  commentBox: { marginTop: 14, backgroundColor: '#07111F', borderRadius: 14, padding: 12 },
+  commentBox: { marginTop: 14, backgroundColor: '#F3F6FB', borderRadius: 14, padding: 12 },
   commentInput: { color: '#FFFFFF', minHeight: 45 },
   commentButton: { backgroundColor: '#FFD166', borderRadius: 12, paddingVertical: 10, marginTop: 8, alignItems: 'center' },
   commentButtonText: { color: '#07111F', fontWeight: '900' },
   commentsList: { marginTop: 12, gap: 8 },
-  commentCard: { backgroundColor: '#07111F', borderRadius: 14, padding: 12 },
+  commentCard: { backgroundColor: '#F3F6FB', borderRadius: 14, padding: 12 },
   commentUser: { color: '#FFD166', fontSize: 13, fontWeight: '900' },
   commentBadge: { color: '#FFD166', fontSize: 11, fontWeight: '800', marginTop: 3 },
   commentText: { color: '#D8DEE9', fontSize: 14, marginTop: 5, lineHeight: 20 },
