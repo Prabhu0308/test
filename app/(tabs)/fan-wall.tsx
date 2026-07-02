@@ -250,6 +250,7 @@ export default function FanWallScreen() {
 
   const countries = Object.keys(COUNTRY_CLUBS);
 
+  const FAN_POST_LIMIT = 500;
   const [postText, setPostText] = useState('');
   const [selectedGifUrl, setSelectedGifUrl] = useState('');
   const [selectedImageUri, setSelectedImageUri] = useState('');
@@ -264,6 +265,7 @@ export default function FanWallScreen() {
   const [showFollowingList, setShowFollowingList] = useState(false);
   const [showFollowedTeamsList, setShowFollowedTeamsList] = useState(false);
   const [showMyPostsOnly, setShowMyPostsOnly] = useState(false);
+  const [activeFanHub, setActiveFanHub] = useState('wall');
   const [followerCounts, setFollowerCounts] = useState<any>({});
   const [activeRoom, setActiveRoom] = useState(routeRoom);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -643,6 +645,11 @@ export default function FanWallScreen() {
     const finalGifUrl = selectedGifUrl || extractGifUrl(postText);
     const cleanText = removeGifUrl(postText).trim();
 
+    if (cleanText.length > FAN_POST_LIMIT) {
+      Alert.alert('Post too long', `Fan Wall posts can be up to ${FAN_POST_LIMIT} characters.`);
+      return;
+    }
+
     if (!cleanText && !finalGifUrl && !selectedImageUri) {
       Alert.alert('Empty Post', 'Please write something or choose a GIF first.');
       return;
@@ -819,6 +826,46 @@ export default function FanWallScreen() {
     setShowMyPostsOnly((prev) => !prev);
   }
 
+
+  function openFanHub(section: string) {
+    setActiveFanHub(section);
+    setShowFollowedTeamsList(false);
+    setShowFollowingList(false);
+    setShowMyPostsOnly(false);
+
+    if (section === 'wall') {
+      setActiveRoom('');
+      setShowClubPicker(false);
+      setSelectedCountry(null);
+      return;
+    }
+
+    if (section === 'clubs') {
+      setShowClubPicker(true);
+      setSelectedCountry(null);
+      return;
+    }
+
+    if (section === 'teams') {
+      setShowFollowedTeamsList(true);
+      return;
+    }
+
+    if (section === 'following') {
+      setShowFollowingList(true);
+      return;
+    }
+
+    if (section === 'posts') {
+      setShowMyPostsOnly(true);
+      setShowClubPicker(false);
+      return;
+    }
+
+    if (section === 'rules') {
+      router.push('/community-guidelines' as any);
+    }
+  }
 
   async function reportPost(post: FanPost) {
     const auth = getAuth();
@@ -1025,6 +1072,77 @@ export default function FanWallScreen() {
             👤 View Following Users ({followingUsers.length}) {showFollowingList ? '▲' : '▼'}
           </Text>
         </Pressable>
+      </View>
+
+
+      <View style={styles.fanHubCard}>
+        <View style={styles.fanHubHeader}>
+          <View>
+            <Text style={styles.fanHubEyebrow}>Soccer Daily Command Center</Text>
+            <Text style={styles.fanHubTitle}>Choose your fan space</Text>
+          </View>
+          <Text style={styles.fanHubSpark}>⚡</Text>
+        </View>
+
+        <Text style={styles.fanHubSubtitle}>
+          Open fan wall, clubs, followed teams, users, posts, and safety rules from one clean place.
+        </Text>
+
+        <View style={styles.fanHubGrid}>
+          <Pressable
+            style={[styles.fanHubButton, activeFanHub === 'wall' && styles.fanHubButtonActive]}
+            onPress={() => openFanHub('wall')}
+          >
+            <Text style={styles.fanHubIcon}>🧱</Text>
+            <Text style={[styles.fanHubLabel, activeFanHub === 'wall' && styles.fanHubLabelActive]}>Fan Wall</Text>
+            <Text style={[styles.fanHubMeta, activeFanHub === 'wall' && styles.fanHubMetaActive]}>All posts</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.fanHubButton, activeFanHub === 'clubs' && styles.fanHubButtonActive]}
+            onPress={() => openFanHub('clubs')}
+          >
+            <Text style={styles.fanHubIcon}>🏟️</Text>
+            <Text style={[styles.fanHubLabel, activeFanHub === 'clubs' && styles.fanHubLabelActive]}>Clubs</Text>
+            <Text style={[styles.fanHubMeta, activeFanHub === 'clubs' && styles.fanHubMetaActive]}>Pick room</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.fanHubButton, activeFanHub === 'teams' && styles.fanHubButtonActive]}
+            onPress={() => openFanHub('teams')}
+          >
+            <Text style={styles.fanHubIcon}>⭐</Text>
+            <Text style={[styles.fanHubLabel, activeFanHub === 'teams' && styles.fanHubLabelActive]}>My Teams</Text>
+            <Text style={[styles.fanHubMeta, activeFanHub === 'teams' && styles.fanHubMetaActive]}>{followedTeams.length} saved</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.fanHubButton, activeFanHub === 'following' && styles.fanHubButtonActive]}
+            onPress={() => openFanHub('following')}
+          >
+            <Text style={styles.fanHubIcon}>👤</Text>
+            <Text style={[styles.fanHubLabel, activeFanHub === 'following' && styles.fanHubLabelActive]}>Following</Text>
+            <Text style={[styles.fanHubMeta, activeFanHub === 'following' && styles.fanHubMetaActive]}>{followingUsers.length} users</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.fanHubButton, activeFanHub === 'posts' && styles.fanHubButtonActive]}
+            onPress={() => openFanHub('posts')}
+          >
+            <Text style={styles.fanHubIcon}>📝</Text>
+            <Text style={[styles.fanHubLabel, activeFanHub === 'posts' && styles.fanHubLabelActive]}>My Posts</Text>
+            <Text style={[styles.fanHubMeta, activeFanHub === 'posts' && styles.fanHubMetaActive]}>{visiblePosts.length} posts</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.fanHubButton, activeFanHub === 'rules' && styles.fanHubButtonActive]}
+            onPress={() => openFanHub('rules')}
+          >
+            <Text style={styles.fanHubIcon}>🛡️</Text>
+            <Text style={[styles.fanHubLabel, activeFanHub === 'rules' && styles.fanHubLabelActive]}>Rules</Text>
+            <Text style={[styles.fanHubMeta, activeFanHub === 'rules' && styles.fanHubMetaActive]}>Safety</Text>
+          </Pressable>
+        </View>
       </View>
 
       <TextInput
@@ -1290,12 +1408,17 @@ export default function FanWallScreen() {
           style={styles.input}
           placeholder={activeRoom ? `Post in ${activeRoom}...` : 'Write something for the common Fan Wall...'}
           placeholderTextColor="#718096"
+          maxLength={FAN_POST_LIMIT}
           value={postText}
           onChangeText={setPostText}
           multiline
           blurOnSubmit={false}
           returnKeyType="default"
         />
+        <Text style={styles.postCounter}>
+          {removeGifUrl(postText).trim().length}/{FAN_POST_LIMIT}
+        </Text>
+
 
         <View style={styles.photoComposerBox}>
           <Pressable style={styles.photoButton} onPress={pickFanPostPhoto} disabled={uploadingPostPhoto}>
@@ -1966,6 +2089,99 @@ const styles = StyleSheet.create({
   title: { color: '#FFD166', fontSize: 34, fontWeight: '900', marginBottom: 6 },
   subtitle: { color: '#A7B0C0', fontSize: 16, marginBottom: 14 },
 
+  fanHubCard: {
+    backgroundColor: '#0A1424',
+    borderRadius: 28,
+    borderWidth: 1.3,
+    borderColor: 'rgba(255, 209, 102, 0.42)',
+    padding: 16,
+    marginBottom: 18,
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 7,
+  },
+  fanHubHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  fanHubEyebrow: {
+    color: '#8FA3C8',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  fanHubTitle: {
+    color: '#FFD166',
+    fontSize: 23,
+    fontWeight: '900',
+    marginTop: 3,
+  },
+  fanHubSpark: {
+    fontSize: 28,
+  },
+  fanHubSubtitle: {
+    color: '#B8C4D8',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginBottom: 14,
+  },
+  fanHubGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  fanHubButton: {
+    width: '31.5%',
+    minHeight: 102,
+    backgroundColor: '#07111F',
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: '#24344F',
+    paddingVertical: 12,
+    paddingHorizontal: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  fanHubButtonActive: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  fanHubIcon: {
+    fontSize: 25,
+    marginBottom: 7,
+  },
+  fanHubLabel: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  fanHubLabelActive: {
+    color: '#07111F',
+  },
+  fanHubMeta: {
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  fanHubMetaActive: {
+    color: '#07111F',
+  },
+
   searchInput: {
     backgroundColor: '#111C2E',
     borderWidth: 1,
@@ -2004,12 +2220,12 @@ const styles = StyleSheet.create({
   roomHeaderSubtext: { color: '#A7B0C0', fontSize: 13, marginTop: 4 },
 
   myTeamsCard: {
-    backgroundColor: '#111C2E',
+    backgroundColor: '#0B1526',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#22314A',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 14,
+    borderColor: '#24344F',
+    padding: 16,
+    marginBottom: 18,
   },
   myTeamsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   myTeamsTitle: { color: '#FFD166', fontSize: 16, fontWeight: '900' },
@@ -2175,6 +2391,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   teamBadgeText: { color: '#FFD166', fontSize: 12, fontWeight: '900' },
+  postCounter: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'right',
+    marginTop: 6,
+    marginBottom: 8,
+  },
+
   postText: {
     color: '#F8FAFC',
     fontSize: 15,
