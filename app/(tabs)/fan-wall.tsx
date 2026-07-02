@@ -174,7 +174,27 @@ function countryFlag(country: string) {
   return flags[country] || '🌎';
 }
 
-const POPULAR_COUNTRIES = ['USA', 'Mexico', 'England', 'Spain', 'Brazil', 'Argentina', 'Portugal', 'Germany', 'France', 'Italy'];
+const POPULAR_COUNTRIES = ['USA', 'Mexico', 'England', 'Spain', 'Germany', 'France', 'Italy', 'Portugal', 'Brazil'];
+
+
+function getCountryAccent(country: string) {
+  const accents: Record<string, string> = {
+    USA: '#6FA8FF',
+    Mexico: '#33C27F',
+    England: '#C7CEDA',
+    Spain: '#F4B942',
+    Germany: '#FF6B6B',
+    France: '#5FA8FF',
+    Italy: '#45C486',
+    Portugal: '#57C785',
+    Brazil: '#EAC54F',
+    Argentina: '#8CC8FF',
+    Nepal: '#8FA3B8',
+    India: '#FFB347',
+  };
+
+  return accents[country] || '#FFD166';
+}
 
 function extractGifUrl(value?: string) {
   if (!value) return '';
@@ -837,7 +857,7 @@ export default function FanWallScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 180 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: 56, paddingBottom: 180 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>🔥 Fan Zone</Text>
       <Text style={styles.subtitle}>Fan Wall + Fans Club in one place</Text>
 
@@ -1021,15 +1041,15 @@ export default function FanWallScreen() {
                     {popularCountryResults.map((country) => (
                       <Pressable
                         key={country}
-                        style={styles.countryTile}
+                        style={[styles.countryTile, { borderColor: getCountryAccent(country), shadowColor: getCountryAccent(country) }]}
                         onPress={() => {
                           setSelectedCountry(country);
                           setSearchText('');
                         }}
                       >
-                        <Text style={styles.countryTileFlag}>{countryFlag(country)}</Text>
-                        <Text style={styles.countryTileName}>{countryLabel(country)}</Text>
-                        <Text style={styles.countryTileSub}>Teams →</Text>
+                        <Text style={[styles.countryTileFlag, { textShadowColor: getCountryAccent(country), textShadowRadius: 8 }]}>{countryFlag(country)}</Text>
+                        <Text style={[styles.countryTileName, { color: getCountryAccent(country) }]}>{countryLabel(country)}</Text>
+                        <Text style={[styles.countryTileSub, { color: "#DDE7F0" }]}>Teams →</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -1484,42 +1504,48 @@ const styles = StyleSheet.create({
   countryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginTop: 10,
+    marginBottom: 10,
   },
   countryTile: {
-    width: '48%',
+    width: '31.5%',
+    minHeight: 132,
     backgroundColor: '#07111F',
-    borderRadius: 18,
-    paddingVertical: 16,
+    borderRadius: 22,
+    borderWidth: 1.4,
+    paddingVertical: 14,
     paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 209, 102, 0.26)',
+    marginBottom: 14,
+    justifyContent: 'space-between',
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   countryTileFlag: {
-    fontSize: 28,
-    marginBottom: 8,
+    fontSize: 24,
+    marginBottom: 10,
   },
   countryTileName: {
-    color: '#FFD166',
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '900',
+    marginBottom: 6,
   },
   countryTileSub: {
-    color: '#CBD5E1',
-    fontSize: 13,
-    marginTop: 4,
+    fontSize: 11,
     fontWeight: '700',
   },
   moreCountriesButton: {
-    backgroundColor: 'rgba(255, 209, 102, 0.14)',
-    borderRadius: 18,
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 209, 102, 0.35)',
-    marginBottom: 12,
+    marginTop: 8,
+    backgroundColor: '#2B3138',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 209, 102, 0.45)',
+    paddingVertical: 18,
+    paddingHorizontal: 18,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   moreCountriesText: {
     color: '#FFD166',
