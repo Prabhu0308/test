@@ -1368,13 +1368,15 @@ export default function FanWallScreen() {
 
               return (
                 <View key={post.id} style={styles.card}>
-                {/* Soccer Daily three dot report menu */}
+                {/* Soccer Daily post options menu */}
                 <Pressable
-                  style={styles.postThreeDotButton}
+                  style={styles.postOptionsButton}
                   onPress={() => reportPost(post)}
+                  hitSlop={12}
                 >
-                  <Text style={styles.postThreeDotText}>⋯</Text>
+                  <Text style={styles.postOptionsText}>⋯</Text>
                 </Pressable>
+
 
                   <Text style={styles.user}>{userDisplayName(post)}</Text>
                   <Text style={styles.timeText}>{post.editedAt ? 'Edited' : 'Posted'} • Soccer Daily</Text>
@@ -2198,6 +2200,33 @@ const styles = StyleSheet.create({
   smallButtonText: { color: '#07111F', fontWeight: '900' },
   cancelButton: { flex: 1, backgroundColor: '#07111F', borderWidth: 1, borderColor: '#2B3D5E', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   cancelText: { color: '#A7B0C0', fontWeight: '900' },
+
+  postOptionsButton: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0B1526',
+    borderWidth: 1.5,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99,
+    elevation: 12,
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  postOptionsText: {
+    color: '#FFD166',
+    fontSize: 30,
+    fontWeight: '900',
+    lineHeight: 30,
+    marginTop: -8,
+  },
 
   actionRow: {
     flexDirection: 'row',
