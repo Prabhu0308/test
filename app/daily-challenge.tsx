@@ -1,10 +1,41 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+const SOCCER_DAILY_YOUTUBE = 'https://www.youtube.com/channel/UC-FNALunTqvcdrlFMo4nVfA';
+
+async function openSoccerDailyYouTube() {
+  try {
+    const canOpen = await Linking.canOpenURL(SOCCER_DAILY_YOUTUBE);
+    if (!canOpen) {
+      console.log('YouTube link could not open:', SOCCER_DAILY_YOUTUBE);
+      return;
+    }
+
+    await Linking.openURL(SOCCER_DAILY_YOUTUBE);
+  } catch (error) {
+    console.log('YouTube link could not open:', SOCCER_DAILY_YOUTUBE);
+  }
+}
 
 export default function DailyChallengeScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>🔥 Daily Soccer Challenge</Text>
       <Text style={styles.subtitle}>Train smarter every day: skill, fitness, food, and recovery.</Text>
+
+      <View style={styles.youtubeCard}>
+        <Text style={styles.youtubeTitle}>📺 Soccer Daily Challenge Videos</Text>
+        <Text style={styles.youtubeText}>
+          Watch Soccer Daily videos on YouTube for training, fitness, match ideas, and fan content.
+        </Text>
+        <Pressable
+          style={styles.youtubeButton}
+          onPress={openSoccerDailyYouTube}
+        >
+          <Text style={styles.youtubeButtonText}>Open Soccer Daily YouTube</Text>
+        </Pressable>
+      </View>
+
+
 
       <View style={styles.highlightCard}>
         <Text style={styles.highlightTitle}>Today’s Focus</Text>
@@ -77,4 +108,35 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   warningText: { color: '#FFD166', fontSize: 13, lineHeight: 19 },
+
+  youtubeCard: {
+    backgroundColor: '#111C2E',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.35)',
+  },
+  youtubeTitle: {
+    color: '#FFD166',
+    fontSize: 19,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  youtubeText: {
+    color: '#DDE7F0',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  youtubeButton: {
+    backgroundColor: '#FFD166',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  youtubeButtonText: {
+    color: '#07111F',
+    fontWeight: '900',
+    textAlign: 'center',
+  },
 });
