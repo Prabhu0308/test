@@ -265,7 +265,7 @@ export default function FanWallScreen() {
   const [showFollowingList, setShowFollowingList] = useState(false);
   const [showFollowedTeamsList, setShowFollowedTeamsList] = useState(false);
   const [showMyPostsOnly, setShowMyPostsOnly] = useState(false);
-  const [activeFanHub, setActiveFanHub] = useState('wall');
+  const [activeFanHub, setActiveFanHub] = useState('home');
   const [followerCounts, setFollowerCounts] = useState<any>({});
   const [activeRoom, setActiveRoom] = useState(routeRoom);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -833,6 +833,13 @@ export default function FanWallScreen() {
     setShowFollowingList(false);
     setShowMyPostsOnly(false);
 
+    if (section === 'home') {
+      setActiveRoom('');
+      setShowClubPicker(false);
+      setSelectedCountry(null);
+      return;
+    }
+
     if (section === 'wall') {
       setActiveRoom('');
       setShowClubPicker(false);
@@ -1078,14 +1085,14 @@ export default function FanWallScreen() {
       <View style={styles.fanHubCard}>
         <View style={styles.fanHubHeader}>
           <View>
-            <Text style={styles.fanHubEyebrow}>Soccer Daily Command Center</Text>
-            <Text style={styles.fanHubTitle}>Choose your fan space</Text>
+            <Text style={styles.fanHubEyebrow}>Fan Zone Control Room</Text>
+            <Text style={styles.fanHubTitle}>Choose your space</Text>
           </View>
           <Text style={styles.fanHubSpark}>⚡</Text>
         </View>
 
         <Text style={styles.fanHubSubtitle}>
-          Open fan wall, clubs, followed teams, users, posts, and safety rules from one clean place.
+          Start with a clean fan room. Open only what you want to see.
         </Text>
 
         <View style={styles.fanHubGrid}>
@@ -1094,8 +1101,8 @@ export default function FanWallScreen() {
             onPress={() => openFanHub('wall')}
           >
             <Text style={styles.fanHubIcon}>🧱</Text>
-            <Text style={[styles.fanHubLabel, activeFanHub === 'wall' && styles.fanHubLabelActive]}>Fan Wall</Text>
-            <Text style={[styles.fanHubMeta, activeFanHub === 'wall' && styles.fanHubMetaActive]}>All posts</Text>
+            <Text style={[styles.fanHubLabel, activeFanHub === 'wall' && styles.fanHubLabelActive]}>For You</Text>
+            <Text style={[styles.fanHubMeta, activeFanHub === 'wall' && styles.fanHubMetaActive]}>Fan feed</Text>
           </Pressable>
 
           <Pressable
@@ -1477,13 +1484,13 @@ export default function FanWallScreen() {
         </View>
       ) : (
         <View>
-          {visiblePosts.length === 0 ? (
+          {activeFanHub !== 'home' && visiblePosts.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>No posts found</Text>
               <Text style={styles.emptyText}>Try another search or be the first fan to post.</Text>
             </View>
           ) : (
-            visiblePosts.map((post) => {
+            (activeFanHub === 'home' ? [] : visiblePosts).map((post) => {
               const liked = post.likes?.includes(currentEmail);
               const likeCount = post.likes?.length || 0;
               const commentCount = post.comments?.length || 0;
@@ -2090,14 +2097,14 @@ const styles = StyleSheet.create({
   subtitle: { color: '#A7B0C0', fontSize: 16, marginBottom: 14 },
 
   fanHubCard: {
-    backgroundColor: '#081322',
+    backgroundColor: '#061A16',
     borderRadius: 28,
-    borderWidth: 1.2,
-    borderColor: 'rgba(212, 175, 55, 0.45)',
+    borderWidth: 1.3,
+    borderColor: 'rgba(52, 211, 153, 0.45)',
     padding: 16,
     marginBottom: 18,
-    shadowColor: '#D4AF37',
-    shadowOpacity: 0.16,
+    shadowColor: '#22C55E',
+    shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 7,
@@ -2109,14 +2116,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   fanHubEyebrow: {
-    color: '#8FA3C8',
+    color: '#8FD8BD',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   fanHubTitle: {
-    color: '#E8C766',
+    color: '#D1FAE5',
     fontSize: 23,
     fontWeight: '900',
     marginTop: 3,
@@ -2125,7 +2132,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   fanHubSubtitle: {
-    color: '#AEBBD0',
+    color: '#A7F3D0',
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
@@ -2139,10 +2146,8 @@ const styles = StyleSheet.create({
   fanHubButton: {
     width: '31.5%',
     minHeight: 102,
-    backgroundColor: '#06101D',
     borderRadius: 20,
     borderWidth: 1.2,
-    borderColor: '#243A5C',
     paddingVertical: 12,
     paddingHorizontal: 7,
     alignItems: 'center',
@@ -2150,13 +2155,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   fanHubButtonActive: {
-    backgroundColor: '#C9A227',
-    borderColor: '#F2D675',
-    shadowColor: '#F2D675',
-    shadowOpacity: 0.3,
+    borderWidth: 1.8,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
+    transform: [{ scale: 1.02 }],
   },
   fanHubIcon: {
     fontSize: 25,
@@ -2169,17 +2173,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   fanHubLabelActive: {
-    color: '#06101D',
+    color: '#FFFFFF',
   },
   fanHubMeta: {
-    color: '#8FA3C8',
+    color: '#C3CEE1',
     fontSize: 10,
     fontWeight: '800',
     marginTop: 4,
     textAlign: 'center',
   },
   fanHubMetaActive: {
-    color: '#06101D',
+    color: '#FFFFFF',
+    opacity: 0.9,
   },
 
   searchInput: {
@@ -2425,6 +2430,27 @@ const styles = StyleSheet.create({
   smallButtonText: { color: '#07111F', fontWeight: '900' },
   cancelButton: { flex: 1, backgroundColor: '#07111F', borderWidth: 1, borderColor: '#2B3D5E', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   cancelText: { color: '#A7B0C0', fontWeight: '900' },
+
+  cleanLandingCard: {
+    backgroundColor: '#061A16',
+    borderRadius: 24,
+    borderWidth: 1.2,
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+    padding: 18,
+    marginBottom: 18,
+  },
+  cleanLandingTitle: {
+    color: '#D1FAE5',
+    fontSize: 20,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  cleanLandingText: {
+    color: '#A7F3D0',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
 
   postOptionsButton: {
     position: 'absolute',
