@@ -87,6 +87,7 @@ const COUNTRY_CLUBS: any = {
   Algeria: ['CR Belouizdad', 'MC Alger', 'JS Kabylie', 'USM Alger', 'ES Sétif'],
   SaudiArabia: ['Al Nassr', 'Al Hilal', 'Al Ittihad', 'Al Ahli', 'Al Shabab', 'Al Ettifaq', 'Al Taawoun', 'Al Fateh'],
   Nepal: ['Church Boys United', 'Machhindra FC', 'Manang Marshyangdi Club', 'Three Star Club', 'Nepal Police Club', 'APF Club', 'Tribhuvan Army FC'],
+  India: ['Mohun Bagan Super Giant', 'East Bengal FC', 'Bengaluru FC', 'Mumbai City FC', 'Kerala Blasters FC', 'FC Goa', 'Chennaiyin FC', 'Shillong Lajong FC'],
 };
 
 const NATIONAL_TEAMS: any = {
@@ -116,6 +117,7 @@ const NATIONAL_TEAMS: any = {
   Algeria: '🇩🇿 Algeria National Team',
   SaudiArabia: '🇸🇦 Saudi Arabia National Team',
   Nepal: '🇳🇵 Nepal National Team',
+  India: '🇮🇳 India National Team',
 };
 
 const soccerGifs = [
@@ -152,6 +154,7 @@ function countryFlag(country: string) {
     Argentina: '🇦🇷',
     SaudiArabia: '🇸🇦',
     Nepal: '🇳🇵',
+    India: '🇮🇳',
     Algeria: '🇩🇿',
     Uruguay: '🇺🇾',
     Croatia: '🇭🇷',
@@ -171,7 +174,7 @@ function countryFlag(country: string) {
   return flags[country] || '🌎';
 }
 
-const POPULAR_COUNTRIES = ['USA', 'Mexico', 'England', 'Spain', 'Brazil', 'Argentina'];
+const POPULAR_COUNTRIES = ['USA', 'Mexico', 'England', 'Spain', 'Brazil', 'Argentina', 'Portugal', 'Germany', 'France', 'Italy'];
 
 function extractGifUrl(value?: string) {
   if (!value) return '';
@@ -770,38 +773,57 @@ export default function FanWallScreen() {
       return;
     }
 
-    Alert.alert(
-      'Report this post?',
-      'Our team will review this post for safety.',
-      [
+    async function submitReport(reason: string) {
+      try {
+        await addDoc(collection(db, 'reports'), {
+          postId: post.id,
+          postText: post.text || '',
+          postImageUrl: post.imageUrl || '',
+          postOwnerEmail: post.userEmail || '',
+          postOwnerId: post.userId || '',
+          reporterEmail: currentUser.email || '',
+          reporterId: currentUser.uid,
+          reason,
+          status: 'active',
+          createdAt: serverTimestamp(),
+        });
+
+        Alert.alert('Report submitted', 'Thanks. Our team will review this post.');
+      } catch (error) {
+        console.log('Report error:', error);
+        Alert.alert('Error', 'Could not report this post.');
+      }
+    }
+
+    function confirmReport(reason: string) {
+      Alert.alert('Submit report?', `Reason: ${reason}`, [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Report',
+          text: 'Submit',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await addDoc(collection(db, 'reports'), {
-                postId: post.id,
-                postText: post.text || '',
-                postImageUrl: post.imageUrl || '',
-                postOwnerEmail: post.userEmail || '',
-                postOwnerId: post.userId || '',
-                reporterEmail: currentUser.email || '',
-                reporterId: currentUser.uid,
-                reason: 'User reported from Fan Zone',
-                status: 'active',
-                createdAt: serverTimestamp(),
-              });
-
-              Alert.alert('Reported', 'Thanks. Our team will review this post.');
-            } catch (error) {
-              console.log('Report error:', error);
-              Alert.alert('Error', 'Could not report this post.');
-            }
-          },
+          onPress: () => submitReport(reason),
         },
-      ]
-    );
+      ]);
+    }
+
+    Alert.alert('Post options', 'Choose an action for this post.', [
+      {
+        text: 'Report post',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert('Why are you reporting this post?', 'Choose the closest reason.', [
+            { text: 'Harassment or hate', onPress: () => confirmReport('Harassment or hate') },
+            { text: 'Spam or scam', onPress: () => confirmReport('Spam or scam') },
+            { text: 'Private information', onPress: () => confirmReport('Private information') },
+            { text: 'Inappropriate content', onPress: () => confirmReport('Inappropriate content') },
+            { text: 'TV match clip / copyright', onPress: () => confirmReport('TV match clip / copyright') },
+            { text: 'Other', onPress: () => confirmReport('Other') },
+            { text: 'Cancel', style: 'cancel' },
+          ]);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   async function sharePost(post: FanPost) {
@@ -1220,6 +1242,37 @@ export default function FanWallScreen() {
 
               return (
                 <View key={post.id} style={styles.card}>
+                {/* Soccer Daily three dot report menu */}
+                <Pressable
+                  style={{
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: '#0B1526',
+                    borderWidth: 1,
+                    borderColor: '#FFD166',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 50,
+                    elevation: 10,
+                  }}
+                  onPress={() => reportPost(post)}
+                >
+                  <Text
+                    style={{
+                      color: '#FFD166',
+                      fontSize: 28,
+                      fontWeight: '900',
+                      lineHeight: 28,
+                    }}
+                  >
+                    ⋯
+                  </Text>
+                </Pressable>
+
                   <Text style={styles.user}>{userDisplayName(post)}</Text>
                   <Text style={styles.timeText}>{post.editedAt ? 'Edited' : 'Posted'} • Soccer Daily</Text>
 
@@ -1327,10 +1380,6 @@ export default function FanWallScreen() {
 
                   </View>
 
-                  <Pressable style={styles.reportBigButton} onPress={() => reportPost(post)}>
-                    <Text style={styles.reportBigButtonText}>🚩 Report this post</Text>
-                    <Text style={styles.reportBigSubText}>Safety review by Soccer Daily</Text>
-                  </Pressable>
 
                   {commentPostId === post.id ? (
                     <View style={styles.commentBox}>
