@@ -312,60 +312,60 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={styles.homeLanguageBox}>
+      <View style={styles.compactTopBar}>
         <Pressable
-          style={styles.homeLanguageButton}
+          style={styles.compactLanguageButton}
           onPress={() => setShowLanguageMenu(!showLanguageMenu)}
         >
-          <Text style={styles.homeLanguageButtonText}>
+          <Text style={styles.compactLanguageText}>
             🌐 {selectedLanguage.flag} {selectedLanguage.label}
           </Text>
-          <Text style={styles.homeLanguageArrow}>{showLanguageMenu ? '▲' : '▼'}</Text>
+          <Text style={styles.compactLanguageArrow}>{showLanguageMenu ? '▲' : '▼'}</Text>
         </Pressable>
 
-        {showLanguageMenu ? (
-          <View style={styles.homeLanguageMenu}>
-            {languageOptions.map((item) => (
-              <Pressable
-                key={item.code}
+        <View style={styles.compactTopActions}>
+          <Pressable style={styles.compactIconButton} onPress={() => router.push('/search' as any)}>
+            <Text style={styles.compactIconText}>🔎</Text>
+          </Pressable>
+
+          <Pressable style={styles.compactIconButton} onPress={openNotificationsAndClear}>
+            <Text style={styles.compactIconText}>🔔</Text>
+            {notificationBadgeCount > 0 ? (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>{notificationBadgeCount}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </View>
+      </View>
+
+      {showLanguageMenu ? (
+        <View style={styles.homeLanguageMenu}>
+          {languageOptions.map((item) => (
+            <Pressable
+              key={item.code}
+              style={[
+                styles.homeLanguageOption,
+                language === item.code && styles.homeLanguageOptionActive,
+              ]}
+              onPress={async () => {
+                setLanguage(item.code);
+                setShowLanguageMenu(false);
+                await AsyncStorage.setItem('soccerDailyLanguage', item.code);
+              }}
+            >
+              <Text
                 style={[
-                  styles.homeLanguageOption,
-                  language === item.code && styles.homeLanguageOptionActive,
+                  styles.homeLanguageOptionText,
+                  language === item.code && styles.homeLanguageOptionTextActive,
                 ]}
-                onPress={() => {
-                  setLanguage(item.code);
-                  setShowLanguageMenu(false);
-                }}
               >
-                <Text
-                  style={[
-                    styles.homeLanguageOptionText,
-                    language === item.code && styles.homeLanguageOptionTextActive,
-                  ]}
-                >
-                  {item.flag} {item.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-      </View>
-
-      <View style={styles.topTools}>
-        <Pressable style={styles.searchBox} onPress={() => router.push('/search' as any)}>
-          <Text style={styles.searchIcon}>🔎</Text>
-          <Text style={styles.searchInputText}>Search teams, news, fans...</Text>
-        </Pressable>
-
-        <Pressable style={styles.notificationButton} onPress={openNotificationsAndClear}>
-          <Text style={styles.notificationIcon}>🔔</Text>
-          {notificationBadgeCount > 0 ? (
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>{notificationBadgeCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
-      </View>
+                {item.flag} {item.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
 
       {(homeCoverPhotoUrl || homePhotoUrl) ? (
         <ImageBackground
@@ -565,6 +565,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+
+  compactTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  compactLanguageButton: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 20,
+    backgroundColor: '#111C2E',
+    borderWidth: 1,
+    borderColor: '#22314A',
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  compactLanguageText: {
+    color: '#FFD166',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  compactLanguageArrow: {
+    color: '#FFD166',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  compactTopActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  compactIconButton: {
+    width: 54,
+    height: 54,
+    borderRadius: 20,
+    backgroundColor: '#111C2E',
+    borderWidth: 1.5,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactIconText: {
+    fontSize: 25,
   },
 
   homeLanguageBox: {
