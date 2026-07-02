@@ -19,6 +19,7 @@ const COUNTRY_CLUBS: any = {
   Argentina: ['Boca Juniors', 'River Plate', 'Racing Club', 'Independiente', 'San Lorenzo', 'Estudiantes', 'Vélez Sarsfield', 'Rosario Central', 'Newell’s Old Boys', 'Huracán'],
   SaudiArabia: ['Al Nassr', 'Al Hilal', 'Al Ittihad', 'Al Ahli', 'Al Shabab', 'Al Ettifaq', 'Al Taawoun', 'Al Fateh'],
   Nepal: ['Church Boys United', 'Machhindra FC', 'Manang Marshyangdi Club', 'Three Star Club', 'Nepal Police Club', 'APF Club', 'Tribhuvan Army FC'],
+  India: ['Mohun Bagan Super Giant', 'East Bengal FC', 'Bengaluru FC', 'Mumbai City FC', 'Kerala Blasters FC', 'FC Goa', 'Chennaiyin FC', 'Shillong Lajong FC'],
 };
 
 const NATIONAL_TEAMS: any = {
@@ -34,6 +35,7 @@ const NATIONAL_TEAMS: any = {
   Argentina: '🇦🇷 Argentina National Team',
   SaudiArabia: '🇸🇦 Saudi Arabia National Team',
   Nepal: '🇳🇵 Nepal National Team',
+  India: '🇮🇳 India National Team',
 };
 
 function countryLabel(country: string) {

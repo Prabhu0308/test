@@ -11,6 +11,7 @@ const teams = [
   'Liverpool',
   'Arsenal',
   'Nepal',
+  'India',
   'USA',
   'Argentina',
   'Brazil',
