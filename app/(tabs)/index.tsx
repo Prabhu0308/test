@@ -522,6 +522,11 @@ export default function HomeScreen() {
             <Text style={styles.quickText}>Fan Zone</Text>
           </Pressable>
 
+          <Pressable style={styles.quickButton} onPress={() => router.push('/soccer-lab' as any)}>
+            <Text style={styles.quickIcon}>🧪</Text>
+            <Text style={styles.quickText}>Soccer Lab</Text>
+          </Pressable>
+
           <Pressable style={styles.quickButton} onPress={() => router.push('/tv' as any)}>
             <Text style={styles.quickIcon}>📺</Text>
             <Text style={styles.quickText}>{t.tv}</Text>
