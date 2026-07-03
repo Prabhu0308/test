@@ -26,7 +26,7 @@ const text: any = {
     quick: 'Quick Access',
     scores: 'Scores',
     prediction: 'Prediction Wheel',
-    fanWall: 'Fan Wall',
+    fanWall: 'Fan Zone',
     tv: 'Soccer Daily TV',
     studio: 'Studio',
     stats: 'Stats Center',
@@ -167,9 +167,9 @@ const homeUi: any = {
     trainingFitness: 'Training & Fitness',
     tvMiniLabel: 'WATCH ON YOUTUBE',
     tvTitle: 'Soccer Daily TV',
-    tvDescription: '{ui.tvDescription}',
+    tvDescription: 'New videos and beta updates coming soon.',
     tvButton: 'Open YouTube Channel',
-    tvNote: '{ui.tvNote}',
+    tvNote: 'New videos and beta updates coming soon.',
     searchPlaceholder: '{ui.searchPlaceholder}',
   },
   es: {
@@ -574,7 +574,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <Text style={styles.tvDescription}>{ui.tvDescription}</Text>
+        <Text style={styles.tvDescription}>New videos and beta updates coming soon.</Text>
 
         <Pressable style={styles.youtubeMegaButton} onPress={openSoccerDailyYouTube}>
           <Text style={styles.youtubePlay}>▶</Text>

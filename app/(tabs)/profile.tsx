@@ -15,6 +15,7 @@ import {
   Text,
   TextInput,
   View,
+  Platform,
 } from 'react-native';
 import { SOCIAL_LINKS } from '../../constants/socialLinks';
 import { db, storage } from '../../firebase/config';
@@ -177,17 +178,29 @@ export default function ProfileScreen() {
     }
   }
 
+  async function performLogout() {
+    try {
+      await AsyncStorage.setItem('soccerDailyManualLogout', 'true');
+      await signOut(auth);
+      router.replace('/login' as any);
+    } catch (error) {
+      console.log('Logout error:', error);
+      Alert.alert('Logout failed', 'Please try again.');
+    }
+  }
+
   async function handleLogout() {
+    if (Platform.OS === 'web') {
+      await performLogout();
+      return;
+    }
+
     Alert.alert('Log Out?', 'Do you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Log Out',
         style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.setItem('soccerDailyManualLogout', 'true');
-          await signOut(auth);
-          router.replace('/login' as any);
-        },
+        onPress: performLogout,
       },
     ]);
   }
