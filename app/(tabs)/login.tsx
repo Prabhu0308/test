@@ -24,6 +24,9 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [acceptedGuidelines, setAcceptedGuidelines] = useState(false);
+  const [acceptedFanZoneRules, setAcceptedFanZoneRules] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function saveLocalUser(displayName: string, userEmail: string) {
@@ -62,7 +65,24 @@ export default function LoginScreen() {
       const auth = getAuth();
 
       if (mode === 'signup') {
+        if (!dateOfBirth.trim()) {
+          Alert.alert('Date of birth required', 'Please enter your date of birth before creating an account.');
+          return;
+        }
+
+        if (!acceptedGuidelines || !acceptedFanZoneRules) {
+          Alert.alert(
+            'Agreement required',
+            'Please agree to the Community Guidelines and Fan Zone respectful-use rules before creating an account.'
+          );
+          return;
+        }
+
         const result = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+
+        await AsyncStorage.setItem('soccerDailyCommunityGuidelinesAccepted', 'yes');
+        await AsyncStorage.setItem('soccerDailyDateOfBirth', dateOfBirth.trim());
+        await AsyncStorage.setItem(`soccerDailyDateOfBirth:${result.user.uid}`, dateOfBirth.trim());
         await AsyncStorage.removeItem('soccerDailyManualLogout');
 
         await updateProfile(result.user, {
@@ -125,7 +145,13 @@ export default function LoginScreen() {
         <View style={styles.switchRow}>
           <Pressable
             style={[styles.switchButton, mode === 'signup' && styles.switchActive]}
-            onPress={() => setMode('signup')}
+            onPress={() => {
+                setMode('signup');
+                Alert.alert(
+                  'Create Account',
+                  'Please enter your date of birth and agree to the Community Guidelines before opening a Soccer Daily account.'
+                );
+              }}
           >
             <Text style={[styles.switchText, mode === 'signup' && styles.switchTextActive]}>
               Create Account
@@ -174,7 +200,43 @@ export default function LoginScreen() {
           autoCapitalize="none"
         />
 
-        <Pressable style={styles.goldButton} onPress={handleSubmit} disabled={busy}>
+        
+          {mode === 'signup' ? (
+            <View style={styles.signupSafetyCard}>
+              <Text style={styles.signupSafetyTitle}>Required before opening account</Text>
+
+              <TextInput
+                style={styles.input}
+                value={dateOfBirth}
+                onChangeText={setDateOfBirth}
+                placeholder="Date of birth required (MM/DD/YYYY)"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numbers-and-punctuation"
+              />
+
+              <Pressable
+                style={styles.agreementRow}
+                onPress={() => setAcceptedGuidelines((value) => !value)}
+              >
+                <Text style={styles.checkbox}>{acceptedGuidelines ? '☑' : '☐'}</Text>
+                <Text style={styles.agreementText}>
+                  I agree to Soccer Daily Community Guidelines.
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.agreementRow}
+                onPress={() => setAcceptedFanZoneRules((value) => !value)}
+              >
+                <Text style={styles.checkbox}>{acceptedFanZoneRules ? '☑' : '☐'}</Text>
+                <Text style={styles.agreementText}>
+                  I understand Fan Zone is for respectful soccer conversation.
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+<Pressable style={styles.goldButton} onPress={handleSubmit} disabled={busy}>
           {busy ? (
             <ActivityIndicator />
           ) : (
@@ -197,6 +259,42 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+
+  signupSafetyCard: {
+    marginTop: 14,
+    marginBottom: 14,
+    borderRadius: 18,
+    padding: 14,
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#253B5B',
+  },
+  signupSafetyTitle: {
+    color: '#FFD166',
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 10,
+  },
+  agreementRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 12,
+  },
+  checkbox: {
+    color: '#FFD166',
+    fontSize: 21,
+    fontWeight: '900',
+    marginTop: -2,
+  },
+  agreementText: {
+    flex: 1,
+    color: '#E5E7EB',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#07111F',
