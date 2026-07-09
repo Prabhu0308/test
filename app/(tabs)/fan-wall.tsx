@@ -4,40 +4,18 @@ import * as ImagePicker from 'expo-image-picker';
 import { ResizeMode, Video } from 'expo-av';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
-import {
-  addDoc,
-  arrayRemove,
-  arrayUnion,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Keyboard,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Platform, Keyboard, Pressable, ScrollView, useWindowDimensions, Modal, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { db, storage } from '../../firebase/config';
 
 type FanPost = {
   id: string;
   text?: string;
   badge?: string;
+  tag?: string;
+  taggedUsers?: string[];
   user?: string;
   userEmail?: string;
   userId?: string;
@@ -54,6 +32,10 @@ type FanAccount = {
   id: string;
   username?: string;
   displayName?: string;
+  userPhoto?: string;
+  profileImageUrl?: string;
+  avatarUrl?: string;
+  photoURL?: string;
   email?: string;
   userEmail?: string;
   favoriteFanBadge?: string;
@@ -242,6 +224,16 @@ function accountName(account: FanAccount) {
 }
 
 export default function FanWallScreen() {
+
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isLandscape = screenWidth > screenHeight;
+
+
+  const [fullScreenPost, setFullScreenPost] = useState<FanPost | null>(null);
+  const [selectedFanProfile, setSelectedFanProfile] = useState<FanPost | null>(null);
+  const [currentProfilePhotoUrl, setCurrentProfilePhotoUrl] = useState('');
+  const [publicProfileByUserId, setPublicProfileByUserId] = useState<Record<string, any>>({});
+
   const [bookPageHint, setBookPageHint] = useState<'fanFeed' | 'matchRooms' | 'myTeams' | 'createPost'>('fanFeed');
   const [communityGuidelinesAccepted, setCommunityGuidelinesAccepted] = useState(false);
 
@@ -327,6 +319,7 @@ export default function FanWallScreen() {
 
   const [searchText, setSearchText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [activePostMenuId, setActivePostMenuId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -394,7 +387,6 @@ export default function FanWallScreen() {
         console.log('Follower count error:', error);
       }
     );
-
   return () => {
       unsubscribePosts();
       unsubscribeFollowers();
@@ -451,6 +443,9 @@ export default function FanWallScreen() {
         {
           email: currentEmail,
           userEmail: currentEmail,
+        photoURL: currentProfilePhotoUrl,
+        avatarUrl: currentProfilePhotoUrl,
+        profileImageUrl: currentProfilePhotoUrl,
           username: currentEmail.split('@')[0],
           favoriteFanBadge: badge,
           followedFanTeams: nextTeams,
@@ -462,6 +457,40 @@ export default function FanWallScreen() {
       );
     }
   }
+
+
+  useEffect(() => {
+    async function syncFanZoneTeamWithFavoriteClub() {
+      try {
+        if (!savedFanBadge || savedFanBadge === 'General Fan Wall') return;
+
+        await AsyncStorage.multiSet([
+          ['favoriteClubTeam', savedFanBadge],
+          ['soccerDailyFavoriteClub', savedFanBadge],
+          ['savedFanBadge', savedFanBadge],
+        ]);
+
+        const user = getAuth().currentUser;
+
+        if (user) {
+          const favoriteData = {
+            userId: user.uid,
+            userEmail: user.email || '',
+            favoriteClubTeam: savedFanBadge,
+            savedFanBadge,
+            updatedAt: serverTimestamp(),
+          };
+
+          await setDoc(doc(db, 'users', user.uid), favoriteData, { merge: true });
+          await setDoc(doc(db, 'publicProfiles', user.uid), favoriteData, { merge: true });
+        }
+      } catch (error) {
+        console.log('Fan Zone favorite team sync failed:', error);
+      }
+    }
+
+    syncFanZoneTeamWithFavoriteClub();
+  }, [savedFanBadge]);
 
   async function removeAllFavorites() {
     await AsyncStorage.removeItem('favoriteFanBadge');
@@ -514,10 +543,10 @@ export default function FanWallScreen() {
       )
     : [];
 
-  const visiblePosts = posts.filter((post) => {
+  const visiblePosts = posts.filter(isPostVisibleForFanWall).filter((post) => {
     const roomOk = activeRoom ? post.badge === activeRoom : true;
 
-    const searchTarget = `${post.text || ''} ${post.user || ''} ${post.userEmail || ''} ${post.badge || ''} ${(post.comments || [])
+    const searchTarget = `${post.text || ''} ${post.user || ''} ${post.userEmail || ''} ${post.badge || ''} ${(post.taggedUsers || []).join(' ')} ${post.tag || ''} ${(post.taggedUsers || []).join(' ')} ${(post.comments || [])
       .map((c: any) => `${c.text || ''} ${c.userEmail || ''} ${c.badge || ''}`)
       .join(' ')}`.toLowerCase();
 
@@ -664,7 +693,18 @@ export default function FanWallScreen() {
     }
   }
 
-  async function uploadFanPostPhoto() {
+  
+  async function uriToBlob(uri: string) {
+    const response = await fetch(uri);
+
+    if (!response.ok && Platform.OS === 'web') {
+      throw new Error('Could not read selected file in browser.');
+    }
+
+    return await response.blob();
+  }
+
+async function uploadFanPostPhoto() {
     if (!selectedImageUri) return '';
 
     if (!currentUid) {
@@ -675,12 +715,11 @@ export default function FanWallScreen() {
     try {
       setUploadingPostPhoto(true);
 
-      const response = await fetch(selectedImageUri);
-      const blob = await response.blob();
+      const blob = await uriToBlob(selectedImageUri);
 
-      const imageRef = ref(storage, `fan-wall/${currentUid}/${Date.now()}.jpg`);
+      const imageRef = ref(storage, `fan-wall/${currentUid}/${Date.now()}-${Platform.OS}.jpg`);
       await uploadBytes(imageRef, blob, {
-        contentType: 'image/jpeg',
+        contentType: blob.type || 'image/jpeg',
       });
 
       return await getDownloadURL(imageRef);
@@ -800,6 +839,8 @@ export default function FanWallScreen() {
       setPostText('');
       setSelectedGifUrl('');
       setSelectedImageUri('');
+      setSelectedVideoUri('');
+      setSelectedVideoDuration(0);
       setShowComposer(false);
     } catch (error) {
       console.log('Submit post error:', error);
@@ -870,6 +911,123 @@ export default function FanWallScreen() {
     ]);
   }
 
+
+  useEffect(() => {
+    async function loadCurrentProfilePhotoForFanWall() {
+      try {
+        const user = getAuth().currentUser;
+        const uid = currentUid || user?.uid || '';
+
+        if (user?.photoURL) {
+          setCurrentProfilePhotoUrl(user.photoURL);
+          console.log('✅ Fan Wall avatar from Auth:', user.photoURL);
+          return;
+        }
+
+        if (uid) {
+          const userSnap = await getDoc(doc(db, 'users', uid));
+          if (userSnap.exists()) {
+            const data: any = userSnap.data();
+            const photo = data.photoURL || data.photoUrl || data.profileImageUrl || '';
+            if (photo) {
+              setCurrentProfilePhotoUrl(photo);
+              console.log('✅ Fan Wall avatar from users:', photo);
+              return;
+            }
+          }
+
+          const publicSnap = await getDoc(doc(db, 'publicProfiles', uid));
+          if (publicSnap.exists()) {
+            const data: any = publicSnap.data();
+            const photo = data.photoURL || data.photoUrl || data.profileImageUrl || '';
+            if (photo) {
+              setCurrentProfilePhotoUrl(photo);
+              console.log('✅ Fan Wall avatar from publicProfiles:', photo);
+              return;
+            }
+          }
+        }
+
+        const keys = ['profilePhotoUrl', 'soccerDailyProfilePhoto', 'homePhotoUrl'];
+        for (const key of keys) {
+          const value = await AsyncStorage.getItem(key);
+          if (value) {
+            setCurrentProfilePhotoUrl(value);
+            console.log('✅ Fan Wall avatar from AsyncStorage:', key, value);
+            return;
+          }
+        }
+
+        console.log('⚠️ Fan Wall avatar not found, using initial.');
+      } catch (error) {
+        console.log('❌ Fan Wall avatar load failed:', error);
+      }
+    }
+
+    loadCurrentProfilePhotoForFanWall();
+  }, [currentEmail, currentUid]);
+
+
+
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPublicProfilesForVisiblePosts() {
+      try {
+        const ids = new Set<string>();
+
+        visiblePosts.forEach((post) => {
+          if (post.userId) ids.add(post.userId);
+
+          (post.comments || []).forEach((comment: any) => {
+            if (comment.userId) ids.add(comment.userId);
+          });
+        });
+
+        const missingIds = Array.from(ids).filter((uid) => uid && !publicProfileByUserId[uid]);
+
+        if (!missingIds.length) return;
+
+        const updates: Record<string, any> = {};
+
+        for (const uid of missingIds.slice(0, 40)) {
+          try {
+            const publicSnap = await getDoc(doc(db, 'publicProfiles', uid));
+
+            if (publicSnap.exists()) {
+              updates[uid] = publicSnap.data();
+              continue;
+            }
+
+            const userSnap = await getDoc(doc(db, 'users', uid));
+
+            if (userSnap.exists()) {
+              updates[uid] = userSnap.data();
+            }
+          } catch (error) {
+            console.log('Public profile lookup skipped:', uid, error);
+          }
+        }
+
+        if (!cancelled && Object.keys(updates).length) {
+          setPublicProfileByUserId((prev) => ({
+            ...prev,
+            ...updates,
+          }));
+        }
+      } catch (error) {
+        console.log('Load public profiles error:', error);
+      }
+    }
+
+    loadPublicProfilesForVisiblePosts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visiblePosts, publicProfileByUserId]);
+
   async function toggleLike(post: FanPost) {
     const postRef = doc(db, 'fanWall', post.id);
     const likes = post.likes || [];
@@ -939,10 +1097,22 @@ export default function FanWallScreen() {
 
   function openFollowingUsersList() {
     setShowFollowingList((prev) => !prev);
+    setShowFollowedTeamsList(false);
+    setShowClubPicker(false);
+    setShowComposer(false);
+    setShowMyPostsOnly(false);
+    setShowMoreCountries(false);
+    setActiveFanHub('following');
   }
 
   function openFollowedTeamsList() {
     setShowFollowedTeamsList((prev) => !prev);
+    setShowFollowingList(false);
+    setShowClubPicker(false);
+    setShowComposer(false);
+    setShowMyPostsOnly(false);
+    setShowMoreCountries(false);
+    setActiveFanHub('teams');
   }
 
   function openMyPostsList() {
@@ -953,6 +1123,8 @@ export default function FanWallScreen() {
   
 function openAllPostsPanel() {
     setActiveRoom('');
+    setSelectedCountry(null);
+    setSearchText('');
     setShowClubPicker(false);
     setShowComposer(false);
     setShowFollowedTeamsList(false);
@@ -971,15 +1143,18 @@ function openAllPostsPanel() {
     setShowMyPostsOnly(false);
     setShowMoreCountries(false);
     setActiveFanHub('write');
+    setBookPageHint('createPost');
   }
 
   function openClubPickerPanel() {
-    setActiveFanHub('clubs');
     setShowClubPicker(true);
-    setSelectedCountry(null);
+    setShowComposer(false);
     setShowFollowedTeamsList(false);
     setShowFollowingList(false);
     setShowMyPostsOnly(false);
+    setShowMoreCountries(false);
+    setActiveFanHub('clubs');
+    setBookPageHint('clubs');
   }
 
   function openFanHub(section: string) {
@@ -1091,10 +1266,385 @@ function openAllPostsPanel() {
     ]);
   }
 
-  async function sharePost(post: FanPost) {
+  
+  async function addMentionToPost(post: FanPost, rawMention: string) {
+    const cleanMention = rawMention.trim().replace(/^@+/, '');
+
+    if (!cleanMention) {
+      Alert.alert('Tag someone', 'Please choose a username to tag.');
+      return;
+    }
+
+    if (!currentEmail) {
+      Alert.alert('Login required', 'Please login first.');
+      return;
+    }
+
+    const currentTaggedUsers = post.taggedUsers || [];
+
+    if (currentTaggedUsers.includes(cleanMention)) {
+      Alert.alert('Already tagged', `@${cleanMention} is already tagged on this post.`);
+      return;
+    }
+
+    if (currentTaggedUsers.length >= 10) {
+      Alert.alert('Tag limit reached', 'You can tag up to 10 people in one post.');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'fanWall', post.id), {
+        taggedUsers: arrayUnion(cleanMention),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.log('Tag someone error:', error);
+      Alert.alert('Tag failed', 'Could not tag this person.');
+    }
+  }
+
+  function openTagSomeonePrompt(post: FanPost) {
+    const candidateMap = new Map<string, string>();
+
+    visiblePosts.forEach((item) => {
+      const key = userFollowKey(item);
+      const name = userDisplayName(item);
+      if (key && key !== currentUid && key !== currentEmail) {
+        candidateMap.set(name, name);
+      }
+    });
+
+    followingUsers.forEach((item) => {
+      const name = String(item).replace('email:', '').replace('uid:', '').split('@')[0];
+      if (name && name !== currentEmail.split('@')[0]) {
+        candidateMap.set(name, name);
+      }
+    });
+
+    const suggestions = Array.from(candidateMap.values()).slice(0, 10);
+
+    if (!suggestions.length) {
+      Alert.alert(
+        'Tag Someone',
+        'No suggested fans yet. You can still type @username in a comment for now.'
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Tag Someone @',
+      'Choose up to one fan to mention on this post.',
+      [
+        ...suggestions.map((name) => ({
+          text: `@${name}`,
+          onPress: () => addMentionToPost(post, name),
+        })),
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  }
+
+  
+  async function setFixedPostTag(post: FanPost, tag: string) {
+    const isOwner = post.userEmail === currentEmail || post.userId === currentUid;
+
+    if (!isOwner) {
+      Alert.alert('Only post owner', 'Only the post owner can change this post tag.');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'fanWall', post.id), {
+        tag,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.log('Set post tag error:', error);
+      Alert.alert('Tag failed', 'Could not update the post tag.');
+    }
+  }
+
+  async function removeFixedPostTag(post: FanPost) {
+    const isOwner = post.userEmail === currentEmail || post.userId === currentUid;
+
+    if (!isOwner) {
+      Alert.alert('Only post owner', 'Only the post owner can remove this post tag.');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'fanWall', post.id), {
+        tag: '',
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.log('Remove post tag error:', error);
+      Alert.alert('Tag failed', 'Could not remove the post tag.');
+    }
+  }
+
+  function openFixedPostTagMenu(post: FanPost) {
+    const isOwner = post.userEmail === currentEmail || post.userId === currentUid;
+
+    if (!isOwner) {
+      Alert.alert('Post Tag', 'Only the post owner can add or change this post tag.');
+      return;
+    }
+
+    Alert.alert(
+      'Add / Change Post Tag',
+      'Choose one fixed tag for this post.',
+      [
+        ...FIXED_POST_TAGS.map((tag) => ({
+          text: tag,
+          onPress: () => setFixedPostTag(post, tag),
+        })),
+        ...(post.tag ? [{ text: 'Remove Tag', onPress: () => removeFixedPostTag(post), style: 'destructive' as const }] : []),
+        {
+          text: 'Cancel',
+          style: 'cancel' as const,
+        },
+      ]
+    );
+  }
+
+function openPostOptions(post: FanPost) {
+    if (Platform.OS === 'web') {
+      setActivePostMenuId((current) => current === post.id ? null : post.id);
+      return;
+    }
+
+    Alert.alert(
+      'Post Menu',
+      'Tag someone or report this post',
+      [
+        {
+          text: 'Tag Someone @',
+          onPress: () => openTagSomeonePrompt(post),
+        },
+        {
+          text: 'Report',
+          onPress: () => reportPost(post),
+          style: 'destructive',
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  }
+
+
+  async function toggleFullScreenLike(post: FanPost) {
+    const wasLiked = post.likes?.includes(currentEmail) || false;
+
+    await toggleLike(post);
+
+    if (!currentEmail) return;
+
+    setFullScreenPost((prev) => {
+      if (!prev || prev.id !== post.id) return prev;
+
+      const currentLikes = prev.likes || [];
+      const nextLikes = wasLiked
+        ? currentLikes.filter((email) => email !== currentEmail)
+        : Array.from(new Set([...currentLikes, currentEmail]));
+
+      return {
+        ...prev,
+        likes: nextLikes,
+      };
+    });
+  }
+
+  async function submitFullScreenComment(post: FanPost) {
+    const cleanComment = commentText.trim();
+
+    if (!cleanComment) {
+      Alert.alert('Empty comment', 'Please write something first.');
+      return;
+    }
+
+    await submitComment(post);
+
+    if (!currentEmail) return;
+
+    setFullScreenPost((prev) => {
+      if (!prev || prev.id !== post.id) return prev;
+
+      return {
+        ...prev,
+        comments: [
+          ...(prev.comments || []),
+          {
+            text: cleanComment,
+            userEmail: currentEmail,
+            user: currentEmail.split('@')[0],
+            badge: savedFanBadge || 'General Fan Wall',
+            createdAt: Date.now(),
+          },
+        ],
+      };
+    });
+  }
+
+
+
+  function isPostVisibleForFanWall(post: any) {
+    return !(
+      post.hidden === true ||
+      post.held === true ||
+      post.status === 'held' ||
+      post.status === 'hidden' ||
+      post.moderationStatus === 'under_investigation'
+    );
+  }
+
+  function fanAvatarUrl(post: FanPost) {
+    const savedPostPhoto =
+      post.photoURL ||
+      post.avatarUrl ||
+      post.profileImageUrl ||
+      post.userPhoto ||
+      '';
+
+    if (savedPostPhoto) return savedPostPhoto;
+
+    if (post.userId && publicProfileByUserId[post.userId]) {
+      const publicProfile = publicProfileByUserId[post.userId];
+      const publicPhoto =
+        publicProfile.photoURL ||
+        publicProfile.photoUrl ||
+        publicProfile.profileImageUrl ||
+        publicProfile.avatarUrl ||
+        '';
+
+      if (publicPhoto) return publicPhoto;
+    }
+
+    const isCurrentUserPost =
+      post.userEmail === currentEmail ||
+      post.userId === currentUid;
+
+    if (isCurrentUserPost && currentProfilePhotoUrl) {
+      return currentProfilePhotoUrl;
+    }
+
+    return '';
+  }
+
+
+  function commentPhotoUrl(comment: any) {
+    const savedCommentPhoto =
+      comment.photoURL ||
+      comment.photoUrl ||
+      comment.avatarUrl ||
+      comment.profileImageUrl ||
+      '';
+
+    if (savedCommentPhoto) return savedCommentPhoto;
+
+    if (comment.userId && publicProfileByUserId[comment.userId]) {
+      const publicProfile = publicProfileByUserId[comment.userId];
+      const publicPhoto =
+        publicProfile.photoURL ||
+        publicProfile.photoUrl ||
+        publicProfile.profileImageUrl ||
+        publicProfile.avatarUrl ||
+        '';
+
+      if (publicPhoto) return publicPhoto;
+    }
+
+    const isCurrentUserComment =
+      comment.userEmail === currentEmail ||
+      comment.userId === currentUid;
+
+    if (isCurrentUserComment && currentProfilePhotoUrl) {
+      return currentProfilePhotoUrl;
+    }
+
+    return '';
+  }
+
+  function fanInitial(post: FanPost) {
+    const name = userDisplayName(post) || post.userEmail || 'Fan';
+    return name.trim().charAt(0).toUpperCase() || 'F';
+  }
+
+  async function openFanProfileFromPost(post: FanPost) {
+    try {
+      let mergedProfile: FanPost = { ...post };
+
+      if (post.userId) {
+        let publicProfile = publicProfileByUserId[post.userId];
+
+        if (!publicProfile) {
+          const publicSnap = await getDoc(doc(db, 'publicProfiles', post.userId));
+
+          if (publicSnap.exists()) {
+            publicProfile = publicSnap.data();
+          } else {
+            const userSnap = await getDoc(doc(db, 'users', post.userId));
+            publicProfile = userSnap.exists() ? userSnap.data() : null;
+          }
+
+          if (publicProfile) {
+            setPublicProfileByUserId((prev) => ({
+              ...prev,
+              [post.userId as string]: publicProfile,
+            }));
+          }
+        }
+
+        if (publicProfile) {
+          mergedProfile = {
+            ...mergedProfile,
+            displayName: publicProfile.displayName || mergedProfile.displayName,
+            user: publicProfile.displayName || mergedProfile.user,
+            photoURL:
+              publicProfile.photoURL ||
+              publicProfile.photoUrl ||
+              publicProfile.profileImageUrl ||
+              mergedProfile.photoURL,
+            avatarUrl:
+              publicProfile.avatarUrl ||
+              publicProfile.photoURL ||
+              publicProfile.photoUrl ||
+              publicProfile.profileImageUrl ||
+              mergedProfile.avatarUrl,
+          };
+        }
+      }
+
+      setSelectedFanProfile(mergedProfile);
+    } catch (error) {
+      console.log('Open public fan profile error:', error);
+      setSelectedFanProfile(post);
+    }
+  }
+
+async function sharePost(post: FanPost) {
     try {
       await Share.share({
-        message: `${post.text || ''}\n\nShared from Soccer Daily Fan Zone`,
+        message: `${post.text || ''}\
+
+const FIXED_POST_TAGS = [
+  '🔥 Matchday',
+  '⚽ Goal',
+  '📰 News',
+  '📸 Photo',
+  '🎥 Video',
+  '❓ Question',
+  '⭐ Opinion',
+  '😂 Meme',
+];
+
+n\nShared from Soccer Daily Fan Zone`,
       });
     } catch (error) {
       console.log('Share error:', error);
@@ -1102,7 +1652,7 @@ function openAllPostsPanel() {
   }
 
   return (
-    <ScrollView ref={fanScrollRef} style={styles.container} contentContainerStyle={{ paddingTop: 22, paddingBottom: 180 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
+    <ScrollView ref={fanScrollRef} style={styles.container} contentContainerStyle={{ paddingTop: 30, paddingBottom: 180 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
 
       <View pointerEvents="none" style={styles.fullStadiumBg}>
         <View style={styles.bgSkyGlow} />
@@ -1130,7 +1680,9 @@ function openAllPostsPanel() {
         </View>
       </View>
 
-      <Text style={styles.title}>🏟️ Fan Wall</Text>
+      <View style={styles.headerWrap}>
+        <Text style={styles.title}>🏟️ Fan Wall</Text>
+      </View>
 
       <View pointerEvents="none" style={[styles.futureStadium, styles.simpleHiddenSection]}>
         <View style={styles.stadiumRoofArc} />
@@ -1193,9 +1745,9 @@ function openAllPostsPanel() {
           )}
 
           <View style={styles.topFanInfo}>
-            <Text style={styles.topFanKicker}>GENERAL FAN WALL</Text>
+            <Text style={styles.topFanKicker}>STADIUM ENTRANCE</Text>
             <Text style={styles.topFanName} numberOfLines={1}>General Fan Wall</Text>
-            <Text style={styles.topFanRoomName} numberOfLines={1}>🏟️ All fans · all teams · soccer talk</Text>
+            <Text style={styles.topFanRoomName} numberOfLines={1}>🏟️ All fans · all teams</Text>
           </View>
         </View>
 
@@ -1522,17 +2074,86 @@ function openAllPostsPanel() {
       <View style={styles.filterRow}>
         <Pressable style={[styles.filterChip, !showClubPicker && !showComposer && !activeRoom && styles.activeChip]} onPress={openAllPostsPanel}>
           <View onLayout={(event) => { fanFeedY.current = event.nativeEvent.layout.y; }} />
-          <Text style={[styles.filterChipText, !showClubPicker && !showComposer && !activeRoom && styles.activeChipText]}>All Posts</Text>
+          <Text style={[styles.filterChipText, !showClubPicker && !showComposer && !activeRoom && styles.activeChipText]}>🏠 All Posts</Text>
         </Pressable>
 
         <Pressable style={[styles.filterChip, showClubPicker && styles.activeChip]} onPress={openClubPickerPanel}>
-          <Text style={[styles.filterChipText, showClubPicker && styles.activeChipText]}>Pick Team</Text>
+          <Text style={[styles.filterChipText, showClubPicker && styles.activeChipText]}>🏟️ Pick Team</Text>
         </Pressable>
 
         <Pressable style={[styles.filterChip, showComposer && styles.activeChip]} onPress={openWritePostPanel}>
-          <Text style={[styles.filterChipText, showComposer && styles.activeChipText]}>Write Post</Text>
+          <Text style={[styles.filterChipText, showComposer && styles.activeChipText]}>✍️ Write Post</Text>
         </Pressable>
       </View>
+
+      <View style={styles.miniAccessRow}>
+        <Pressable
+          style={[styles.miniAccessButton, showFollowingList && styles.miniAccessButtonActive]}
+          onPress={openFollowingUsersList}
+        >
+          <Text style={[styles.miniAccessText, showFollowingList && styles.miniAccessTextActive]}>
+            👤 Following
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.miniAccessButton, showFollowedTeamsList && styles.miniAccessButtonActive]}
+          onPress={openFollowedTeamsList}
+        >
+          <Text style={[styles.miniAccessText, showFollowedTeamsList && styles.miniAccessTextActive]}>
+            ⭐ My Teams
+          </Text>
+        </Pressable>
+      </View>
+
+      {showFollowingList ? (
+        <View style={styles.miniPanelCard}>
+          <Text style={styles.miniPanelTitle}>👤 Following Users</Text>
+          {followingUsers.length ? (
+            followingUsers.map((item, index) => (
+              <View key={`${item}-${index}`} style={styles.miniListRow}>
+                <Text style={styles.miniListAvatar}>
+                  {String(item).replace('email:', '').replace('uid:', '').charAt(0).toUpperCase()}
+                </Text>
+                <Text style={styles.miniListText} numberOfLines={1}>
+                  {String(item).replace('email:', '').replace('uid:', '')}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.miniEmptyText}>You are not following anyone yet. Tap Follow User + on another fan’s post.</Text>
+          )}
+        </View>
+      ) : null}
+
+      {showFollowedTeamsList ? (
+        <View style={styles.miniPanelCard}>
+          <Text style={styles.miniPanelTitle}>⭐ My Teams</Text>
+          {followedTeams.length ? (
+            <View style={styles.miniTeamWrap}>
+              {followedTeams.map((team) => (
+                <Pressable
+                  key={team}
+                  style={[styles.miniTeamChip, activeRoom === team && styles.miniTeamChipActive]}
+                  onPress={() => {
+                    setActiveRoom(team);
+                    setShowClubPicker(false);
+                    setShowComposer(false);
+                    setShowFollowedTeamsList(false);
+                    setShowFollowingList(false);
+                  }}
+                >
+                  <Text style={[styles.miniTeamText, activeRoom === team && styles.miniTeamTextActive]} numberOfLines={1}>
+                    {team}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.miniEmptyText}>No teams yet. Tap Pick Team and follow up to 3 teams.</Text>
+          )}
+        </View>
+      ) : null}
 
       {activeRoom ? (
         <View style={styles.roomHeaderBox}>
@@ -1541,7 +2162,7 @@ function openAllPostsPanel() {
         </View>
       ) : null}
 
-      <View style={styles.myTeamsCard}>
+      <View style={[styles.myTeamsCard, styles.simpleHiddenSection]}>
         <View style={styles.myTeamsHeader}>
           <Text style={styles.myTeamsTitle}>⭐ My Teams</Text>
           {followedTeams.length ? (
@@ -1811,7 +2432,7 @@ function openAllPostsPanel() {
       ) : null}
 
       <Pressable
-        style={styles.composerToggle}
+        style={[styles.composerToggle, styles.simpleHiddenSection]}
         onPress={() => setShowComposer(!showComposer)}
       >
         <Text style={styles.composerToggleText}>
@@ -1927,32 +2548,88 @@ function openAllPostsPanel() {
         </View>
       ) : (
         <View>
-          {activeFanHub !== 'home' && visiblePosts.length === 0 ? (
+          {!showClubPicker && !showComposer && !showFollowingList && !showFollowedTeamsList && visiblePosts.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>No posts found</Text>
               <Text style={styles.emptyText}>Try another search or be the first fan to post.</Text>
             </View>
           ) : (
-            (activeFanHub === 'home' ? [] : visiblePosts).map((post) => {
+            (!showClubPicker && !showComposer && !showFollowingList && !showFollowedTeamsList ? visiblePosts : []).map((post) => {
               const liked = post.likes?.includes(currentEmail);
               const likeCount = post.likes?.length || 0;
-              const commentCount = post.comments?.length || 0;
+              const commentCount = (post.comments || []).filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here')).length;
               const isOwner = post.userEmail === currentEmail || post.userId === currentUid;
 
               return (
                 <View key={post.id} style={styles.card}>
-                {/* Soccer Daily post options menu */}
+                {/* Soccer Daily post menu: Share / Tag Someone / Report */}
                 <Pressable
-                  style={styles.postOptionsButton}
-                  onPress={() => reportPost(post)}
+                  style={[styles.postOptionsButton, styles.postOptionsButtonWebFix]}
+                  hitSlop={10}
+                  onPress={() => openPostOptions(post)}
+                >
+                  <Text style={[styles.postOptionsText, { color: '#FFFFFF' }]}>•••</Text>
+                </Pressable>
+
+                {Platform.OS === 'web' && activePostMenuId === post.id ? (
+                  <View style={styles.webPostMenu}>
+                    <Pressable
+                      style={styles.webPostMenuItem}
+                      onPress={() => {
+                        setActivePostMenuId(null);
+                        openTagSomeonePrompt(post);
+                      }}
+                    >
+                      <Text style={styles.webPostMenuText}>Tag Someone @</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.webPostMenuItem}
+                      onPress={() => {
+                        setActivePostMenuId(null);
+                        reportPost(post);
+                      }}
+                    >
+                      <Text style={styles.webPostMenuDangerText}>Report</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+
+                <Pressable
+                  style={styles.fullScreenPostButton}
+                  onPress={() => setFullScreenPost(post)}
                   hitSlop={12}
                 >
-                  <Text style={styles.postOptionsText}>⋯</Text>
+                  <Text style={styles.fullScreenPostButtonText}>⛶</Text>
                 </Pressable>
 
 
-                  <Text style={styles.user}>{userDisplayName(post)}</Text>
-                  <Text style={styles.timeText}>{post.editedAt ? 'Edited' : 'Posted'} • Soccer Daily</Text>
+                  <Pressable style={styles.postAuthorRow} onPress={() => openFanProfileFromPost(post)}>
+                    {fanAvatarUrl(post) ? (
+                      <ExpoImage
+                        source={{ uri: fanAvatarUrl(post) }}
+                        style={styles.postAvatar}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={styles.postAvatarFallback}>
+                        <Text style={styles.postAvatarInitial}>{fanInitial(post)}</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.postAuthorTextBox}>
+                      <Text style={styles.user}>{userDisplayName(post)}</Text>
+                    </View>
+                  </Pressable>
+
+                  {post.taggedUsers?.length ? (
+                    <View style={styles.taggedUsersBox}>
+                      <Text style={styles.taggedUsersText}>
+                        Tagged: {post.taggedUsers.slice(0, 10).map((name) => `@${name}`).join(' ')}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {false ? <Text style={styles.timeText}>{post.editedAt ? 'Edited' : 'Posted'} • Soccer Daily</Text> : null}
 
                   {userFollowKey(post) && userFollowKey(post) !== currentUid && userFollowKey(post) !== currentEmail ? (
                     <Pressable
@@ -1973,15 +2650,15 @@ function openAllPostsPanel() {
                     </Pressable>
                   ) : null}
 
-                  {userFollowKey(post) ? (
-                    <Text style={styles.followerCountText}>
-                      Followers: {followerCounts[safeFollowId(userFollowKey(post))] || 0}
-                    </Text>
-                  ) : null}
-
                   {post.badge ? (
                     <View style={styles.teamBadgeBox}>
                       <Text style={styles.teamBadgeText}>🏟️ {post.badge}</Text>
+                    </View>
+                  ) : null}
+
+                  {post.tag ? (
+                    <View style={styles.postTagBox}>
+                      <Text style={styles.postTagText}>{post.tag}</Text>
                     </View>
                   ) : null}
 
@@ -2019,6 +2696,8 @@ function openAllPostsPanel() {
                           <Pressable onPress={() => translateToEnglish(`post-${post.id}`, removeGifUrl(post.text))}>
                             <Text style={styles.translateText}>🌐 Translate to English</Text>
                           </Pressable>
+
+
                         </>
                       ) : null}
                     </>
@@ -2093,17 +2772,60 @@ function openAllPostsPanel() {
                     </View>
                   ) : null}
 
-                  {post.comments && post.comments.length > 0 ? (
+                  {(post.comments || []).filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here')).length > 0 ? (
                     <View style={styles.commentsList}>
-                      {post.comments.slice(-5).map((comment, index) => (
+                      {(post.comments || []).filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here')).slice(-5).map((comment: any, index: number) => (
                         <View key={index} style={styles.commentCard}>
-                          <Text style={styles.commentUser}>
-                            {comment.user || comment.userEmail?.split('@')[0] || 'Fan'}
-                          </Text>
+                          <Pressable
+                            style={styles.commentAuthorRow}
+                            onPress={() =>
+                              setSelectedFanProfile({
+                                id: comment.userId || comment.userEmail || comment.user || 'comment-fan',
+                                userId: comment.userId || '',
+                                userEmail: comment.userEmail || '',
+                                user: comment.user || comment.userEmail?.split('@')[0] || 'Fan',
+                                displayName: comment.user || comment.userEmail?.split('@')[0] || 'Fan',
+                                badge: comment.badge || '',
+                                photoURL:
+                                  comment.photoURL ||
+                                  comment.photoUrl ||
+                                  comment.avatarUrl ||
+                                  comment.profileImageUrl ||
+                                  ((comment.userEmail === currentEmail || comment.userId === currentUid) ? currentProfilePhotoUrl : ''),
+                              } as FanPost)
+                            }
+                          >
+                            {commentPhotoUrl(comment) ? (
+                              <ExpoImage
+                                source={{
+                                  uri:
+                                    comment.photoURL ||
+                                    comment.photoUrl ||
+                                    comment.avatarUrl ||
+                                    comment.profileImageUrl ||
+                                    currentProfilePhotoUrl,
+                                }}
+                                style={styles.commentAvatar}
+                                contentFit="cover"
+                              />
+                            ) : (
+                              <View style={styles.commentAvatarFallback}>
+                                <Text style={styles.commentAvatarInitial}>
+                                  {(comment.user || comment.userEmail?.split('@')[0] || 'Fan').charAt(0).toUpperCase()}
+                                </Text>
+                              </View>
+                            )}
 
-                          {comment.badge ? (
-                            <Text style={styles.commentBadge}>🏟️ {comment.badge}</Text>
-                          ) : null}
+                            <View style={styles.commentAuthorTextBox}>
+                              <Text style={styles.commentUser}>
+                                {comment.user || comment.userEmail?.split('@')[0] || 'Fan'}
+                              </Text>
+
+                              {comment.badge ? (
+                                <Text style={styles.commentBadge}>🏟️ {comment.badge}</Text>
+                              ) : null}
+                            </View>
+                          </Pressable>
 
                           <Text style={styles.commentText}>
                             {translations[`comment-${post.id}-${index}`] || comment.text}
@@ -2124,11 +2846,954 @@ function openAllPostsPanel() {
           )}
         </View>
       )}
-    </ScrollView>
+
+      <Modal
+        visible={!!fullScreenPost}
+        animationType="slide"
+        transparent={false}
+        supportedOrientations={['portrait', 'landscape', 'landscape-left', 'landscape-right']}
+        onRequestClose={() => setFullScreenPost(null)}
+      >
+        <View style={styles.fullScreenModal}>
+          <View style={styles.fullScreenTopBar}>
+            <Text style={styles.fullScreenTitle}>Post View</Text>
+            <Pressable style={styles.fullScreenCloseButton} onPress={() => setFullScreenPost(null)}>
+              <Text style={styles.fullScreenCloseText}>Close ✕</Text>
+            </Pressable>
+          </View>
+
+          {fullScreenPost ? (
+            <ScrollView contentContainerStyle={[styles.fullScreenPostContent, isLandscape && styles.fullScreenPostContentLandscape]}
+              keyboardShouldPersistTaps="handled">
+              <View style={styles.fullScreenPostCard}>
+                <Pressable style={styles.fullScreenAuthorRow} onPress={() => openFanProfileFromPost(fullScreenPost)}>
+                  {fanAvatarUrl(fullScreenPost) ? (
+                    <ExpoImage
+                      source={{ uri: fanAvatarUrl(fullScreenPost) }}
+                      style={styles.fullScreenAvatar}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={styles.fullScreenAvatarFallback}>
+                      <Text style={styles.fullScreenAvatarInitial}>{fanInitial(fullScreenPost)}</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.fullScreenAuthorTextBox}>
+                    <Text style={styles.fullScreenUser}>{userDisplayName(fullScreenPost)}</Text>
+                    <Text style={styles.fullScreenProfileHint}>View profile</Text>
+                  </View>
+                </Pressable>
+
+                {fullScreenPost.taggedUsers?.length ? (
+                  <Text style={styles.fullScreenTagged}>
+                    Tagged: {fullScreenPost.taggedUsers.slice(0, 10).map((name) => `@${name}`).join(' ')}
+                  </Text>
+                ) : null}
+
+                {fullScreenPost.badge ? (
+                  <Text style={styles.fullScreenBadge}>🏟️ {fullScreenPost.badge}</Text>
+                ) : null}
+
+                {fullScreenPost.tag ? (
+                  <Text style={styles.fullScreenTag}>{fullScreenPost.tag}</Text>
+                ) : null}
+
+                {fullScreenPost.text ? (
+                  <Text style={styles.fullScreenPostText}>{removeGifUrl(fullScreenPost.text)}</Text>
+                ) : null}
+
+                {fullScreenPost.imageUrl ? (
+                  <ExpoImage
+                    source={{ uri: fullScreenPost.imageUrl }}
+                    style={styles.fullScreenImage}
+                    contentFit="cover"
+                  />
+                ) : null}
+
+                {fullScreenPost.videoUrl ? (
+                  <Video
+                    source={{ uri: fullScreenPost.videoUrl }}
+                    style={styles.fullScreenVideo}
+                    useNativeControls
+                    resizeMode={ResizeMode.CONTAIN}
+                    isLooping={false}
+                  />
+                ) : null}
+
+                <View style={styles.fullScreenActionRow}>
+                  <Pressable style={styles.fullScreenActionButton} onPress={() => toggleFullScreenLike(fullScreenPost)}>
+                    <Text style={fullScreenPost.likes?.includes(currentEmail) ? styles.fullScreenLikedText : styles.fullScreenActionText}>
+                      {fullScreenPost.likes?.includes(currentEmail) ? '❤️' : '🤍'} {fullScreenPost.likes?.length || 0} Likes
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.fullScreenActionButton}
+                    onPress={() => setCommentPostId(commentPostId === fullScreenPost.id ? null : fullScreenPost.id)}
+                  >
+                    <Text style={styles.fullScreenActionText}>
+                      💬 {(fullScreenPost.comments || []).filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here')).length} Comments
+                    </Text>
+                  </Pressable>
+
+                  <Pressable style={styles.fullScreenActionButton} onPress={() => sharePost(fullScreenPost)}>
+                    <Text style={styles.fullScreenActionText}>↗ Share</Text>
+                  </Pressable>
+
+                  {(fullScreenPost.userEmail === currentEmail || fullScreenPost.userId === currentUid) ? (
+                    <>
+                      <Pressable
+                        style={styles.fullScreenActionButton}
+                        onPress={() => {
+                          setFullScreenPost(null);
+                          startEdit(fullScreenPost);
+                        }}
+                      >
+                        <Text style={styles.fullScreenActionText}>✏️ Edit</Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={[styles.fullScreenActionButton, styles.fullScreenDeleteButton]}
+                        onPress={() => {
+                          setFullScreenPost(null);
+                          deletePost(fullScreenPost);
+                        }}
+                      >
+                        <Text style={styles.fullScreenDeleteText}>🗑 Delete</Text>
+                      </Pressable>
+                    </>
+                  ) : null}
+                </View>
+
+                {commentPostId === fullScreenPost.id ? (
+                  <View style={styles.fullScreenCommentBox}>
+                    <TextInput
+                      style={styles.fullScreenCommentInput}
+                      placeholder="Write a comment..."
+                      placeholderTextColor="#718096"
+                      value={commentText}
+                      onChangeText={setCommentText}
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                    />
+
+                    <Pressable style={styles.fullScreenCommentButton} onPress={() => submitFullScreenComment(fullScreenPost)}>
+                      <Text style={styles.fullScreenCommentButtonText}>Comment</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+
+                {(fullScreenPost.comments || []).filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here')).length > 0 ? (
+                  <View style={styles.fullScreenCommentsBox}>
+                    <Text style={styles.fullScreenCommentsTitle}>Comments</Text>
+
+                    {(fullScreenPost.comments || [])
+                      .filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here'))
+                      .slice(-10)
+                      .map((comment: any, index: number) => (
+                        <View key={index} style={styles.fullScreenCommentCard}>
+                          <Pressable
+                            style={styles.fullScreenCommentAuthorRow}
+                            onPress={() =>
+                              setSelectedFanProfile({
+                                id: comment.userId || comment.userEmail || comment.user || 'comment-fan',
+                                userId: comment.userId || '',
+                                userEmail: comment.userEmail || '',
+                                user: comment.user || comment.userEmail?.split('@')[0] || 'Fan',
+                                displayName: comment.user || comment.userEmail?.split('@')[0] || 'Fan',
+                                badge: comment.badge || '',
+                                photoURL:
+                                  comment.photoURL ||
+                                  comment.photoUrl ||
+                                  comment.avatarUrl ||
+                                  comment.profileImageUrl ||
+                                  ((comment.userEmail === currentEmail || comment.userId === currentUid) ? currentProfilePhotoUrl : ''),
+                              } as FanPost)
+                            }
+                          >
+                            {commentPhotoUrl(comment) ? (
+                              <ExpoImage
+                                source={{
+                                  uri:
+                                    comment.photoURL ||
+                                    comment.photoUrl ||
+                                    comment.avatarUrl ||
+                                    comment.profileImageUrl ||
+                                    currentProfilePhotoUrl,
+                                }}
+                                style={styles.fullScreenCommentAvatar}
+                                contentFit="cover"
+                              />
+                            ) : (
+                              <View style={styles.fullScreenCommentAvatarFallback}>
+                                <Text style={styles.fullScreenCommentAvatarInitial}>
+                                  {(comment.user || comment.userEmail?.split('@')[0] || 'Fan').charAt(0).toUpperCase()}
+                                </Text>
+                              </View>
+                            )}
+
+                            <View style={styles.fullScreenCommentAuthorTextBox}>
+                              <Text style={styles.fullScreenCommentUser}>
+                                {comment.user || comment.userEmail?.split('@')[0] || 'Fan'}
+                              </Text>
+
+                              {comment.badge ? (
+                                <Text style={styles.fullScreenCommentBadge}>🏟️ {comment.badge}</Text>
+                              ) : null}
+                            </View>
+                          </Pressable>
+
+                          <Text style={styles.fullScreenCommentText}>{comment.text}</Text>
+                        </View>
+                      ))}
+                  </View>
+                ) : null}
+              </View>
+            </ScrollView>
+          ) : null}
+        </View>
+      </Modal>
+
+
+
+      <Modal
+        visible={!!selectedFanProfile}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSelectedFanProfile(null)}
+      >
+        <View style={styles.fanProfileOverlay}>
+          <View style={styles.fanProfileModal}>
+            {selectedFanProfile ? (
+              <>
+                <Pressable style={styles.fanProfileClose} onPress={() => setSelectedFanProfile(null)}>
+                  <Text style={styles.fanProfileCloseText}>✕</Text>
+                </Pressable>
+
+                {fanAvatarUrl(selectedFanProfile) ? (
+                  <ExpoImage
+                    source={{ uri: fanAvatarUrl(selectedFanProfile) }}
+                    style={styles.fanProfileAvatar}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={styles.fanProfileAvatarFallback}>
+                    <Text style={styles.fanProfileAvatarInitial}>{fanInitial(selectedFanProfile)}</Text>
+                  </View>
+                )}
+
+                <Text style={styles.fanProfileName}>{userDisplayName(selectedFanProfile)}</Text>
+
+                {selectedFanProfile.badge ? (
+                  <Text style={styles.fanProfileBadge}>🏟️ {selectedFanProfile.badge}</Text>
+                ) : null}
+
+                <Text style={styles.fanProfileComingSoon}>
+                  Public fan profile page coming soon.
+                </Text>
+              </>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
+</ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  postOptionsButtonWebFix: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  postOptionsText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 18,
+    letterSpacing: 1.5,
+    textAlign: 'center',
+  },
+
+  webPostMenu: {
+    position: 'absolute',
+    top: 58,
+    right: 16,
+    width: 170,
+    backgroundColor: '#0B1729',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderRadius: 14,
+    paddingVertical: 6,
+    zIndex: 10000,
+    elevation: 30,
+    shadowColor: '#3B82F6',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+
+  webPostMenuItem: {
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+  },
+
+  webPostMenuText: {
+    color: '#EAF2FF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+
+  webPostMenuDangerText: {
+    color: '#FCA5A5',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+
+
+
+  commentAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  commentAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#10243A',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+  },
+  commentAvatarFallback: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#10243A',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  commentAvatarInitial: {
+    color: '#FFD166',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  commentAuthorTextBox: {
+    flex: 1,
+  },
+
+
+
+  fullScreenCommentAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 7,
+  },
+  fullScreenCommentAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#10243A',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+  },
+  fullScreenCommentAvatarFallback: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#10243A',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullScreenCommentAvatarInitial: {
+    color: '#FFD166',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  fullScreenCommentAuthorTextBox: {
+    flex: 1,
+  },
+
+
+
+  postAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingRight: 82,
+    marginBottom: 8,
+  },
+  postAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#10243A',
+    borderWidth: 2,
+    borderColor: '#FFD166',
+  },
+  postAvatarFallback: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#10243A',
+    borderWidth: 2,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postAvatarInitial: {
+    color: '#FFD166',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  postAuthorTextBox: {
+    flex: 1,
+  },
+
+
+
+  fullScreenAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    marginBottom: 10,
+  },
+  fullScreenAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#10243A',
+    borderWidth: 2,
+    borderColor: '#FFD166',
+  },
+  fullScreenAvatarFallback: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#10243A',
+    borderWidth: 2,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullScreenAvatarInitial: {
+    color: '#FFD166',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  fullScreenAuthorTextBox: {
+    flex: 1,
+  },
+  fullScreenProfileHint: {
+    color: '#93C5FD',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  fanProfileOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.78)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  fanProfileModal: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 26,
+    padding: 22,
+    backgroundColor: '#061526',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+    alignItems: 'center',
+  },
+  fanProfileClose: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#10243A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fanProfileCloseText: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  fanProfileAvatar: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: '#10243A',
+    borderWidth: 3,
+    borderColor: '#FFD166',
+    marginBottom: 12,
+  },
+  fanProfileAvatarFallback: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: '#10243A',
+    borderWidth: 3,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  fanProfileAvatarInitial: {
+    color: '#FFD166',
+    fontSize: 34,
+    fontWeight: '900',
+  },
+  fanProfileName: {
+    color: '#FFD166',
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  fanProfileBadge: {
+    color: '#93C5FD',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  fanProfileSubText: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  fanProfileComingSoon: {
+    color: '#BFDBFE',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 14,
+    textAlign: 'center',
+  },
+
+
+  fullScreenLikedText: {
+    color: '#FFD166',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  fullScreenCommentBox: {
+    marginTop: 14,
+    padding: 11,
+    borderRadius: 18,
+    backgroundColor: '#071A2D',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+  },
+  fullScreenCommentInput: {
+    minHeight: 46,
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#F8FAFC',
+    backgroundColor: '#0B2442',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  fullScreenCommentButton: {
+    backgroundColor: '#FFD166',
+    borderRadius: 14,
+    paddingVertical: 10,
+    marginTop: 9,
+    alignItems: 'center',
+  },
+  fullScreenCommentButtonText: {
+    color: '#07111F',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+
+
+  fullScreenPostContentLandscape: {
+    paddingHorizontal: 28,
+    paddingBottom: 30,
+  },
+
+
+  fullScreenCommentText: {
+    color: '#E5E7EB',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+
+  fullScreenCommentBadge: {
+    color: '#93C5FD',
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+
+  fullScreenCommentUser: {
+    color: '#FFD166',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+
+  fullScreenCommentCard: {
+    padding: 11,
+    borderRadius: 16,
+    backgroundColor: '#071A2D',
+    borderWidth: 1,
+    borderColor: '#1E3A5F',
+  },
+
+  fullScreenCommentsTitle: {
+    color: '#FFD166',
+    fontSize: 15,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+
+  fullScreenCommentsBox: {
+    marginTop: 18,
+    gap: 8,
+  },
+
+  fullScreenDeleteText: {
+    color: '#F87171',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+
+  fullScreenDeleteButton: {
+    borderColor: '#EF4444',
+  },
+
+  fullScreenActionText: {
+    color: '#BFDBFE',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+
+  fullScreenActionButton: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#10243A',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+  },
+
+  fullScreenActionRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+
+  fullScreenStatText: {
+    color: '#CBD5E1',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+
+  fullScreenStatsRow: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#1E3A5F',
+    flexDirection: 'row',
+    gap: 18,
+    flexWrap: 'wrap',
+  },
+
+  fullScreenPostCard: {
+    borderRadius: 26,
+    padding: 18,
+    backgroundColor: '#061526',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+  },
+
+  fullScreenTitle: {
+    color: '#BFDBFE',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+
+  fullScreenTopBar: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  fullScreenPostButton: {
+    position: 'absolute',
+    top: 18,
+    right: 58,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#102344',
+    borderWidth: 2,
+    borderColor: '#3B82F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9998,
+    elevation: 18,
+    shadowColor: '#3B82F6',
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  fullScreenPostButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  fullScreenModal: {
+    flex: 1,
+    backgroundColor: '#020617',
+    paddingTop: 42,
+  },
+  fullScreenCloseButton: {
+    alignSelf: 'flex-end',
+    marginRight: 16,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: '#FFD166',
+  },
+  fullScreenCloseText: {
+    color: '#07111F',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  fullScreenPostContent: {
+    paddingHorizontal: 14,
+    paddingBottom: 40,
+  },
+  fullScreenUser: {
+    color: '#FFD166',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  fullScreenTagged: {
+    color: '#BFDBFE',
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 10,
+    lineHeight: 20,
+  },
+  fullScreenBadge: {
+    color: '#93C5FD',
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  fullScreenTag: {
+    alignSelf: 'flex-start',
+    color: '#FFD166',
+    fontSize: 13,
+    fontWeight: '900',
+    marginBottom: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#10243A',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+  },
+  fullScreenPostText: {
+    color: '#F8FAFC',
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 32,
+    marginBottom: 18,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: 420,
+    borderRadius: 22,
+    backgroundColor: '#071526',
+  },
+  fullScreenVideo: {
+    width: '100%',
+    height: 420,
+    borderRadius: 22,
+    backgroundColor: '#000',
+    marginTop: 12,
+  },
+
+
+  taggedUsersBox: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#071A2D',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+  },
+  taggedUsersLabel: {
+    color: '#FFD166',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+  taggedUsersText: {
+    color: '#BFDBFE',
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 17,
+  },
+
+
+  postTagBox: {
+    alignSelf: 'flex-start',
+    marginTop: 0,
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#10243A',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+  },
+  postTagText: {
+    color: '#FFD166',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+
+
+  miniAccessRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: -4,
+    marginBottom: 12,
+  },
+  miniAccessButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: '#061B33',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+    alignItems: 'center',
+  },
+  miniAccessButtonActive: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+  },
+  miniAccessText: {
+    color: '#DBEAFE',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  miniAccessTextActive: {
+    color: '#020617',
+  },
+  miniPanelCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: '#061B33',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+  },
+  miniPanelTitle: {
+    color: '#FFD166',
+    fontSize: 15,
+    fontWeight: '900',
+    marginBottom: 10,
+  },
+  miniListRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 7,
+  },
+  miniListAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFD166',
+    color: '#020617',
+    textAlign: 'center',
+    lineHeight: 28,
+    fontWeight: '900',
+  },
+  miniListText: {
+    flex: 1,
+    color: '#E5E7EB',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  miniEmptyText: {
+    color: '#BFD7FF',
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+  },
+  miniTeamWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  miniTeamChip: {
+    maxWidth: '100%',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#0B2442',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+  },
+  miniTeamChipActive: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+  },
+  miniTeamText: {
+    color: '#DBEAFE',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  miniTeamTextActive: {
+    color: '#020617',
+  },
+
+
+  headerWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 14,
+    paddingHorizontal: 18,
+  },
+
 
   fullStadiumBg: {
     position: 'absolute',
@@ -2533,7 +4198,7 @@ const styles = StyleSheet.create({
 
   topFanRoomCard: {
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 8,
     marginBottom: 14,
     padding: 12,
     borderRadius: 24,
@@ -2541,10 +4206,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFD166',
     shadowColor: '#38BDF8',
-    shadowOpacity: 0.22,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
     overflow: 'hidden',
   },
   topFanRoomGlow: {
@@ -2719,12 +4384,14 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   bookSubtitle: {
-    color: '#CBD5E1',
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '800',
-    marginBottom: 16,
-    marginLeft: 8,
+    color: '#F8FAFC',
+    fontSize: 42,
+    fontWeight: '900',
+    textAlign: 'center',
+    alignSelf: 'center',
+    textShadowColor: '#38BDF8',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 12,
   },
   bookPageGrid: {
     flexDirection: 'row',
@@ -3465,8 +5132,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#020817',
-
-    },
+  },
   title: {
     fontSize: 38,
     fontWeight: '900',
@@ -3821,43 +5487,76 @@ const styles = StyleSheet.create({
   emptyText: { color: '#A7B0C0', marginTop: 8, fontSize: 14 },
 
   card: {
-    backgroundColor: '#111C2E',
-    borderWidth: 1,
-    borderColor: '#D8E0EC',
-    borderRadius: 18,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 14,
     padding: 16,
-    marginBottom: 16,
+    borderRadius: 24,
+    backgroundColor: '#061B33',
+    borderWidth: 1,
+    borderColor: '#234C78',
+    shadowColor: '#38BDF8',
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+    position: 'relative',
+
+
+    },
+  user: {
+    color: '#FFD166',
+    fontSize: 17,
+    fontWeight: '900',
+    paddingRight: 38,
+    marginBottom: 2,
   },
-  user: { color: '#FFD166', fontSize: 17, fontWeight: '900' },
-  timeText: { color: '#8EA4C8', fontSize: 12, marginTop: 2 },
+  timeText: {
+    color: '#A9C4EA',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 3,
+    marginBottom: 8,
+
+    },
 
   followUserButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFD166',
-    borderRadius: 999,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingVertical: 7,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginTop: 8,
-  },
-  followingUserButton: {
-    backgroundColor: '#2A1F12',
+    borderRadius: 999,
+    backgroundColor: '#0B2442',
     borderWidth: 1,
+    borderColor: '#38BDF8',
+
+
+    },
+  followingUserButton: {
+    backgroundColor: '#FFD166',
     borderColor: '#FFD166',
-  },
+
+    },
   followUserText: {
-    color: '#07111F',
+    color: '#DBEAFE',
     fontSize: 12,
     fontWeight: '900',
-  },
+
+    },
   followingUserText: {
-    color: '#FFD166',
-  },
+    color: '#020617',
+    fontSize: 12,
+    fontWeight: '900',
+
+    },
   followerCountText: {
     color: '#8EA4C8',
-    fontSize: 12,
-    marginTop: 6,
-    fontWeight: '700',
-  },
+    fontSize: 11,
+    fontWeight: '800',
+    marginBottom: 8,
+
+    },
 
   followingTitle: {
     color: '#FFD166',
@@ -3866,16 +5565,22 @@ const styles = StyleSheet.create({
   },
   teamBadgeBox: {
     alignSelf: 'flex-start',
-    backgroundColor: '#2A1F12',
-    borderWidth: 1,
-    borderColor: '#FFD166',
-    borderRadius: 999,
-    paddingHorizontal: 10,
+    marginTop: 2,
+    marginBottom: 10,
     paddingVertical: 6,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  teamBadgeText: { color: '#FFD166', fontSize: 12, fontWeight: '900' },
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#0B2442',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+
+    },
+  teamBadgeText: {
+    color: '#CFE3FF',
+    fontSize: 12,
+    fontWeight: '900',
+
+    },
   postCounter: {
     color: '#64748B',
     fontSize: 12,
@@ -3887,12 +5592,21 @@ const styles = StyleSheet.create({
 
   postText: {
     color: '#F8FAFC',
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  translateText: { color: '#FFD166', fontSize: 12, fontWeight: '900', marginTop: 6 },
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '800',
+    marginTop: 4,
+    marginBottom: 10,
+
+
+    },
+  translateText: {
+    color: '#93C5FD',
+    fontSize: 13,
+    fontWeight: '900',
+    marginBottom: 8,
+
+    },
   postGif: { width: '100%', height: 220, borderRadius: 14, marginTop: 12, backgroundColor: '#F3F6FB' },
 
   editInput: {
@@ -3908,7 +5622,13 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginTop: 12,
   },
-  row: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  row: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+    flexWrap: 'wrap',
+
+    },
   smallButton: { flex: 1, backgroundColor: '#FFD166', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   smallButtonText: { color: '#07111F', fontWeight: '900' },
   cancelButton: { flex: 1, backgroundColor: '#F3F6FB', borderWidth: 1, borderColor: '#2B3D5E', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
@@ -3937,82 +5657,92 @@ const styles = StyleSheet.create({
 
   postOptionsButton: {
     position: 'absolute',
-    top: 14,
-    right: 14,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#FFD166',
+    top: 18,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#102344',
+    borderWidth: 2,
+    borderColor: '#3B82F6',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 99,
-    elevation: 12,
-    shadowColor: '#FFD166',
-    shadowOpacity: 0.25,
+    zIndex: 9999,
+    elevation: 20,
+    shadowColor: '#3B82F6',
+    shadowOpacity: 0.35,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  postOptionsText: {
-    color: '#FFD166',
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 30,
-    marginTop: -8,
-  },
-
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#1E2A3F',
-    paddingTop: 12,
-    marginTop: 10,
-    gap: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
   action: { color: '#A7B0C0', fontSize: 13, fontWeight: '800' },
   likedAction: { color: '#FFD166', fontSize: 13, fontWeight: '900' },
   deleteAction: { color: '#FF6B6B', fontSize: 13, fontWeight: '900' },
 
   commentBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 18,
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 16,
+    backgroundColor: '#061526',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    padding: 14,
-    marginTop: 12,
-  },
+    borderColor: '#1E3A5F',
+
+
+    },
   commentInput: {
-    backgroundColor: '#FFFFFF',
-    color: '#07111F',
-    borderWidth: 1.4,
-    borderColor: '#CBD5E1',
-    borderRadius: 18,
-    minHeight: 74,
-    padding: 14,
-    fontSize: 15,
+    minHeight: 42,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    color: '#F8FAFC',
+    backgroundColor: '#0B2442',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+    fontSize: 13,
     fontWeight: '700',
-    textAlignVertical: 'top',
-    marginTop: 12,
-  },
-  commentButton: { backgroundColor: '#FFD166', borderRadius: 12, paddingVertical: 10, marginTop: 8, alignItems: 'center' },
-  commentButtonText: { color: '#07111F', fontWeight: '900' },
-  commentsList: { marginTop: 12, gap: 8 },
-  commentCard: { backgroundColor: '#F3F6FB', borderRadius: 14, padding: 12 },
-  commentUser: { color: '#FFD166', fontSize: 13, fontWeight: '900' },
-  commentBadge: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  commentText: {
-    color: '#111827',
-    fontSize: 14,
-    fontWeight: '700',
+
+    },
+  commentButton: {
+    backgroundColor: '#FFD166',
+    borderRadius: 13,
+    paddingVertical: 9,
     marginTop: 8,
-    lineHeight: 20,
-  },
+    alignItems: 'center',
+
+    },
+  commentButtonText: { color: '#07111F', fontWeight: '900' },
+  commentsList: {
+    marginTop: 10,
+    gap: 7,
+
+    },
+  commentCard: {
+    backgroundColor: '#071526',
+    borderRadius: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    borderWidth: 1,
+    borderColor: '#1E3A5F',
+
+    },
+  commentUser: {
+    color: '#FFD166',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 3,
+
+    },
+  commentBadge: {
+    color: '#93C5FD',
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 3,
+
+    },
+  commentText: {
+    color: '#E5E7EB',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+
+    },
 });

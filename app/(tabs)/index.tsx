@@ -25,6 +25,18 @@ const text: any = {
     choose: 'Choose Language',
     quick: 'Quick Access',
     scores: 'Scores',
+    soccerAcademy: 'Soccer Academy',
+    newsBlog: 'News & Blog',
+    profile: 'Profile',
+    myTeams: 'My Teams',
+    favoriteClub: 'Favorite Club',
+    nationalTeam: 'National Team',
+    followSoccerDaily: 'Follow Soccer Daily',
+    officialUpdates: 'Official updates, videos, and community posts',
+    watchOnYoutube: 'Watch on YouTube',
+    newVideosSoon: 'New videos and beta updates coming soon.',
+    openYoutube: 'Open YouTube Channel',
+    readCommunityRules: 'Read Community Rules',
     prediction: 'Prediction Wheel',
     fanWall: 'Fan Zone',
     tv: 'Soccer Daily TV',
@@ -36,8 +48,7 @@ const text: any = {
     community: 'Community Reminder',
     communityText: 'Fan Wall is 13+. Be respectful, do not post private info, and do not upload TV match clips.',
     coming: 'Coming Soon',
-    comingText: 'More languages, admin tools, youth safety, talent wall, and stronger soccer community features.',
-  },
+    comingText: 'More languages, admin tools, youth safety, talent wall, and stronger soccer community features.',  },
   es: {
     app: 'Soccer Daily',
     welcome: 'Bienvenido a Soccer Daily',
@@ -45,6 +56,18 @@ const text: any = {
     choose: 'Elegir idioma',
     quick: 'Acceso rápido',
     scores: 'Marcadores',
+    soccerAcademy: 'Academia de fútbol',
+    newsBlog: 'Noticias y Blog',
+    profile: 'Perfil',
+    myTeams: 'Mis equipos',
+    favoriteClub: 'Club favorito',
+    nationalTeam: 'Selección nacional',
+    followSoccerDaily: 'Sigue Soccer Daily',
+    officialUpdates: 'Actualizaciones oficiales, videos y publicaciones de la comunidad',
+    watchOnYoutube: 'Ver en YouTube',
+    newVideosSoon: 'Nuevos videos y actualizaciones beta próximamente.',
+    openYoutube: 'Abrir canal de YouTube',
+    readCommunityRules: 'Leer reglas de la comunidad',
     prediction: 'Rueda de predicción',
     fanWall: 'Muro de fans',
     tv: 'Soccer Daily TV',
@@ -65,6 +88,18 @@ const text: any = {
     choose: 'भाषा छान्नुहोस्',
     quick: 'छिटो पहुँच',
     scores: 'स्कोर',
+    soccerAcademy: 'सकर एकेडेमी',
+    newsBlog: 'समाचार र ब्लग',
+    profile: 'प्रोफाइल',
+    myTeams: 'मेरा टिमहरू',
+    favoriteClub: 'मनपर्ने क्लब',
+    nationalTeam: 'राष्ट्रिय टिम',
+    followSoccerDaily: 'Soccer Daily फलो गर्नुहोस्',
+    officialUpdates: 'आधिकारिक अपडेट, भिडियो, र समुदाय पोस्टहरू',
+    watchOnYoutube: 'YouTube मा हेर्नुहोस्',
+    newVideosSoon: 'नयाँ भिडियो र beta अपडेट चाँडै आउँदैछन्।',
+    openYoutube: 'YouTube च्यानल खोल्नुहोस्',
+    readCommunityRules: 'समुदाय नियम पढ्नुहोस्',
     prediction: 'भविष्यवाणी चक्का',
     fanWall: 'फ्यान वाल',
     tv: 'Soccer Daily TV',
@@ -85,6 +120,18 @@ const text: any = {
     choose: 'भाषा चुनें',
     quick: 'त्वरित पहुँच',
     scores: 'स्कोर',
+    soccerAcademy: 'सॉकर अकादमी',
+    newsBlog: 'न्यूज़ और ब्लॉग',
+    profile: 'प्रोफाइल',
+    myTeams: 'मेरी टीमें',
+    favoriteClub: 'पसंदीदा क्लब',
+    nationalTeam: 'राष्ट्रीय टीम',
+    followSoccerDaily: 'Soccer Daily फ़ॉलो करें',
+    officialUpdates: 'आधिकारिक अपडेट, वीडियो और कम्युनिटी पोस्ट',
+    watchOnYoutube: 'YouTube पर देखें',
+    newVideosSoon: 'नए वीडियो और beta अपडेट जल्द आ रहे हैं।',
+    openYoutube: 'YouTube चैनल खोलें',
+    readCommunityRules: 'कम्युनिटी नियम पढ़ें',
     prediction: 'प्रेडिक्शन व्हील',
     fanWall: 'फैन वॉल',
     tv: 'Soccer Daily TV',
@@ -105,6 +152,18 @@ const text: any = {
     choose: 'Escolher idioma',
     quick: 'Acesso rápido',
     scores: 'Placar',
+    soccerAcademy: 'Academia de Futebol',
+    newsBlog: 'Notícias e Blog',
+    profile: 'Perfil',
+    myTeams: 'Meus times',
+    favoriteClub: 'Clube favorito',
+    nationalTeam: 'Seleção nacional',
+    followSoccerDaily: 'Siga Soccer Daily',
+    officialUpdates: 'Atualizações oficiais, vídeos e posts da comunidade',
+    watchOnYoutube: 'Assista no YouTube',
+    newVideosSoon: 'Novos vídeos e atualizações beta em breve.',
+    openYoutube: 'Abrir canal do YouTube',
+    readCommunityRules: 'Ler regras da comunidade',
     prediction: 'Roda de previsão',
     fanWall: 'Mural dos fãs',
     tv: 'Soccer Daily TV',
@@ -125,6 +184,18 @@ const text: any = {
     choose: 'Choisir la langue',
     quick: 'Accès rapide',
     scores: 'Scores',
+    soccerAcademy: 'Académie de football',
+    newsBlog: 'Actualités et Blog',
+    profile: 'Profil',
+    myTeams: 'Mes équipes',
+    favoriteClub: 'Club favori',
+    nationalTeam: 'Équipe nationale',
+    followSoccerDaily: 'Suivre Soccer Daily',
+    officialUpdates: 'Mises à jour officielles, vidéos et publications de la communauté',
+    watchOnYoutube: 'Regarder sur YouTube',
+    newVideosSoon: 'Nouvelles vidéos et mises à jour bêta bientôt.',
+    openYoutube: 'Ouvrir la chaîne YouTube',
+    readCommunityRules: 'Lire les règles de la communauté',
     prediction: 'Roue de prédiction',
     fanWall: 'Mur des fans',
     tv: 'Soccer Daily TV',
@@ -145,6 +216,18 @@ const text: any = {
     choose: 'اختر اللغة',
     quick: 'وصول سريع',
     scores: 'النتائج',
+    soccerAcademy: 'أكاديمية كرة القدم',
+    newsBlog: 'الأخبار والمدونة',
+    profile: 'الملف الشخصي',
+    myTeams: 'فرقي',
+    favoriteClub: 'النادي المفضل',
+    nationalTeam: 'المنتخب الوطني',
+    followSoccerDaily: 'تابع Soccer Daily',
+    officialUpdates: 'تحديثات رسمية وفيديوهات ومنشورات المجتمع',
+    watchOnYoutube: 'شاهد على YouTube',
+    newVideosSoon: 'فيديوهات جديدة وتحديثات beta قريبًا.',
+    openYoutube: 'افتح قناة YouTube',
+    readCommunityRules: 'اقرأ قواعد المجتمع',
     prediction: 'عجلة التوقع',
     fanWall: 'حائط المشجعين',
     tv: 'Soccer Daily TV',
@@ -263,6 +346,83 @@ export default function HomeScreen() {
   const [searchText, setSearchText] = useState('');
   const [homePhotoUrl, setHomePhotoUrl] = useState('');
   const [homeCoverPhotoUrl, setHomeCoverPhotoUrl] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+
+      async function reloadHomePhotosAfterLogin() {
+        try {
+          const auth = getAuth();
+          const user = auth.currentUser;
+          if (!user?.uid) return;
+
+          const uid = user.uid;
+
+          let mergedData: any = {};
+
+          for (const collectionName of ['users', 'publicProfiles', 'userProfiles']) {
+            try {
+              const snap = await getDoc(doc(db, collectionName, uid));
+              if (snap.exists()) {
+                mergedData = {
+                  ...mergedData,
+                  ...snap.data(),
+                };
+              }
+            } catch (error) {
+              console.log('Home photo lookup skipped:', collectionName, error);
+            }
+          }
+
+          const localProfilePhoto =
+            await AsyncStorage.getItem(`profilePhotoUrl:${uid}`) ||
+            await AsyncStorage.getItem('profilePhotoUrl') ||
+            await AsyncStorage.getItem('soccerDailyProfilePhoto') ||
+            await AsyncStorage.getItem('homePhotoUrl') ||
+            '';
+
+          const localCoverPhoto =
+            await AsyncStorage.getItem(`coverPhotoUrl:${uid}`) ||
+            await AsyncStorage.getItem(`homeCoverPhotoUrl:${uid}`) ||
+            await AsyncStorage.getItem('coverPhotoUrl') ||
+            await AsyncStorage.getItem('homeCoverPhotoUrl') ||
+            await AsyncStorage.getItem('soccerDailyCoverPhoto') ||
+            '';
+
+          const loadedProfilePhoto =
+            mergedData.photoURL ||
+            mergedData.photoUrl ||
+            mergedData.profileImageUrl ||
+            mergedData.avatarUrl ||
+            user.photoURL ||
+            localProfilePhoto ||
+            '';
+
+          const loadedCoverPhoto =
+            mergedData.coverPhotoUrl ||
+            mergedData.homeCoverPhotoUrl ||
+            mergedData.coverPhoto ||
+            localCoverPhoto ||
+            '';
+
+          if (!cancelled) {
+            if (loadedProfilePhoto) setHomePhotoUrl(loadedProfilePhoto);
+            if (loadedCoverPhoto) setHomeCoverPhotoUrl(loadedCoverPhoto);
+          }
+        } catch (error) {
+          console.log('Reload home photos failed:', error);
+        }
+      }
+
+      reloadHomePhotosAfterLogin();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
+
   const [homeClubTeam, setHomeClubTeam] = useState('');
   const [homeNationalTeam, setHomeNationalTeam] = useState('');
   const searchInputRef = useRef<TextInput>(null);
@@ -315,7 +475,11 @@ export default function HomeScreen() {
     }
 
     const localClub = await AsyncStorage.getItem('favoriteClubTeam');
+    const localClubAlt = await AsyncStorage.getItem('soccerDailyFavoriteClub');
+    const fanZoneClub = await AsyncStorage.getItem('savedFanBadge');
+
     const localNational = await AsyncStorage.getItem('favoriteNationalTeam');
+    const localNationalAlt = await AsyncStorage.getItem('soccerDailyFavoriteNational');
 
     setHomeClubTeam(localClub || '');
     setHomeNationalTeam(localNational || '');
@@ -329,8 +493,22 @@ export default function HomeScreen() {
         const data = snap.data();
         setHomePhotoUrl(data.photoUrl || '');
           setHomeCoverPhotoUrl(data.coverPhotoUrl || '');
-        setHomeClubTeam(data.favoriteClubTeam || localClub || '');
-        setHomeNationalTeam(data.favoriteNationalTeam || localNational || '');
+        const clubFromAnywhere =
+          data.favoriteClubTeam ||
+          data.savedFanBadge ||
+          localClub ||
+          localClubAlt ||
+          fanZoneClub ||
+          '';
+
+        const nationalFromAnywhere =
+          data.favoriteNationalTeam ||
+          localNational ||
+          localNationalAlt ||
+          '';
+
+        setHomeClubTeam(clubFromAnywhere);
+        setHomeNationalTeam(nationalFromAnywhere);
       }
     } catch {}
   }
@@ -462,7 +640,7 @@ export default function HomeScreen() {
           <View style={styles.personalHeroOverlay}>
             <View style={styles.personalHeroTop}>
               <Text style={styles.personalAppName}>⚽ {t.app}</Text>
-              <Text style={styles.personalWelcome}>My Soccer Home</Text>
+              <Text style={styles.personalWelcome}>{t.welcome || 'My Soccer Home'}</Text>
             </View>
 
             <View style={styles.personalHeroBottom}>
@@ -486,7 +664,7 @@ export default function HomeScreen() {
         <View style={styles.personalHeroFallback}>
           <View style={styles.personalHeroTop}>
             <Text style={styles.personalAppName}>⚽ {t.app}</Text>
-            <Text style={styles.personalWelcome}>My Soccer Home</Text>
+            <Text style={styles.personalWelcome}>{t.welcome || 'My Soccer Home'}</Text>
           </View>
 
           <View style={styles.personalHeroBottom}>
@@ -503,66 +681,59 @@ export default function HomeScreen() {
         </View>
       )}
 
+      <View style={styles.myTeamsCard}>
+        <Text style={styles.myTeamsTitle}>{t.myTeams}</Text>
+
+        <View style={styles.myTeamsRow}>
+          <Text style={styles.myTeamsEmoji}>🏟️</Text>
+          <View style={styles.myTeamsTextBox}>
+            <Text style={styles.myTeamsLabel}>{t.favoriteClub}</Text>
+            <Text style={styles.myTeamsValue}>{homeClubTeam || 'Pick your club in Fan Zone'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.myTeamsRow}>
+          <Text style={styles.myTeamsEmoji}>🌎</Text>
+          <View style={styles.myTeamsTextBox}>
+            <Text style={styles.myTeamsLabel}>{t.nationalTeam}</Text>
+            <Text style={styles.myTeamsValue}>{homeNationalTeam || 'Add national team in Profile'}</Text>
+          </View>
+        </View>
+      </View>
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.quick}</Text>
 
         <View style={styles.grid}>
-          <Pressable style={styles.quickButton} onPress={() => router.push('/scores' as any)}>
+          <Pressable style={[styles.quickButton, styles.quickScores]} onPress={() => router.push('/soccer-lab' as any)}>
+            <Text style={styles.quickIcon}>🎓</Text>
+            <Text style={styles.quickText}>{t.soccerAcademy}</Text>
+          </Pressable>
+
+          <Pressable style={[styles.quickButton, styles.quickFanZone]} onPress={() => openProtectedRoute('/fan-wall')}>
+            <Text style={styles.quickIcon}>💬</Text>
+            <Text style={styles.quickText}>Fan Zone</Text>
+          </Pressable>
+
+          <Pressable style={[styles.quickButton, styles.quickPrediction]} onPress={() => openProtectedRoute('/prediction')}>
+            <Text style={styles.quickIcon}>🔮</Text>
+            <Text style={styles.quickText}>{t.prediction}</Text>
+          </Pressable>
+
+          <Pressable style={[styles.quickButton, styles.quickAcademy]} onPress={() => router.push('/scores' as any)}>
             <Text style={styles.quickIcon}>📊</Text>
             <Text style={styles.quickText}>{t.scores}</Text>
           </Pressable>
 
-          <Pressable style={styles.quickButton} onPress={() => router.push('/news' as any)}>
+          <Pressable style={[styles.quickButton, styles.quickProfile]} onPress={() => router.push('/profile' as any)}>
+            <Text style={styles.quickIcon}>👤</Text>
+            <Text style={styles.quickText}>{t.profile}</Text>
+          </Pressable>
+
+          <Pressable style={[styles.quickButton, styles.quickBlog]} onPress={() => router.push('/blog' as any)}>
             <Text style={styles.quickIcon}>📰</Text>
-            <Text style={styles.quickText}>{newsLabel[language] || newsLabel.en}</Text>
+            <Text style={styles.quickText}>{t.newsBlog}</Text>
           </Pressable>
-
-          <Pressable style={styles.quickButton} onPress={() => openProtectedRoute('/fan-wall')}>
-            <Text style={styles.quickIcon}>🔥</Text>
-            <Text style={styles.quickText}>Fan Zone</Text>
-          </Pressable>
-
-          <Pressable style={styles.quickButton} onPress={() => router.push('/soccer-lab' as any)}>
-            <Text style={styles.quickIcon}>🧪</Text>
-            <Text style={styles.quickText}>Soccer Lab</Text>
-          </Pressable>
-
-          <Pressable style={styles.quickButton} onPress={() => router.push('/tv' as any)}>
-            <Text style={styles.quickIcon}>📺</Text>
-            <Text style={styles.quickText}>{t.tv}</Text>
-          </Pressable>
-
-          <Pressable style={styles.quickButton} onPress={() => openProtectedRoute('/studio')}>
-            <Text style={styles.quickIcon}>🎙️</Text>
-            <Text style={styles.quickText}>{t.studio}</Text>
-          </Pressable>
-
-          <Pressable style={styles.quickButton} onPress={() => router.push('/stats-center' as any)}>
-            <Text style={styles.quickIcon}>📈</Text>
-            <Text style={styles.quickText}>{t.stats}</Text>
-          </Pressable>
-
-          
-
-          <Pressable style={styles.quickButton} onPress={() => router.push('/daily-challenge' as any)}>
-            <Text style={styles.quickIcon}>🔥</Text>
-            <Text style={styles.quickText}>{ui.dailyChallenge}</Text>
-          </Pressable>
-
-          
-
-          <Pressable style={styles.quickButton} onPress={() => router.push('/training' as any)}>
-            <Text style={styles.quickIcon}>🏋️</Text>
-            <Text style={styles.quickText}>{ui.trainingFitness}</Text>
-          </Pressable>
-
-          
-          {searchText.trim().toLowerCase() === 'handler' && (
-            <Pressable style={[styles.quickButton, styles.adminQuickButton]} onPress={() => router.push('/admin' as any)}>
-              <Text style={styles.quickIcon}>🛡️</Text>
-              <Text style={styles.adminQuickText}>Admin Panel</Text>
-            </Pressable>
-          )}
         </View>
       </View>
 
@@ -579,7 +750,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <Text style={styles.tvDescription}>New videos and beta updates coming soon.</Text>
+        <Text style={styles.tvDescription}>{t.newVideosSoon}</Text>
 
         <Pressable style={styles.youtubeMegaButton} onPress={openSoccerDailyYouTube}>
           <Text style={styles.youtubePlay}>▶</Text>
@@ -588,8 +759,8 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.socialCard}>
-        <Text style={styles.socialTitle}>Follow Soccer Daily</Text>
-        <Text style={styles.socialSub}>Official updates, videos, and community posts</Text>
+        <Text style={styles.socialTitle}>{t.followSoccerDaily}</Text>
+        <Text style={styles.socialSub}>{t.officialUpdates}</Text>
 
         <View style={styles.socialRow}>
           <Pressable style={styles.socialButton} onPress={() => openSocialLink(SOCCER_DAILY_YOUTUBE)}>
@@ -621,7 +792,7 @@ export default function HomeScreen() {
       <Pressable style={styles.card} onPress={() => router.push('/community-guidelines' as any)}>
         <Text style={styles.cardTitle}>⚽ {t.community}</Text>
         <Text style={styles.line}>{t.communityText}</Text>
-        <Text style={styles.cardLink}>Read Community Rules →</Text>
+        <Text style={styles.cardLink}>{t.readCommunityRules}  →</Text>
       </Pressable>
 
       <View style={styles.card}>
@@ -1057,6 +1228,35 @@ const styles = StyleSheet.create({
     minHeight: 92,
     justifyContent: 'center',
   },
+
+  quickScores: {
+    backgroundColor: '#064E3B',
+    borderColor: '#22C55E',
+  },
+  quickFanZone: {
+    backgroundColor: '#082F49',
+    borderColor: '#38BDF8',
+  },
+  quickPrediction: {
+    backgroundColor: '#2E1065',
+    borderColor: '#A78BFA',
+  },
+  quickAcademy: {
+    backgroundColor: '#14532D',
+    borderColor: '#FFD166',
+  },
+  quickProfile: {
+    backgroundColor: '#1E293B',
+    borderColor: '#94A3B8',
+  },
+  quickTV: {
+    backgroundColor: '#3F0F12',
+    borderColor: '#FCA5A5',
+  },
+  quickBlog: {
+    backgroundColor: '#3F0F12',
+    borderColor: '#FCA5A5',
+  },
   quickIcon: {
     fontSize: 28,
     marginBottom: 8,
@@ -1254,5 +1454,59 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
   },
+
+  myTeamsCard: {
+    backgroundColor: '#0B1729',
+    borderRadius: 26,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#FFD166',
+    marginBottom: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
+
+
+    },
+  myTeamsTitle: {
+    color: '#FFD166',
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 14,
+    textAlign: 'center',
+
+    },
+  myTeamsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#071526',
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 11,
+    borderWidth: 1,
+    borderColor: '#24344F',
+
+    },
+  myTeamsEmoji: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  myTeamsTextBox: {
+    flex: 1,
+  },
+  myTeamsLabel: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  myTeamsValue: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+
+    },
 
 });

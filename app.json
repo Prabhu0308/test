@@ -3,7 +3,7 @@
     "name": "soccer-daily-54",
     "slug": "soccer-daily-54",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "soccerdaily54",
     "userInterfaceStyle": "automatic",

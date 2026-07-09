@@ -1,23 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
-import { getAuth, signOut } from 'firebase/auth';
-import {collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc} from 'firebase/firestore';
+import { getAuth, signOut, updateProfile } from 'firebase/auth';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { useCallback, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  Platform,
-} from 'react-native';
-import { SOCIAL_LINKS } from '../../constants/socialLinks';
+import { useCallback, useState, useEffect } from 'react';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform } from 'react-native';
+import { SOCCER_DAILY_FACEBOOK, SOCCER_DAILY_INSTAGRAM } from '../../constants/socialLinks';
 import { db, storage } from '../../firebase/config';
 
 const ADMIN_EMAIL = 'prabhudevupadhyay@gmail.com';
@@ -48,37 +37,109 @@ export default function ProfileScreen() {
   );
 
   async function loadProfile() {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
     const club = await AsyncStorage.getItem('favoriteClubTeam');
+    const clubAlt = await AsyncStorage.getItem('soccerDailyFavoriteClub');
+    const fanZoneClub = await AsyncStorage.getItem('savedFanBadge');
+
     const national = await AsyncStorage.getItem('favoriteNationalTeam');
+    const nationalAlt = await AsyncStorage.getItem('soccerDailyFavoriteNational');
 
-    setSavedClub(club || '');
-    setSavedNational(national || '');
-    setClubTeam(club || '');
-    setNationalTeam(national || '');
+    const clubFromAnywhere = club || clubAlt || fanZoneClub || '';
+    const nationalFromAnywhere = national || nationalAlt || '';
 
-    if (!user?.uid) return;
+    setSavedClub(clubFromAnywhere);
+    setSavedNational(nationalFromAnywhere);
+    setClubTeam(clubFromAnywhere);
+    setNationalTeam(nationalFromAnywhere);
+
+    if (!currentUser?.uid) return;
 
     try {
-      const profileRef = doc(db, 'userProfiles', user.uid);
-      const snap = await getDoc(profileRef);
+      const uid = currentUser.uid;
 
-      if (snap.exists()) {
-        const data = snap.data();
-        setPhotoUrl(data.photoUrl || '');
-        setCoverPhotoUrl(data.coverPhotoUrl || '');
+      const localProfilePhoto =
+        await AsyncStorage.getItem(`profilePhotoUrl:${uid}`) ||
+        await AsyncStorage.getItem('profilePhotoUrl') ||
+        await AsyncStorage.getItem('soccerDailyProfilePhoto') ||
+        await AsyncStorage.getItem('homePhotoUrl') ||
+        '';
 
-        if (data.favoriteClubTeam) {
-          setSavedClub(data.favoriteClubTeam);
-          setClubTeam(data.favoriteClubTeam);
-        }
+      const localCoverPhoto =
+        await AsyncStorage.getItem(`coverPhotoUrl:${uid}`) ||
+        await AsyncStorage.getItem(`homeCoverPhotoUrl:${uid}`) ||
+        await AsyncStorage.getItem('coverPhotoUrl') ||
+        await AsyncStorage.getItem('homeCoverPhotoUrl') ||
+        await AsyncStorage.getItem('soccerDailyCoverPhoto') ||
+        '';
 
-        if (data.favoriteNationalTeam) {
-          setSavedNational(data.favoriteNationalTeam);
-          setNationalTeam(data.favoriteNationalTeam);
+      let mergedData: any = {};
+
+      for (const collectionName of ['users', 'publicProfiles', 'userProfiles']) {
+        try {
+          const snap = await getDoc(doc(db, collectionName, uid));
+          if (snap.exists()) {
+            mergedData = {
+              ...mergedData,
+              ...snap.data(),
+            };
+          }
+        } catch (error) {
+          console.log('Profile lookup skipped:', collectionName, error);
         }
       }
-    } catch {
-      // Keep local profile working even if Firebase profile read fails
+
+      const loadedPhoto =
+        mergedData.photoURL ||
+        mergedData.photoUrl ||
+        mergedData.profileImageUrl ||
+        mergedData.avatarUrl ||
+        currentUser.photoURL ||
+        localProfilePhoto ||
+        '';
+
+      const loadedCover =
+        mergedData.coverPhotoUrl ||
+        mergedData.homeCoverPhotoUrl ||
+        mergedData.coverPhoto ||
+        localCoverPhoto ||
+        '';
+
+      if (loadedPhoto) {
+        setPhotoUrl(loadedPhoto);
+        await AsyncStorage.multiSet([
+          [`profilePhotoUrl:${uid}`, loadedPhoto],
+          ['profilePhotoUrl', loadedPhoto],
+          ['soccerDailyProfilePhoto', loadedPhoto],
+          ['homePhotoUrl', loadedPhoto],
+        ]);
+      }
+
+      if (loadedCover) {
+        setCoverPhotoUrl(loadedCover);
+        await AsyncStorage.multiSet([
+          [`coverPhotoUrl:${uid}`, loadedCover],
+          [`homeCoverPhotoUrl:${uid}`, loadedCover],
+          ['coverPhotoUrl', loadedCover],
+          ['homeCoverPhotoUrl', loadedCover],
+          ['soccerDailyCoverPhoto', loadedCover],
+        ]);
+      }
+
+      if (mergedData.favoriteClubTeam || mergedData.savedFanBadge) {
+        const cloudClub = mergedData.favoriteClubTeam || mergedData.savedFanBadge || clubFromAnywhere;
+        setSavedClub(cloudClub);
+        setClubTeam(cloudClub);
+      }
+
+      if (mergedData.favoriteNationalTeam) {
+        setSavedNational(mergedData.favoriteNationalTeam);
+        setNationalTeam(mergedData.favoriteNationalTeam);
+      }
+    } catch (error) {
+      console.log('Load profile failed:', error);
     }
   }
 
@@ -86,27 +147,39 @@ export default function ProfileScreen() {
     const club = clubTeam.trim();
     const national = nationalTeam.trim();
 
-    await AsyncStorage.setItem('favoriteClubTeam', club);
-    await AsyncStorage.setItem('favoriteNationalTeam', national);
+    try {
+      await AsyncStorage.multiSet([
+        ['favoriteClubTeam', club],
+        ['favoriteNationalTeam', national],
+        ['soccerDailyFavoriteClub', club],
+        ['soccerDailyFavoriteNational', national],
+        ['savedFanBadge', club],
+      ]);
 
-    setSavedClub(club);
-    setSavedNational(national);
+      setSavedClub(club);
+      setSavedNational(national);
 
-    if (user?.uid) {
-      await setDoc(
-        doc(db, 'userProfiles', user.uid),
-        {
-          displayName,
-          email: user.email || '',
+      const user = getAuth().currentUser;
+
+      if (user) {
+        const favoriteData = {
+          userId: user.uid,
+          userEmail: user.email || '',
           favoriteClubTeam: club,
           favoriteNationalTeam: national,
-          updatedAt: Date.now(),
-        },
-        { merge: true }
-      );
-    }
+          savedFanBadge: club,
+          updatedAt: serverTimestamp(),
+        };
 
-    Alert.alert('Saved', 'Favorite teams saved.');
+        await setDoc(doc(db, 'users', user.uid), favoriteData, { merge: true });
+        await setDoc(doc(db, 'publicProfiles', user.uid), favoriteData, { merge: true });
+      }
+
+      Alert.alert('Saved', 'Favorite teams saved.');
+    } catch (error) {
+      console.log('Save favorite teams failed:', error);
+      Alert.alert('Error', 'Could not save favorite teams.');
+    }
   }
 
   async function pickProfilePhoto() {
@@ -293,6 +366,107 @@ export default function ProfileScreen() {
     }
   }
 
+  useEffect(() => {
+    async function saveProfilePhotoForFanWall() {
+      try {
+        if (!photoUrl) return;
+
+        await AsyncStorage.setItem('profilePhotoUrl', photoUrl);
+        await AsyncStorage.setItem('soccerDailyProfilePhoto', photoUrl);
+        await AsyncStorage.setItem('homePhotoUrl', photoUrl);
+      } catch (error) {
+        console.log('Save profile photo for Fan Wall error:', error);
+      }
+    }
+
+    saveProfilePhotoForFanWall();
+  }, [photoUrl]);
+
+
+  useEffect(() => {
+    async function syncProfilePhotoEverywhereForFanWall() {
+      try {
+        if (!photoUrl) return;
+
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) return;
+
+        await AsyncStorage.multiSet([
+          [`profilePhotoUrl:${user.uid}`, photoUrl],
+          ['profilePhotoUrl', photoUrl],
+          ['soccerDailyProfilePhoto', photoUrl],
+          ['homePhotoUrl', photoUrl],
+        ]);
+
+        const profileData = {
+          userId: user.uid,
+          userEmail: user.email || '',
+          displayName: displayName || user.displayName || user.email?.split('@')[0] || 'Fan',
+          photoUrl,
+          photoURL: photoUrl,
+          profileImageUrl: photoUrl,
+          updatedAt: serverTimestamp(),
+        };
+
+        await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
+        await setDoc(doc(db, 'publicProfiles', user.uid), profileData, { merge: true });
+        await setDoc(doc(db, 'userProfiles', user.uid), profileData, { merge: true });
+
+        if (photoUrl.startsWith('http')) {
+          await updateProfile(user, { photoURL: photoUrl });
+        }
+
+        console.log('✅ Synced profile photo for Fan Wall:', photoUrl);
+      } catch (error) {
+        console.log('❌ Profile photo sync failed:', error);
+      }
+    }
+
+    syncProfilePhotoEverywhereForFanWall();
+  }, [photoUrl, displayName]);
+
+
+
+  useEffect(() => {
+    async function syncCoverPhotoEverywhereForHome() {
+      try {
+        if (!coverPhotoUrl) return;
+
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) return;
+
+        await AsyncStorage.multiSet([
+          [`coverPhotoUrl:${user.uid}`, coverPhotoUrl],
+          [`homeCoverPhotoUrl:${user.uid}`, coverPhotoUrl],
+          ['coverPhotoUrl', coverPhotoUrl],
+          ['homeCoverPhotoUrl', coverPhotoUrl],
+          ['soccerDailyCoverPhoto', coverPhotoUrl],
+        ]);
+
+        const coverData = {
+          userId: user.uid,
+          userEmail: user.email || '',
+          coverPhotoUrl,
+          homeCoverPhotoUrl: coverPhotoUrl,
+          updatedAt: serverTimestamp(),
+        };
+
+        await setDoc(doc(db, 'users', user.uid), coverData, { merge: true });
+        await setDoc(doc(db, 'publicProfiles', user.uid), coverData, { merge: true });
+        await setDoc(doc(db, 'userProfiles', user.uid), coverData, { merge: true });
+
+        console.log('✅ Synced home background photo:', coverPhotoUrl);
+      } catch (error) {
+        console.log('❌ Home background photo sync failed:', error);
+      }
+    }
+
+    syncCoverPhotoEverywhereForHome();
+  }, [coverPhotoUrl]);
+
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
@@ -311,18 +485,20 @@ export default function ProfileScreen() {
               </View>
             )}
 
+            <View style={styles.profilePhotoWrap}>
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={styles.profileImage} />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+
             <Pressable style={styles.coverPhotoButton} onPress={uploadCoverPhoto}>
               <Text style={styles.coverPhotoButtonText}>Upload Home Background Photo</Text>
             </Pressable>
           </View>
-
-          {photoUrl ? (
-            <Image source={{ uri: photoUrl }} style={styles.profileImage} />
-          ) : (
-            <View style={styles.avatarFallback}>
-              <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
-            </View>
-          )}
 
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{displayName}</Text>
@@ -363,8 +539,9 @@ export default function ProfileScreen() {
         </Pressable>
 
         <View style={styles.savedBox}>
-          <Text style={styles.savedText}>⚽ Club: {savedClub || 'Not selected yet'}</Text>
-          <Text style={styles.savedText}>🏆 National: {savedNational || 'Not selected yet'}</Text>
+          <Text style={styles.savedTitle}>Your Selected Teams</Text>
+          <Text style={styles.savedText}>🏟️ Club: {savedClub || clubTeam || 'Not selected yet'}</Text>
+          <Text style={styles.savedText}>🌎 National: {savedNational || nationalTeam || 'Not selected yet'}</Text>
         </View>
       </View>
 
@@ -417,23 +594,23 @@ export default function ProfileScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Official Soccer Daily Links</Text>
 
-        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.website)}>
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS?.website || 'https://soccerdailyapp.com')}>
           <Text style={styles.toolText}>🌐 Website</Text>
         </Pressable>
 
-        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.email)}>
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS?.email || 'mailto:soccerdailyapp@gmail.com')}>
           <Text style={styles.toolText}>📧 Email Soccer Daily</Text>
         </Pressable>
 
-        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.facebook)}>
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCCER_DAILY_FACEBOOK)}>
           <Text style={styles.toolText}>📘 Facebook</Text>
         </Pressable>
 
-        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.instagram)}>
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCCER_DAILY_INSTAGRAM)}>
           <Text style={styles.toolText}>📸 Instagram</Text>
         </Pressable>
 
-        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS.youtube, 'YouTube coming soon')}>
+        <Pressable style={styles.toolButton} onPress={() => openOfficialLink(SOCIAL_LINKS?.youtube || 'https://www.youtube.com/@soccerdailyapp', 'YouTube coming soon')}>
           <Text style={styles.toolText}>▶️ YouTube</Text>
         </Pressable>
       </View>
@@ -446,6 +623,21 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+
+  profilePhotoWrap: {
+    position: 'absolute',
+    bottom: 50,
+    alignSelf: 'center',
+    width: 94,
+    height: 94,
+    borderRadius: 47,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+
+
+    },
+
   container: {
     flex: 1,
     backgroundColor: '#07111F',
@@ -483,34 +675,44 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   profileRow: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: 16,
-  },
+    gap: 12,
+    width: '100%',
+
+    },
   profileImage: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: '#132238',
-  },
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#10243A',
+    borderWidth: 4,
+    borderColor: '#FFD166',
+
+    },
   avatarFallback: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: '#132238',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#10243A',
+    borderWidth: 4,
+    borderColor: '#FFD166',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#FFD166',
-  },
+
+    },
   avatarText: {
     color: '#FFD166',
-    fontSize: 38,
+    fontSize: 34,
     fontWeight: '900',
-  },
+
+    },
   profileInfo: {
-    flex: 1,
-  },
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 4,
+
+    },
   profileName: {
     color: '#FFD166',
     fontSize: 27,
@@ -571,18 +773,22 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   savedBox: {
-    backgroundColor: '#07111F',
-    borderWidth: 1,
-    borderColor: '#24344F',
-    borderRadius: 18,
-    padding: 16,
+    backgroundColor: '#071526',
+    borderWidth: 2,
+    borderColor: '#FFD166',
+    borderRadius: 22,
+    padding: 18,
     marginTop: 16,
-  },
+
+    },
   savedText: {
-    color: '#E5E7EB',
-    fontSize: 17,
-    lineHeight: 26,
-  },
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 27,
+    marginTop: 8,
+
+    },
   toolButton: {
     backgroundColor: '#132238',
     borderRadius: 18,
@@ -621,44 +827,61 @@ const styles = StyleSheet.create({
   },
   coverPhotoBox: {
     width: '100%',
-    backgroundColor: '#111C2E',
-    borderWidth: 1,
-    borderColor: '#22314A',
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 12,
-    marginBottom: 18,
-  },
+    paddingBottom: 18,
+    backgroundColor: '#071526',
+    borderWidth: 1,
+    borderColor: '#24344F',
+    overflow: 'hidden',
+    alignItems: 'center',
+    position: 'relative',
+
+    },
   coverPhotoPreview: {
     width: '100%',
-    height: 150,
-    borderRadius: 16,
-    marginBottom: 10,
-  },
+    height: 170,
+    borderRadius: 20,
+    backgroundColor: '#10243A',
+
+    },
   coverPhotoPlaceholder: {
     width: '100%',
-    height: 150,
-    borderRadius: 16,
-    backgroundColor: '#07111F',
-    borderWidth: 1,
-    borderColor: '#22314A',
+    height: 170,
+    borderRadius: 20,
+    backgroundColor: '#10243A',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
-  },
+
+    },
   coverPhotoPlaceholderText: {
     color: '#CBD5E1',
     fontWeight: '800',
   },
   coverPhotoButton: {
     backgroundColor: '#FFD166',
-    padding: 13,
-    borderRadius: 14,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    width: '100%',
     alignItems: 'center',
-  },
+    marginTop: 44,
+
+    },
   coverPhotoButtonText: {
     color: '#07111F',
     fontWeight: '900',
     fontSize: 14,
   },
+
+  savedTitle: {
+    color: '#FFD166',
+    fontSize: 20,
+    fontWeight: '900',
+    marginBottom: 8,
+    textAlign: 'center',
+
+
+    },
 
 });

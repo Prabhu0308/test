@@ -27,6 +27,7 @@ const ADMIN_EMAIL = 'prabhudevupadhyay@gmail.com';
 
 type FanPost = {
   id: string;
+  docId?: string;
   text?: string;
   displayName?: string;
   userEmail?: string;
@@ -94,10 +95,15 @@ export default function AdminPanel() {
       postsQuery,
       (snapshot) => {
         setPosts(
-          snapshot.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as Omit<FanPost, 'id'>),
-          }))
+          snapshot.docs.map((d) => {
+            const data = d.data() as Omit<FanPost, 'id'> & { id?: string };
+
+            return {
+              ...data,
+              id: data.id || d.id,
+              docId: d.id,
+            };
+          })
         );
         setLoading(false);
       },
@@ -129,34 +135,80 @@ export default function AdminPanel() {
     [posts]
   );
 
-  function findPost(report: ReportItem) {
-    return posts.find((p) => p.id === report.postId);
+  function normalizeText(value?: string) {
+    return String(value || '').trim().toLowerCase();
   }
 
-  async function holdPost(postId?: string) {
-    if (!postId) {
-      Alert.alert('Missing post', 'This report cannot be matched to a post.');
+  function findPost(report: ReportItem) {
+    const reportText = normalizeText(report.postText);
+    const reportOwner = normalizeText(report.postOwnerEmail);
+
+    return posts.find((p) =>
+      p.id === report.postId ||
+      p.docId === report.postId ||
+      (
+        reportText &&
+        normalizeText(p.text) === reportText &&
+        (
+          !reportOwner ||
+          normalizeText(p.userEmail) === reportOwner ||
+          normalizeText(p.displayName) === reportOwner
+        )
+      )
+    );
+  }
+
+  function resolvePostDocId(postId?: string, report?: ReportItem) {
+    if (report) {
+      const matchedFromReport = findPost(report);
+      if (matchedFromReport?.docId) return matchedFromReport.docId;
+    }
+
+    if (!postId) return '';
+
+    const matchedPost = posts.find((p) =>
+      p.id === postId ||
+      p.docId === postId
+    );
+
+    return matchedPost?.docId || '';
+  }
+
+  async function holdPost(postId?: string, report?: ReportItem) {
+    const realPostDocId = resolvePostDocId(postId, report);
+
+    if (!realPostDocId) {
+      Alert.alert('Missing post', 'This report cannot be matched to a live Fan Wall post. It may already be deleted or it may be an older report.');
       return;
     }
 
     try {
-      await updateDoc(doc(db, 'fanPosts', postId), {
+      await updateDoc(doc(db, 'fanPosts', realPostDocId), {
         moderationStatus: 'under_investigation',
+        status: 'held',
+        hidden: true,
+        held: true,
         heldAt: Date.now(),
         heldReason: 'Admin review',
       });
       Alert.alert('Held', 'Post is hidden from Fan Wall and under investigation.');
-    } catch {
-      Alert.alert('Error', 'Could not hold this post.');
+    } catch (error) {
+      console.log('Hold post failed:', error);
+      Alert.alert('Error', 'Could not hold this post. Check terminal for details.');
     }
   }
 
-  async function releasePost(postId?: string) {
-    if (!postId) return;
+  async function releasePost(postId?: string, report?: ReportItem) {
+    const realPostDocId = resolvePostDocId(postId, report);
+
+    if (!realPostDocId) return;
 
     try {
-      await updateDoc(doc(db, 'fanPosts', postId), {
+      await updateDoc(doc(db, 'fanPosts', realPostDocId), {
         moderationStatus: 'active',
+        status: 'active',
+        hidden: false,
+        held: false,
         heldAt: null,
         heldReason: null,
       });
@@ -166,8 +218,10 @@ export default function AdminPanel() {
     }
   }
 
-  async function deletePost(postId?: string) {
-    if (!postId) {
+  async function deletePost(postId?: string, report?: ReportItem) {
+    const realPostDocId = resolvePostDocId(postId, report);
+
+    if (!realPostDocId) {
       Alert.alert('Missing post', 'This post cannot be found.');
       return;
     }
@@ -179,7 +233,7 @@ export default function AdminPanel() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteDoc(doc(db, 'fanPosts', postId));
+            await deleteDoc(doc(db, 'fanPosts', realPostDocId));
             Alert.alert('Deleted', 'Post deleted.');
           } catch {
             Alert.alert('Error', 'Could not delete post.');
@@ -271,11 +325,11 @@ export default function AdminPanel() {
             <Text style={styles.time}>Held: {formatDate(post.heldAt || post.createdAt)}</Text>
 
             <View style={styles.actionRow}>
-              <Pressable style={styles.releaseButton} onPress={() => releasePost(post.id)}>
+              <Pressable style={styles.releaseButton} onPress={() => releasePost(post.docId || post.id)}>
                 <Text style={styles.buttonText}>Release</Text>
               </Pressable>
 
-              <Pressable style={styles.deleteButton} onPress={() => deletePost(post.id)}>
+              <Pressable style={styles.deleteButton} onPress={() => deletePost(post.docId || post.id)}>
                 <Text style={styles.buttonText}>Delete</Text>
               </Pressable>
             </View>
@@ -298,13 +352,26 @@ export default function AdminPanel() {
           const postText = report.postText || post?.text || 'No text in this post.';
           const owner = report.postOwnerEmail || post?.userEmail || post?.displayName || 'Unknown owner';
           const reporter = report.reporterEmail || report.reportedBy || report.reporterId || 'Unknown reporter';
-          const status = post?.moderationStatus || 'active';
+          const isMissingPost = !post;
+          const status = isMissingPost ? 'missing' : post?.moderationStatus || 'active';
 
           return (
             <View key={report.id} style={styles.reportCard}>
               <Text style={styles.mediaType}>{getMediaType(post, report)}</Text>
-              <Text style={status === 'under_investigation' ? styles.statusHold : styles.statusActive}>
-                {status === 'under_investigation' ? 'UNDER INVESTIGATION' : 'ACTIVE'}
+              <Text
+                style={
+                  status === 'under_investigation'
+                    ? styles.statusHold
+                    : isMissingPost
+                      ? styles.statusMissing
+                      : styles.statusActive
+                }
+              >
+                {status === 'under_investigation'
+                  ? 'UNDER INVESTIGATION'
+                  : isMissingPost
+                    ? 'POST NOT FOUND'
+                    : 'ACTIVE'}
               </Text>
 
               <Text style={styles.label}>Reason</Text>
@@ -320,23 +387,31 @@ export default function AdminPanel() {
               <Text style={styles.time}>{formatDate(report.createdAt)}</Text>
 
               <View style={styles.actionRow}>
-                {status === 'under_investigation' ? (
-                  <Pressable style={styles.releaseButton} onPress={() => releasePost(report.postId)}>
+                {isMissingPost ? (
+                  <Pressable style={styles.dismissButton} onPress={() => dismissReport(report.id)}>
+                    <Text style={styles.buttonText}>Dismiss Old Report</Text>
+                  </Pressable>
+                ) : status === 'under_investigation' ? (
+                  <Pressable style={styles.releaseButton} onPress={() => releasePost(report.postId, report)}>
                     <Text style={styles.buttonText}>Release</Text>
                   </Pressable>
                 ) : (
-                  <Pressable style={styles.holdButton} onPress={() => holdPost(report.postId)}>
+                  <Pressable style={styles.holdButton} onPress={() => holdPost(report.postId, report)}>
                     <Text style={styles.buttonTextDark}>Hold</Text>
                   </Pressable>
                 )}
 
-                <Pressable style={styles.deleteButton} onPress={() => deletePost(report.postId)}>
-                  <Text style={styles.buttonText}>Delete</Text>
-                </Pressable>
+                {!isMissingPost ? (
+                  <Pressable style={styles.deleteButton} onPress={() => deletePost(report.postId, report)}>
+                    <Text style={styles.buttonText}>Delete</Text>
+                  </Pressable>
+                ) : null}
 
-                <Pressable style={styles.dismissButton} onPress={() => dismissReport(report.id)}>
-                  <Text style={styles.buttonText}>Dismiss</Text>
-                </Pressable>
+                {!isMissingPost ? (
+                  <Pressable style={styles.dismissButton} onPress={() => dismissReport(report.id)}>
+                    <Text style={styles.buttonText}>Dismiss</Text>
+                  </Pressable>
+                ) : null}
               </View>
             </View>
           );
@@ -471,6 +546,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     marginBottom: 10,
+  },
+  statusMissing: {
+    color: '#FCA5A5',
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 12,
   },
   statusHold: {
     color: '#FCA5A5',

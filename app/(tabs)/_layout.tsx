@@ -1,31 +1,27 @@
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 
-function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
-  return (
-    <Text style={{ fontSize: 24, opacity: focused ? 1 : 0.6 }}>
-      {icon}
-    </Text>
-  );
+function EmojiIcon({ emoji, size }: { emoji: string; size: number }) {
+  return <Text style={{ fontSize: size + 4 }}>{emoji}</Text>;
 }
 
-export default function TabLayout() {
+export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: '#FFD166',
+        tabBarInactiveTintColor: '#94A3B8',
         tabBarStyle: {
           backgroundColor: '#07111F',
-          borderTopColor: '#111C2E',
-          height: 86,
-          paddingBottom: 18,
+          borderTopColor: '#1F2A44',
+          height: 78,
+          paddingBottom: 10,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: '#FFD166',
-        tabBarInactiveTintColor: '#8FA3B8',
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '700',
+          fontSize: 11,
+          fontWeight: '900',
         },
       }}
     >
@@ -33,15 +29,15 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
+          tabBarIcon: ({ size }) => <EmojiIcon emoji="🏠" size={size} />,
         }}
       />
 
       <Tabs.Screen
-        name="scores"
+        name="academy"
         options={{
-          title: 'Scores',
-          tabBarIcon: ({ focused }) => <TabIcon icon="⚽" focused={focused} />,
+          title: 'Academy',
+          tabBarIcon: ({ size }) => <EmojiIcon emoji="🎓" size={size} />,
         }}
       />
 
@@ -49,7 +45,7 @@ export default function TabLayout() {
         name="fan-wall"
         options={{
           title: 'Fan Zone',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🔥" focused={focused} />,
+          tabBarIcon: ({ size }) => <EmojiIcon emoji="💬" size={size} />,
         }}
       />
 
@@ -57,7 +53,7 @@ export default function TabLayout() {
         name="prediction"
         options={{
           title: 'Prediction',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🔮" focused={focused} />,
+          tabBarIcon: ({ size }) => <EmojiIcon emoji="🔮" size={size} />,
         }}
       />
 
@@ -65,10 +61,11 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
+          tabBarIcon: ({ size }) => <EmojiIcon emoji="👤" size={size} />,
         }}
       />
 
+      <Tabs.Screen name="scores" options={{ href: null }} />
       <Tabs.Screen name="news" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="leaderboard" options={{ href: null }} />
