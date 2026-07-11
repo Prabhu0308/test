@@ -1412,6 +1412,14 @@ async function uploadFanPostPhoto() {
 
   
 function openAllPostsPanel() {
+    const isAlreadyOpen =
+      activeFanHub === 'wall' &&
+      !showClubPicker &&
+      !showComposer &&
+      !showFollowedTeamsList &&
+      !showFollowingList &&
+      !activeRoom;
+
     setActiveRoom('');
     setSelectedCountry(null);
     setSearchText('');
@@ -1421,30 +1429,60 @@ function openAllPostsPanel() {
     setShowFollowingList(false);
     setShowMyPostsOnly(false);
     setShowMoreCountries(false);
-    setActiveFanHub('wall');
     setBookPageHint('');
+
+    if (isAlreadyOpen) {
+      setActiveFanHub('home');
+    } else {
+      setActiveFanHub('wall');
+    }
   }
 
   function openWritePostPanel() {
-    setShowComposer(true);
+    const isAlreadyOpen =
+      showComposer &&
+      activeFanHub === 'write';
+
     setShowClubPicker(false);
     setShowFollowedTeamsList(false);
     setShowFollowingList(false);
     setShowMyPostsOnly(false);
     setShowMoreCountries(false);
-    setActiveFanHub('write');
-    setBookPageHint('createPost');
+
+    if (isAlreadyOpen) {
+      setShowComposer(false);
+      setActiveFanHub('home');
+      setBookPageHint('');
+    } else {
+      setShowComposer(true);
+      setActiveFanHub('write');
+      setBookPageHint('createPost');
+    }
   }
 
   function openClubPickerPanel() {
-    setShowClubPicker(true);
+    const isAlreadyOpen =
+      showClubPicker &&
+      activeFanHub === 'clubs';
+
     setShowComposer(false);
     setShowFollowedTeamsList(false);
     setShowFollowingList(false);
     setShowMyPostsOnly(false);
     setShowMoreCountries(false);
-    setActiveFanHub('clubs');
-    setBookPageHint('clubs');
+
+    if (isAlreadyOpen) {
+      setShowClubPicker(false);
+      setSelectedCountry(null);
+      setSearchText('');
+      setActiveFanHub('home');
+      setBookPageHint('');
+    } else {
+      setShowClubPicker(true);
+      setSelectedCountry(null);
+      setActiveFanHub('clubs');
+      setBookPageHint('clubs');
+    }
   }
 
   function openFanHub(section: string) {
@@ -1952,13 +1990,7 @@ n\nShared from Soccer Daily Fan Zone`,
         <View style={styles.bgRoofArcOuter} />
         <View style={styles.bgRoofArcInner} />
 
-        <View style={styles.bgLightBar}>
-          <View style={styles.bgLightDot} />
-          <View style={styles.bgLightDot} />
-          <View style={styles.bgLightDot} />
-          <View style={styles.bgLightDot} />
-          <View style={styles.bgLightDot} />
-        </View>
+        
 
         <View style={styles.bgSeatBowlOne} />
         <View style={styles.bgSeatBowlTwo} />
@@ -1972,6 +2004,8 @@ n\nShared from Soccer Daily Fan Zone`,
 
       <View style={styles.headerWrap}>
         <Text style={styles.title}>{fanT.fanWallTitle}</Text>
+
+        
       </View>
 
       <View pointerEvents="none" style={[styles.futureStadium, styles.simpleHiddenSection]}>
@@ -2035,10 +2069,19 @@ n\nShared from Soccer Daily Fan Zone`,
           )}
 
           <View style={styles.topFanInfo}>
-            <Text style={styles.topFanKicker}>{fanT.stadiumEntrance}</Text>
+            <Text style={styles.topFanKicker}>🏟️ {fanT.stadiumEntrance}</Text>
             <Text style={styles.topFanName} numberOfLines={1}>{fanT.generalFanWall}</Text>
             <Text style={styles.topFanRoomName} numberOfLines={1}>{fanT.allFansTeams}</Text>
           </View>
+        
+          <Pressable
+            style={styles.fanCodeCardButton}
+            onPress={handleShowCommunityGuidelines}
+            hitSlop={10}
+          >
+            <Text style={styles.fanCodeCardIcon}>📘</Text>
+            <Text style={styles.fanCodeCardText}>Fan Code</Text>
+          </Pressable>
         </View>
 
         <View style={[styles.topFanStatsRow, styles.simpleHiddenSection]}>
@@ -2339,12 +2382,7 @@ n\nShared from Soccer Daily Fan Zone`,
       </View>
 
       
-      <Pressable
-        style={styles.communityGuideCard}
-        onPress={handleShowCommunityGuidelines}
-      >
-        <Text style={styles.communityGuideLine}>{fanT.communityGuidelinesTap}</Text>
-      </Pressable>
+      {/* Fan Code is now in the top-right header button. */}
 
 <TextInput
         style={styles.searchInput}
@@ -2362,37 +2400,148 @@ n\nShared from Soccer Daily Fan Zone`,
           />
 
       <View style={styles.filterRow}>
-        <Pressable style={[styles.filterChip, !showClubPicker && !showComposer && !activeRoom && styles.activeChip]} onPress={openAllPostsPanel}>
+        <Pressable
+          style={[
+            styles.filterChip,
+            styles.allPostsBox,
+            activeFanHub === 'wall' && styles.activeChip,
+          ]}
+          onPress={openAllPostsPanel}
+        >
           <View onLayout={(event) => { fanFeedY.current = event.nativeEvent.layout.y; }} />
-          <Text style={[styles.filterChipText, !showClubPicker && !showComposer && !activeRoom && styles.activeChipText]}>🏠 {fanT.allPosts}</Text>
+          <Text style={styles.filterIcon}>🏠</Text>
+          <Text
+            style={[
+              styles.filterChipText,
+              activeFanHub === 'wall' && styles.activeChipText,
+            ]}
+          >
+            {fanT.allPosts}
+          </Text>
+          <Text
+            style={[
+              styles.filterChipSubText,
+              !showClubPicker && !showComposer && !activeRoom && styles.activeChipSubText,
+            ]}
+          >
+            Latest fan feed
+          </Text>
         </Pressable>
 
-        <Pressable style={[styles.filterChip, showClubPicker && styles.activeChip]} onPress={openClubPickerPanel}>
-          <Text style={[styles.filterChipText, showClubPicker && styles.activeChipText]}>🏟️ {fanT.pickTeam}</Text>
+        <Pressable
+          style={[
+            styles.filterChip,
+            styles.pickTeamBox,
+            showClubPicker && styles.activeChip,
+          ]}
+          onPress={openClubPickerPanel}
+        >
+          <Text style={styles.filterIcon}>🏟️</Text>
+          <Text
+            style={[
+              styles.filterChipText,
+              showClubPicker && styles.activeChipText,
+            ]}
+          >
+            {fanT.pickTeam}
+          </Text>
+          <Text
+            style={[
+              styles.filterChipSubText,
+              showClubPicker && styles.activeChipSubText,
+            ]}
+          >
+            Choose your club
+          </Text>
         </Pressable>
 
-        <Pressable style={[styles.filterChip, showComposer && styles.activeChip]} onPress={openWritePostPanel}>
-          <Text style={[styles.filterChipText, showComposer && styles.activeChipText]}>✍️ {fanT.writePost}</Text>
+        <Pressable
+          style={[
+            styles.filterChip,
+            styles.writePostBox,
+            showComposer && styles.activeChip,
+          ]}
+          onPress={openWritePostPanel}
+        >
+          <Text style={styles.filterIcon}>✍️</Text>
+          <Text
+            style={[
+              styles.filterChipText,
+              showComposer && styles.activeChipText,
+            ]}
+          >
+            {fanT.writePost}
+          </Text>
+          <Text
+            style={[
+              styles.filterChipSubText,
+              showComposer && styles.activeChipSubText,
+            ]}
+          >
+            Share with fans
+          </Text>
         </Pressable>
       </View>
 
       <View style={styles.miniAccessRow}>
         <Pressable
-          style={[styles.miniAccessButton, showFollowingList && styles.miniAccessButtonActive]}
+          style={[
+            styles.miniAccessButton,
+            styles.followingBox,
+            showFollowingList && styles.miniAccessButtonActive,
+          ]}
           onPress={openFollowingUsersList}
         >
-          <Text style={[styles.miniAccessText, showFollowingList && styles.miniAccessTextActive]}>
-            👤 Following
-          </Text>
+          <Text style={styles.miniAccessIcon}>👤</Text>
+          <View style={styles.miniAccessContent}>
+            <Text
+              style={[
+                styles.miniAccessText,
+                showFollowingList && styles.miniAccessTextActive,
+              ]}
+            >
+              Following
+            </Text>
+            <Text
+              style={[
+                styles.miniAccessSubText,
+                showFollowingList && styles.miniAccessSubTextActive,
+              ]}
+            >
+              {followingUsers.length} users
+            </Text>
+          </View>
+          <Text style={styles.miniAccessArrow}>›</Text>
         </Pressable>
 
         <Pressable
-          style={[styles.miniAccessButton, showFollowedTeamsList && styles.miniAccessButtonActive]}
+          style={[
+            styles.miniAccessButton,
+            styles.myTeamsBox,
+            showFollowedTeamsList && styles.miniAccessButtonActive,
+          ]}
           onPress={openFollowedTeamsList}
         >
-          <Text style={[styles.miniAccessText, showFollowedTeamsList && styles.miniAccessTextActive]}>
-            ⭐ My Teams
-          </Text>
+          <Text style={styles.miniAccessIcon}>⭐</Text>
+          <View style={styles.miniAccessContent}>
+            <Text
+              style={[
+                styles.miniAccessText,
+                showFollowedTeamsList && styles.miniAccessTextActive,
+              ]}
+            >
+              My Teams
+            </Text>
+            <Text
+              style={[
+                styles.miniAccessSubText,
+                showFollowedTeamsList && styles.miniAccessSubTextActive,
+              ]}
+            >
+              {followedTeams.length} saved
+            </Text>
+          </View>
+          <Text style={styles.miniAccessArrow}>›</Text>
         </Pressable>
       </View>
 
@@ -2838,15 +2987,25 @@ n\nShared from Soccer Daily Fan Zone`,
         </View>
       ) : (
         <View>
-          {!showClubPicker && !showComposer && !showFollowingList && !showFollowedTeamsList && visiblePosts.length === 0 ? (
+          {activeFanHub === 'wall' &&
+          !showClubPicker &&
+          !showComposer &&
+          !showFollowingList &&
+          !showFollowedTeamsList &&
+          visiblePosts.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>No posts found</Text>
               <Text style={styles.emptyText}>Try another search or be the first fan to post.</Text>
             </View>
           ) : (
-            (!showClubPicker && !showComposer && !showFollowingList && !showFollowedTeamsList
-              ? visiblePosts
-              : []
+            (
+              activeFanHub === 'wall' &&
+              !showClubPicker &&
+              !showComposer &&
+              !showFollowingList &&
+              !showFollowedTeamsList
+                ? visiblePosts
+                : []
             )
               .filter((post) => {
                 const cleanPostText = removeGifUrl(post.text || '').trim();
@@ -4032,21 +4191,60 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginHorizontal: 16,
-    marginTop: -4,
-    marginBottom: 12,
+    marginTop: 0,
+    marginBottom: 14,
   },
   miniAccessButton: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 16,
+    minHeight: 78,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 18,
     backgroundColor: '#061B33',
     borderWidth: 1,
-    borderColor: '#2563EB',
+    borderColor: '#234C78',
+    flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: '#38BDF8',
+    shadowOpacity: 0.08,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   miniAccessButtonActive: {
     backgroundColor: '#FFD166',
-    borderColor: '#FFD166',
+    borderColor: '#FFF1B8',
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.26,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+
+  miniAccessIcon: {
+    fontSize: 24,
+    marginRight: 10,
+  },
+
+  miniAccessContent: {
+    flex: 1,
+  },
+
+  miniAccessSubText: {
+    color: '#8EA4C8',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 3,
+  },
+
+  miniAccessSubTextActive: {
+    color: '#4A3A12',
+  },
+
+  miniAccessArrow: {
+    color: '#93C5FD',
+    fontSize: 28,
+    fontWeight: '700',
   },
   miniAccessText: {
     color: '#DBEAFE',
@@ -4128,13 +4326,41 @@ const styles = StyleSheet.create({
 
 
   headerWrap: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    marginBottom: 14,
+    marginTop: 10,
+    marginBottom: 28,
     paddingHorizontal: 18,
   },
 
+
+  fanCodeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 11,
+    borderRadius: 999,
+    backgroundColor: '#0B2442',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    shadowColor: '#3B82F6',
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+
+  fanCodeIcon: {
+    fontSize: 15,
+  },
+
+  fanCodeText: {
+    color: '#DCEBFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
 
   fullStadiumBg: {
     position: 'absolute',
@@ -4196,23 +4422,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,210,90,0.16)',
   },
   bgLightBar: {
-    position: 'absolute',
-    top: 205,
-    left: 44,
-    right: 44,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    display: 'none',
   },
   bgLightDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#FFD166',
-    shadowColor: '#FFD166',
-    shadowOpacity: 0.9,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
+    display: 'none',
   },
   bgSeatBowlOne: {
     position: 'absolute',
@@ -4479,26 +4692,27 @@ const styles = StyleSheet.create({
 
 
   stadiumTicketCard: {
-    padding: 14,
-    marginTop: 14,
-    marginBottom: 12,
-    borderRadius: 24,
-    borderWidth: 2,
+    padding: 16,
+    marginTop: 6,
+    marginBottom: 22,
+    minHeight: 136,
+    borderRadius: 28,
+    borderWidth: 1.5,
     borderColor: '#FFD166',
-    backgroundColor: '#081B2F',
+    backgroundColor: 'rgba(5, 24, 48, 0.98)',
     shadowColor: '#FFD166',
     shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 6,
   },
 
 
   compactTopFanRoomCard: {
-    padding: 14,
-    marginTop: 16,
-    marginBottom: 12,
-    borderRadius: 24,
+    padding: 16,
+    marginTop: 6,
+    marginBottom: 22,
+    borderRadius: 28,
   },
 
 
@@ -4508,21 +4722,19 @@ const styles = StyleSheet.create({
 
   communityGuideCard: {
     marginHorizontal: 16,
-    marginBottom: 14,
+    marginBottom: 10,
     backgroundColor: 'rgba(6, 25, 58, 0.86)',
-    borderRadius: 20,
-    borderWidth: 1.5,
+    borderRadius: 16,
+    borderWidth: 1,
     borderColor: '#246BFF',
-    paddingVertical: 13,
-    paddingHorizontal: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     shadowColor: '#246BFF',
-    shadowOpacity: 0.12,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-
-
-    },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
   communityGuideLine: {
     color: '#DCEBFF',
     fontSize: 14,
@@ -4539,18 +4751,19 @@ const styles = StyleSheet.create({
 
   topFanRoomCard: {
     marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 14,
-    padding: 12,
-    borderRadius: 24,
-    backgroundColor: '#061B33',
-    borderWidth: 2,
+    marginTop: 6,
+    marginBottom: 22,
+    padding: 16,
+    minHeight: 136,
+    borderRadius: 28,
+    backgroundColor: 'rgba(5, 24, 48, 0.98)',
+    borderWidth: 1.5,
     borderColor: '#FFD166',
-    shadowColor: '#38BDF8',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 6,
     overflow: 'hidden',
   },
   topFanRoomGlow: {
@@ -4565,20 +4778,21 @@ const styles = StyleSheet.create({
   topFanRoomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
+    minHeight: 102,
   },
   topFanAvatar: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     borderWidth: 3,
     borderColor: '#FFD166',
     backgroundColor: '#111827',
   },
   topFanAvatarFallback: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     borderWidth: 3,
     borderColor: '#FFD166',
     backgroundColor: '#0F172A',
@@ -4587,30 +4801,31 @@ const styles = StyleSheet.create({
   },
   topFanAvatarText: {
     color: '#FFD166',
-    fontSize: 34,
+    fontSize: 25,
     fontWeight: '900',
   },
   topFanInfo: {
     flex: 1,
+    minWidth: 0,
   },
   topFanKicker: {
     color: '#FFD166',
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 2,
-    marginBottom: 4,
+    letterSpacing: 1.4,
+    marginBottom: 5,
   },
   topFanName: {
     color: '#FFFFFF',
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: '900',
-    lineHeight: 34,
+    lineHeight: 25,
   },
   topFanRoomName: {
-    color: '#F8FAFC',
-    fontSize: 17,
-    fontWeight: '900',
-    marginTop: 4,
+    color: '#BFD7FF',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 5,
   },
   topFanStatsRow: {
     flexDirection: 'row',
@@ -5477,16 +5692,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#020817',
   },
   title: {
+    width: '100%',
     fontSize: 38,
     fontWeight: '900',
     color: '#F5F8FF',
-    marginHorizontal: 18,
-    marginBottom: 18,
+    textAlign: 'center',
+    alignSelf: 'center',
+    marginHorizontal: 0,
+    marginBottom: 0,
     textShadowColor: 'rgba(120,190,255,0.55)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 18,
-
-    },
+  },
   subtitle: {
     color: '#BFD7FF',
     fontSize: 15,
@@ -5591,66 +5808,107 @@ const styles = StyleSheet.create({
 
   searchInput: {
     marginHorizontal: 16,
-    marginBottom: 14,
+    marginTop: 22,
+    marginBottom: 16,
     backgroundColor: 'rgba(5, 18, 45, 0.93)',
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1.5,
     borderColor: 'rgba(70,140,255,0.45)',
     color: '#EAF2FF',
-    fontSize: 17,
-    fontWeight: '800',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-
-
-    },
+    fontSize: 15,
+    fontWeight: '700',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
 
   filterRow: {
     flexDirection: 'row',
     gap: 10,
     marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 8,
-    borderRadius: 24,
-    backgroundColor: 'rgba(3, 12, 31, 0.86)',
-    borderWidth: 1,
-    borderColor: 'rgba(80,140,255,0.30)',
-
-
-    },
+    marginBottom: 20,
+  },
   filterChip: {
     flex: 1,
-    backgroundColor: 'rgba(5, 18, 45, 0.95)',
-    borderRadius: 19,
+    minHeight: 112,
+    backgroundColor: '#061B33',
+    borderRadius: 20,
     paddingVertical: 14,
+    paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(80,140,255,0.32)',
+    borderWidth: 1,
+    borderColor: '#234C78',
+    shadowColor: '#38BDF8',
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  allPostsBox: {
+    backgroundColor: '#0B3B32',
+    borderColor: '#22C55E',
+  },
 
-    },
+  pickTeamBox: {
+    backgroundColor: '#102A56',
+    borderColor: '#3B82F6',
+  },
+
+  writePostBox: {
+    backgroundColor: '#4A3511',
+    borderColor: '#FFD166',
+  },
+
+  followingBox: {
+    backgroundColor: '#2A1E4F',
+    borderColor: '#8B5CF6',
+  },
+
+  myTeamsBox: {
+    backgroundColor: '#493014',
+    borderColor: '#F59E0B',
+  },
+
   activeChip: {
-    backgroundColor: '#E3B94F',
-    borderColor: '#F7D26A',
-    shadowColor: '#F7D26A',
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
+    backgroundColor: '#FFD166',
+    borderColor: '#FFF1B8',
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
+    transform: [{ scale: 1.02 }],
+  },
+  filterIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
 
-    },
   filterChipText: {
     color: '#F4C95D',
     fontWeight: '900',
-    fontSize: 14,
+    fontSize: 13,
+    textAlign: 'center',
+  },
 
-    },
+  filterChipSubText: {
+    color: '#8EA4C8',
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  activeChipSubText: {
+    color: '#4A3A12',
+  },
   activeChipText: {
     color: '#071B3A',
     fontWeight: '900',
-    fontSize: 14,
-
-    },
+    fontSize: 12,
+    textAlign: 'center',
+  },
 
   roomHeaderBox: {
     marginHorizontal: 16,
@@ -6120,4 +6378,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
 
     },
+  fanCodeCardButton: {
+    width: 70,
+    minHeight: 76,
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    borderRadius: 19,
+    backgroundColor: '#0B2442',
+    borderWidth: 1.5,
+    borderColor: '#FFD166',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.20,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  fanCodeCardIcon: {
+    fontSize: 22,
+    marginBottom: 5,
+  },
+  fanCodeCardText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
 });
