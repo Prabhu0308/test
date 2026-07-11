@@ -2,11 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { ResizeMode, Video } from 'expo-av';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Keyboard, Pressable, ScrollView, useWindowDimensions, Modal, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { db, storage } from '../../firebase/config';
 
@@ -159,6 +159,222 @@ function countryFlag(country: string) {
 }
 
 const POPULAR_COUNTRIES = ['USA', 'Mexico', 'England', 'Spain', 'Germany', 'France', 'Italy', 'Portugal', 'Brazil'];
+
+const FAN_ZONE_TEXT: any = {
+  en: {
+    stadiumEntrance: 'STADIUM ENTRANCE',
+    generalFanWall: 'General Fan Wall',
+    allFansTeams: '🏟️ All fans · all teams',
+    teams: 'Teams',
+    following: 'Following',
+    posts: 'Posts',
+    myTeams: 'My Teams',
+    pickTeam: 'Pick Team',
+    writePost: 'Write Post',
+    fanWallTitle: '🏟️ Fan Wall',
+    communityGuidelinesTap: '🛡️ Community Guidelines · Tap to read',
+    searchPlaceholder: 'Search posts, fans, teams...',
+    allPosts: 'All Posts',
+    translateToEnglish: 'Translate to English',
+    likeLabel: (n: number) => `${n} Likes`,
+    commentLabel: (n: number) => `${n} Comments`,
+    share: 'Share',
+    followUser: 'Follow User +',
+    followingCheck: 'Following ✓',
+    commentsTitle: 'Comments',
+    notFollowingYet: 'You are not following anyone yet. Tap Follow User + on another fan’s post.',
+    noTeamsYet: 'No teams yet. Tap Pick Team and follow up to 3 teams.',
+    allFanWallHelp: 'Tap All Fan Wall for all posts, or open your active room to see room posts below.',
+    roomFeedSubtext: 'Room feed. Posts here also appear in the common Fan Wall.',
+    followingTapMain: 'Following ✓ Tap to make main',
+    followReplaceOldest: 'Follow + replace oldest →',
+    followOpenRoom: 'Follow + open room →',
+    postInPlaceholder: (room: string) => `Post in ${room}...`,
+    writeFanWallPlaceholder: 'Write something for the common Fan Wall...',
+    matchdayBook: 'MATCHDAY BOOK',
+    matchdayPages: 'Matchday Pages',
+    matchdaySubtitle: '{fanT.matchdaySubtitle}',
+    fanFeed: 'Fan Feed',
+    matchRooms: 'Match Rooms',
+    chooseRoom: 'Choose a room',
+    countryClubMatchTalk: 'Country • club • match talk',
+    photosVideosComments: 'Photos • videos • comments',
+    teamsSaved: (n: number) => `${n} teams saved`,
+    postsLive: (n: number) => `${n} posts live`,
+    pickMainClub: 'Pick your main club',
+    createPost: 'Create Post',
+    postIn: 'Post in',
+    postToFanWall: 'Post to Fan Wall',
+    textPhotoGifVideo: 'Text • photo • GIF • video',
+    fanFeedUpper: '💬 FAN FEED',
+    matchRoomsUpper: '🏟️ MATCH ROOMS',
+    myTeamsUpper: '⭐ MY TEAMS',
+    createPostUpper: '📸 CREATE POST',
+    fanZonePosts: (n: number) => `${n} Fan Zone posts`,
+    chooseSoccerRoom: 'Choose a soccer room',
+    followedTeams: (n: number) => `${n} followed teams`,
+  },
+  es: {
+    stadiumEntrance: 'ENTRADA AL ESTADIO',
+    generalFanWall: 'Muro general de fans',
+    allFansTeams: '🏟️ Todos los fans · todos los equipos',
+    teams: 'Equipos',
+    following: 'Siguiendo',
+    posts: 'Publicaciones',
+    myTeams: 'Mis equipos',
+    pickTeam: 'Elegir equipo',
+    writePost: 'Escribir post',
+    fanWallTitle: '🏟️ Muro de fans',
+    communityGuidelinesTap: '🛡️ Reglas de comunidad · Toca para leer',
+    searchPlaceholder: 'Buscar posts, fans, equipos...',
+    allPosts: 'Todos los posts',
+    translateToEnglish: 'Traducir al inglés',
+    likeLabel: (n: number) => `${n} Me gusta`,
+    commentLabel: (n: number) => `${n} Comentarios`,
+    share: 'Compartir',
+    followUser: 'Seguir usuario +',
+    followingCheck: 'Siguiendo ✓',
+    commentsTitle: 'Comentarios',
+    notFollowingYet: 'Aún no sigues a nadie. Toca Seguir usuario + en el post de otro fan.',
+    noTeamsYet: 'Aún no hay equipos. Toca Elegir equipo y sigue hasta 3 equipos.',
+    allFanWallHelp: 'Toca Todos los posts para ver todo, o abre tu sala activa para ver posts de esa sala.',
+    roomFeedSubtext: 'Feed de la sala. Estos posts también aparecen en el Fan Wall común.',
+    followingTapMain: 'Siguiendo ✓ Toca para hacerlo principal',
+    followReplaceOldest: 'Seguir + reemplazar el más antiguo →',
+    followOpenRoom: 'Seguir + abrir sala →',
+    postInPlaceholder: (room: string) => `Publicar en ${room}...`,
+    writeFanWallPlaceholder: 'Escribe algo para el Fan Wall común...',
+    matchdayBook: 'LIBRO DEL PARTIDO',
+    matchdayPages: 'Páginas del partido',
+    matchdaySubtitle: 'Elige una página y Fan Zone cambiará abajo.',
+    fanFeed: 'Feed de fans',
+    matchRooms: 'Salas de partido',
+    chooseRoom: 'Elegir sala',
+    countryClubMatchTalk: 'País • club • conversación',
+    photosVideosComments: 'Fotos • videos • comentarios',
+    teamsSaved: (n: number) => `${n} equipos guardados`,
+    postsLive: (n: number) => `${n} posts activos`,
+    pickMainClub: 'Elige tu club principal',
+    createPost: 'Crear post',
+    postIn: 'Publicar en',
+    postToFanWall: 'Publicar en Fan Wall',
+    textPhotoGifVideo: 'Texto • foto • GIF • video',
+    fanFeedUpper: '💬 FEED DE FANS',
+    matchRoomsUpper: '🏟️ SALAS DE PARTIDO',
+    myTeamsUpper: '⭐ MIS EQUIPOS',
+    createPostUpper: '📸 CREAR POST',
+    fanZonePosts: (n: number) => `${n} posts de Fan Zone`,
+    chooseSoccerRoom: 'Elige una sala de fútbol',
+    followedTeams: (n: number) => `${n} equipos seguidos`,
+  },
+  ne: {
+    stadiumEntrance: 'स्टेडियम प्रवेश',
+    generalFanWall: 'जनरल फ्यान वाल',
+    allFansTeams: '🏟️ सबै फ्यान · सबै टिम',
+    teams: 'टिमहरू',
+    following: 'फलो गर्दै',
+    posts: 'पोस्टहरू',
+    myTeams: 'मेरा टिमहरू',
+    pickTeam: 'टिम छान्नुहोस्',
+    writePost: 'पोस्ट लेख्नुहोस्',
+    fanWallTitle: '🏟️ फ्यान वाल',
+    communityGuidelinesTap: '🛡️ समुदाय नियम · पढ्न ट्याप गर्नुहोस्',
+    searchPlaceholder: 'पोस्ट, फ्यान, टिम खोज्नुहोस्...',
+    allPosts: 'सबै पोस्ट',
+    translateToEnglish: 'अंग्रेजीमा अनुवाद गर्नुहोस्',
+    likeLabel: (n: number) => `${n} लाइक`,
+    commentLabel: (n: number) => `${n} कमेन्ट`,
+    share: 'सेयर',
+    followUser: 'फ्यान फलो +',
+    followingCheck: 'फलो गर्दै ✓',
+    commentsTitle: 'कमेन्टहरू',
+    notFollowingYet: 'तपाईंले अझै कसैलाई फलो गर्नुभएको छैन। अर्को फ्यानको पोस्टमा Follow User + ट्याप गर्नुहोस्।',
+    noTeamsYet: 'अझै टिम छैन। Pick Team ट्याप गरेर ३ टिमसम्म फलो गर्नुहोस्।',
+    allFanWallHelp: 'सबै पोस्ट हेर्न All Fan Wall ट्याप गर्नुहोस्, वा आफ्नो सक्रिय रूम खोलेर त्यही रूमका पोस्ट हेर्नुहोस्।',
+    roomFeedSubtext: 'यो रूमको फिड हो। यहाँका पोस्टहरू साझा Fan Wall मा पनि देखिन्छन्।',
+    followingTapMain: 'फलो गर्दै ✓ मुख्य बनाउन ट्याप गर्नुहोस्',
+    followReplaceOldest: 'फलो + पुरानो हटाएर राख्नुहोस् →',
+    followOpenRoom: 'फलो + रूम खोल्नुहोस् →',
+    postInPlaceholder: (room: string) => `${room} मा पोस्ट गर्नुहोस्...`,
+    writeFanWallPlaceholder: 'साझा Fan Wall का लागि केही लेख्नुहोस्...',
+    matchdayBook: 'म्याचडे बुक',
+    matchdayPages: 'म्याचडे पेजहरू',
+    matchdaySubtitle: 'एउटा पेज छान्नुहोस्, Fan Zone तल परिवर्तन हुन्छ।',
+    fanFeed: 'फ्यान फिड',
+    matchRooms: 'म्याच रूमहरू',
+    chooseRoom: 'रूम छान्नुहोस्',
+    countryClubMatchTalk: 'देश • क्लब • म्याच कुरा',
+    photosVideosComments: 'फोटो • भिडियो • कमेन्ट',
+    teamsSaved: (n: number) => `${n} टिम सुरक्षित`,
+    postsLive: (n: number) => `${n} पोस्ट लाइभ`,
+    pickMainClub: 'आफ्नो मुख्य क्लब छान्नुहोस्',
+    createPost: 'पोस्ट बनाउनुहोस्',
+    postIn: 'यहाँ पोस्ट गर्नुहोस्:',
+    postToFanWall: 'Fan Wall मा पोस्ट गर्नुहोस्',
+    textPhotoGifVideo: 'टेक्स्ट • फोटो • GIF • भिडियो',
+    fanFeedUpper: '💬 फ्यान फिड',
+    matchRoomsUpper: '🏟️ म्याच रूमहरू',
+    myTeamsUpper: '⭐ मेरा टिमहरू',
+    createPostUpper: '📸 पोस्ट बनाउनुहोस्',
+    fanZonePosts: (n: number) => `${n} Fan Zone पोस्ट`,
+    chooseSoccerRoom: 'सकर रूम छान्नुहोस्',
+    followedTeams: (n: number) => `${n} फलो गरिएको टिम`,
+  },
+  hi: {
+    stadiumEntrance: 'स्टेडियम प्रवेश',
+    generalFanWall: 'जनरल फैन वॉल',
+    allFansTeams: '🏟️ सभी फैन · सभी टीमें',
+    teams: 'टीमें',
+    following: 'फ़ॉलो कर रहे',
+    posts: 'पोस्ट',
+    myTeams: 'मेरी टीमें',
+    pickTeam: 'टीम चुनें',
+    writePost: 'पोस्ट लिखें',
+    fanWallTitle: '🏟️ फैन वॉल',
+    communityGuidelinesTap: '🛡️ कम्युनिटी नियम · पढ़ने के लिए टैप करें',
+    searchPlaceholder: 'पोस्ट, फैन, टीम खोजें...',
+    allPosts: 'सभी पोस्ट',
+    translateToEnglish: 'अंग्रेज़ी में अनुवाद करें',
+    likeLabel: (n: number) => `${n} लाइक`,
+    commentLabel: (n: number) => `${n} कमेंट`,
+    share: 'शेयर',
+    followUser: 'फैन फ़ॉलो +',
+    followingCheck: 'फ़ॉलो कर रहे ✓',
+    commentsTitle: 'कमेंट्स',
+    notFollowingYet: 'आप अभी किसी को फ़ॉलो नहीं कर रहे। किसी और फैन की पोस्ट पर Follow User + टैप करें।',
+    noTeamsYet: 'अभी कोई टीम नहीं। Pick Team टैप करके 3 टीम तक फ़ॉलो करें।',
+    allFanWallHelp: 'सभी पोस्ट देखने के लिए All Fan Wall टैप करें, या अपनी सक्रिय रूम खोलकर उसी रूम के पोस्ट देखें।',
+    roomFeedSubtext: 'यह रूम फीड है। यहां के पोस्ट सामान्य Fan Wall में भी दिखते हैं।',
+    followingTapMain: 'फ़ॉलो कर रहे ✓ मुख्य बनाने के लिए टैप करें',
+    followReplaceOldest: 'फ़ॉलो + सबसे पुराना बदलें →',
+    followOpenRoom: 'फ़ॉलो + रूम खोलें →',
+    postInPlaceholder: (room: string) => `${room} में पोस्ट करें...`,
+    writeFanWallPlaceholder: 'सामान्य Fan Wall के लिए कुछ लिखें...',
+    matchdayBook: 'मैचडे बुक',
+    matchdayPages: 'मैचडे पेज',
+    matchdaySubtitle: 'एक पेज चुनें, Fan Zone नीचे बदल जाएगा।',
+    fanFeed: 'फैन फीड',
+    matchRooms: 'मैच रूम',
+    chooseRoom: 'रूम चुनें',
+    countryClubMatchTalk: 'देश • क्लब • मैच चर्चा',
+    photosVideosComments: 'फोटो • वीडियो • कमेंट',
+    teamsSaved: (n: number) => `${n} टीमें सेव`,
+    postsLive: (n: number) => `${n} पोस्ट लाइव`,
+    pickMainClub: 'अपना मुख्य क्लब चुनें',
+    createPost: 'पोस्ट बनाएं',
+    postIn: 'यहां पोस्ट करें:',
+    postToFanWall: 'Fan Wall में पोस्ट करें',
+    textPhotoGifVideo: 'टेक्स्ट • फोटो • GIF • वीडियो',
+    fanFeedUpper: '💬 फैन फीड',
+    matchRoomsUpper: '🏟️ मैच रूम',
+    myTeamsUpper: '⭐ मेरी टीमें',
+    createPostUpper: '📸 पोस्ट बनाएं',
+    fanZonePosts: (n: number) => `${n} Fan Zone पोस्ट`,
+    chooseSoccerRoom: 'सॉकर रूम चुनें',
+    followedTeams: (n: number) => `${n} फ़ॉलो की गई टीमें`,
+  },
+};
+
 
 
 function getCountryAccent(country: string) {
@@ -320,9 +536,41 @@ export default function FanWallScreen() {
   const [searchText, setSearchText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activePostMenuId, setActivePostMenuId] = useState<string | null>(null);
+  const [fanZoneLanguage, setFanZoneLanguage] = useState('en');
   const [editText, setEditText] = useState('');
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      async function loadFanZoneLanguage() {
+        try {
+          const saved = await AsyncStorage.getItem('soccerDailyLanguage');
+          if (active && saved) {
+            setFanZoneLanguage(saved);
+          }
+        } catch (error) {
+          console.log('Fan Zone language load failed:', error);
+        }
+      }
+
+      loadFanZoneLanguage();
+
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
+  const normalizedFanLanguage =
+    fanZoneLanguage === 'np' ? 'ne' :
+    fanZoneLanguage === 'nepali' ? 'ne' :
+    fanZoneLanguage === 'hindi' ? 'hi' :
+    fanZoneLanguage;
+
+  const fanT = FAN_ZONE_TEXT[normalizedFanLanguage] || FAN_ZONE_TEXT.en;
   const [translations, setTranslations] = useState<any>({});
 
   useEffect(() => {
@@ -694,14 +942,36 @@ export default function FanWallScreen() {
   }
 
   
-  async function uriToBlob(uri: string) {
-    const response = await fetch(uri);
+  async function uriToBlob(uri: string): Promise<Blob> {
+    if (Platform.OS === 'web') {
+      const response = await fetch(uri);
 
-    if (!response.ok && Platform.OS === 'web') {
-      throw new Error('Could not read selected file in browser.');
+      if (!response.ok) {
+        throw new Error('Could not read selected file in browser.');
+      }
+
+      return await response.blob();
     }
 
-    return await response.blob();
+    return await new Promise<Blob>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.onload = () => {
+        if (xhr.response) {
+          resolve(xhr.response as Blob);
+        } else {
+          reject(new Error('Selected photo could not be read.'));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Failed to read selected photo.'));
+      };
+
+      xhr.responseType = 'blob';
+      xhr.open('GET', uri, true);
+      xhr.send(null);
+    });
   }
 
 async function uploadFanPostPhoto() {
@@ -717,12 +987,32 @@ async function uploadFanPostPhoto() {
 
       const blob = await uriToBlob(selectedImageUri);
 
-      const imageRef = ref(storage, `fan-wall/${currentUid}/${Date.now()}-${Platform.OS}.jpg`);
+      if (!blob || blob.size === 0) {
+        throw new Error('Selected photo is empty.');
+      }
+
+      const contentType = blob.type || 'image/jpeg';
+      const extension =
+        contentType.includes('png') ? 'png' :
+        contentType.includes('webp') ? 'webp' :
+        'jpg';
+
+      const imageRef = ref(
+        storage,
+        `fan-wall/${currentUid}/${Date.now()}-${Platform.OS}.${extension}`
+      );
+
       await uploadBytes(imageRef, blob, {
-        contentType: blob.type || 'image/jpeg',
+        contentType,
       });
 
-      return await getDownloadURL(imageRef);
+      const downloadUrl = await getDownloadURL(imageRef);
+
+      if (!downloadUrl) {
+        throw new Error('Firebase did not return a photo URL.');
+      }
+
+      return downloadUrl;
     } catch (error) {
       console.log('Upload Fan Zone photo error:', error);
       Alert.alert('Upload failed', 'Could not upload Fan Zone photo.');
@@ -1681,7 +1971,7 @@ n\nShared from Soccer Daily Fan Zone`,
       </View>
 
       <View style={styles.headerWrap}>
-        <Text style={styles.title}>🏟️ Fan Wall</Text>
+        <Text style={styles.title}>{fanT.fanWallTitle}</Text>
       </View>
 
       <View pointerEvents="none" style={[styles.futureStadium, styles.simpleHiddenSection]}>
@@ -1745,40 +2035,40 @@ n\nShared from Soccer Daily Fan Zone`,
           )}
 
           <View style={styles.topFanInfo}>
-            <Text style={styles.topFanKicker}>STADIUM ENTRANCE</Text>
-            <Text style={styles.topFanName} numberOfLines={1}>General Fan Wall</Text>
-            <Text style={styles.topFanRoomName} numberOfLines={1}>🏟️ All fans · all teams</Text>
+            <Text style={styles.topFanKicker}>{fanT.stadiumEntrance}</Text>
+            <Text style={styles.topFanName} numberOfLines={1}>{fanT.generalFanWall}</Text>
+            <Text style={styles.topFanRoomName} numberOfLines={1}>{fanT.allFansTeams}</Text>
           </View>
         </View>
 
         <View style={[styles.topFanStatsRow, styles.simpleHiddenSection]}>
           <Pressable style={styles.topFanStatBox} onPress={openFollowedTeamsList}>
             <Text style={styles.topFanStatNumber}>{followedTeams.length}</Text>
-            <Text style={styles.topFanStatLabel}>Teams</Text>
+            <Text style={styles.topFanStatLabel}>{fanT.teams}</Text>
           </Pressable>
 
           <Pressable style={styles.topFanStatBox} onPress={openFollowingUsersList}>
             <Text style={styles.topFanStatNumber}>{followingUsers.length}</Text>
-            <Text style={styles.topFanStatLabel}>Following</Text>
+            <Text style={styles.topFanStatLabel}>{fanT.following}</Text>
           </Pressable>
 
           <Pressable style={styles.topFanStatBox} onPress={openMyPostsList}>
             <Text style={styles.topFanStatNumber}>{visiblePosts.length}</Text>
-            <Text style={styles.topFanStatLabel}>Posts</Text>
+            <Text style={styles.topFanStatLabel}>{fanT.posts}</Text>
           </Pressable>
         </View>
 
         <View style={[styles.topFanQuickRow, styles.simpleHiddenSection]}>
           <Pressable style={styles.topFanQuickButton} onPress={() => { setBookPageHint('myTeams'); setActiveFanHub('teams'); }}>
-            <Text style={styles.topFanQuickText}>⭐ My Teams</Text>
+            <Text style={styles.topFanQuickText}>⭐ {fanT.myTeams}</Text>
           </Pressable>
 
           <Pressable style={styles.topFanQuickButton} onPress={openClubPickerPanel}>
-            <Text style={styles.topFanQuickText}>🏟️ Pick Team</Text>
+            <Text style={styles.topFanQuickText}>🏟️ {fanT.pickTeam}</Text>
           </Pressable>
 
           <Pressable style={styles.topFanQuickButtonGold} onPress={openWritePostPanel}>
-            <Text style={styles.topFanQuickTextDark}>✍️ Write Post</Text>
+            <Text style={styles.topFanQuickTextDark}>✍️ {fanT.writePost}</Text>
           </Pressable>
         </View>
       </View>
@@ -1788,61 +2078,61 @@ n\nShared from Soccer Daily Fan Zone`,
         <View pointerEvents="none" style={styles.bookFieldLine} />
         <View pointerEvents="none" style={styles.bookCenterCircle} />
 
-        <Text style={styles.bookEyebrow}>MATCHDAY BOOK</Text>
-        <Text style={styles.bookTitle}>Matchday Pages</Text>
+        <Text style={styles.bookEyebrow}>{fanT.matchdayBook}</Text>
+        <Text style={styles.bookTitle}>{fanT.matchdayPages}</Text>
         <Text style={styles.bookSubtitle}>
-          Pick a page and the Fan Zone will change below.
+          {fanT.matchdaySubtitle}
         </Text>
 
         <View style={styles.bookPageGrid}>
           <Pressable style={[styles.bookPageButton, bookPageHint === 'fanFeed' && styles.bookPageButtonActive]} onPress={() => { setBookPageHint('fanFeed'); setActiveFanHub('wall'); }}>
             <Text style={styles.bookPageIcon}>💬</Text>
-            <Text style={[styles.bookPageTitle, bookPageHint === 'fanFeed' && styles.bookPageTextActive]}>Fan Feed</Text>
-            <Text style={styles.bookPageText}>{visiblePosts.length} posts live</Text>
-              <Text style={styles.bookPageSubText}>Photos • videos • comments</Text>
+            <Text style={[styles.bookPageTitle, bookPageHint === 'fanFeed' && styles.bookPageTextActive]}>{fanT.fanFeed}</Text>
+            <Text style={styles.bookPageText}>{fanT.postsLive(visiblePosts.length)}</Text>
+              <Text style={styles.bookPageSubText}>{fanT.photosVideosComments}</Text>
           </Pressable>
 
           <Pressable style={[styles.bookPageButton, bookPageHint === 'matchRooms' && styles.bookPageButtonActive]} onPress={() => { setBookPageHint('matchRooms'); setActiveFanHub('clubs'); }}>
             <Text style={styles.bookPageIcon}>🏟️</Text>
-            <Text style={[styles.bookPageTitle, bookPageHint === 'matchRooms' && styles.bookPageTextActive]}>Match Rooms</Text>
-            <Text style={styles.bookPageText}>{activeRoom ? activeRoom : 'Choose a room'}</Text>
-              <Text style={styles.bookPageSubText}>Country • club • match talk</Text>
+            <Text style={[styles.bookPageTitle, bookPageHint === 'matchRooms' && styles.bookPageTextActive]}>{fanT.matchRooms}</Text>
+            <Text style={styles.bookPageText}>{activeRoom ? activeRoom : fanT.chooseRoom}</Text>
+              <Text style={styles.bookPageSubText}>{fanT.countryClubMatchTalk}</Text>
           </Pressable>
 
           <Pressable style={[styles.bookPageButton, bookPageHint === 'myTeams' && styles.bookPageButtonActive]} onPress={() => { setBookPageHint('myTeams'); setActiveFanHub('teams'); }}>
             <Text style={styles.bookPageIcon}>⭐</Text>
-            <Text style={[styles.bookPageTitle, bookPageHint === 'myTeams' && styles.bookPageTextActive]}>My Teams</Text>
-            <Text style={styles.bookPageText}>{followedTeams.length} teams saved</Text>
-              <Text style={styles.bookPageSubText}>{followedTeams.length > 0 ? String(followedTeams[0]) : 'Pick your main club'}</Text>
+            <Text style={[styles.bookPageTitle, bookPageHint === 'myTeams' && styles.bookPageTextActive]}>{fanT.myTeams}</Text>
+            <Text style={styles.bookPageText}>{fanT.teamsSaved(followedTeams.length)}</Text>
+              <Text style={styles.bookPageSubText}>{followedTeams.length > 0 ? String(followedTeams[0]) : fanT.pickMainClub}</Text>
           </Pressable>
 
           <Pressable style={[styles.bookPageButton, bookPageHint === 'createPost' && styles.bookPageButtonActive]} onPress={openWritePostPanel}>
             <Text style={styles.bookPageIcon}>📸</Text>
-            <Text style={[styles.bookPageTitle, bookPageHint === 'createPost' && styles.bookPageTextActive]}>Create Post</Text>
-            <Text style={styles.bookPageText}>{activeRoom ? `Post in ${activeRoom}` : 'Post to Fan Wall'}</Text>
-              <Text style={styles.bookPageSubText}>Text • photo • GIF • video</Text>
+            <Text style={[styles.bookPageTitle, bookPageHint === 'createPost' && styles.bookPageTextActive]}>{fanT.createPost}</Text>
+            <Text style={styles.bookPageText}>{activeRoom ? `${fanT.postIn} ${activeRoom}` : fanT.postToFanWall}</Text>
+              <Text style={styles.bookPageSubText}>{fanT.textPhotoGifVideo}</Text>
           </Pressable>
         </View>
 
         <View style={styles.bookInsidePage}>
           <Text style={styles.bookInsideKicker}>
             {bookPageHint === 'fanFeed'
-              ? '💬 FAN FEED'
+              ? fanT.fanFeedUpper
               : bookPageHint === 'matchRooms'
-                ? '🏟️ MATCH ROOMS'
+                ? fanT.matchRoomsUpper
                 : bookPageHint === 'myTeams'
-                  ? '⭐ MY TEAMS'
-                  : '📸 CREATE POST'}
+                  ? fanT.myTeamsUpper
+                  : fanT.createPostUpper}
           </Text>
 
           <Text style={styles.bookInsideTitle}>
             {bookPageHint === 'fanFeed'
-              ? `${visiblePosts.length} Fan Zone posts`
+              ? fanT.fanZonePosts(visiblePosts.length)
               : bookPageHint === 'matchRooms'
-                ? activeRoom || 'Choose a soccer room'
+                ? activeRoom || fanT.chooseSoccerRoom
                 : bookPageHint === 'myTeams'
-                  ? `${followedTeams.length} followed teams`
-                  : activeRoom ? `Post in ${activeRoom}` : 'Post to Fan Wall'}
+                  ? fanT.followedTeams(followedTeams.length)
+                  : activeRoom ? `${fanT.postIn} ${activeRoom}` : fanT.postToFanWall}
           </Text>
 
           <Text style={styles.bookInsideText}>
@@ -1967,7 +2257,7 @@ n\nShared from Soccer Daily Fan Zone`,
           <View style={styles.compactFollowPanel}>
             <Text style={styles.compactFollowTitle}>📝 Posts</Text>
             <Text style={styles.compactEmptyText}>
-              Tap All Fan Wall for all posts, or open your active room to see room posts below.
+              {fanT.allFanWallHelp}
             </Text>
           </View>
         ) : null}
@@ -2053,14 +2343,14 @@ n\nShared from Soccer Daily Fan Zone`,
         style={styles.communityGuideCard}
         onPress={handleShowCommunityGuidelines}
       >
-        <Text style={styles.communityGuideLine}>🛡️ Community Guidelines · Tap to read</Text>
+        <Text style={styles.communityGuideLine}>{fanT.communityGuidelinesTap}</Text>
       </Pressable>
 
 <TextInput
         style={styles.searchInput}
         value={searchText}
         onChangeText={setSearchText}
-        placeholder="Search posts, fans, teams..."
+        placeholder={fanT.searchPlaceholder}
         placeholderTextColor="#6F7F9B"
         autoCapitalize="none"
         autoCorrect={false}
@@ -2074,15 +2364,15 @@ n\nShared from Soccer Daily Fan Zone`,
       <View style={styles.filterRow}>
         <Pressable style={[styles.filterChip, !showClubPicker && !showComposer && !activeRoom && styles.activeChip]} onPress={openAllPostsPanel}>
           <View onLayout={(event) => { fanFeedY.current = event.nativeEvent.layout.y; }} />
-          <Text style={[styles.filterChipText, !showClubPicker && !showComposer && !activeRoom && styles.activeChipText]}>🏠 All Posts</Text>
+          <Text style={[styles.filterChipText, !showClubPicker && !showComposer && !activeRoom && styles.activeChipText]}>🏠 {fanT.allPosts}</Text>
         </Pressable>
 
         <Pressable style={[styles.filterChip, showClubPicker && styles.activeChip]} onPress={openClubPickerPanel}>
-          <Text style={[styles.filterChipText, showClubPicker && styles.activeChipText]}>🏟️ Pick Team</Text>
+          <Text style={[styles.filterChipText, showClubPicker && styles.activeChipText]}>🏟️ {fanT.pickTeam}</Text>
         </Pressable>
 
         <Pressable style={[styles.filterChip, showComposer && styles.activeChip]} onPress={openWritePostPanel}>
-          <Text style={[styles.filterChipText, showComposer && styles.activeChipText]}>✍️ Write Post</Text>
+          <Text style={[styles.filterChipText, showComposer && styles.activeChipText]}>✍️ {fanT.writePost}</Text>
         </Pressable>
       </View>
 
@@ -2121,7 +2411,7 @@ n\nShared from Soccer Daily Fan Zone`,
               </View>
             ))
           ) : (
-            <Text style={styles.miniEmptyText}>You are not following anyone yet. Tap Follow User + on another fan’s post.</Text>
+            <Text style={styles.miniEmptyText}>{fanT.notFollowingYet}</Text>
           )}
         </View>
       ) : null}
@@ -2150,7 +2440,7 @@ n\nShared from Soccer Daily Fan Zone`,
               ))}
             </View>
           ) : (
-            <Text style={styles.miniEmptyText}>No teams yet. Tap Pick Team and follow up to 3 teams.</Text>
+            <Text style={styles.miniEmptyText}>{fanT.noTeamsYet}</Text>
           )}
         </View>
       ) : null}
@@ -2158,7 +2448,7 @@ n\nShared from Soccer Daily Fan Zone`,
       {activeRoom ? (
         <View style={styles.roomHeaderBox}>
           <Text style={styles.roomHeaderText}>🏟️ {activeRoom}</Text>
-          <Text style={styles.roomHeaderSubtext}>Room feed. Posts here also appear in the common Fan Wall.</Text>
+          <Text style={styles.roomHeaderSubtext}>{fanT.roomFeedSubtext}</Text>
         </View>
       ) : null}
 
@@ -2371,7 +2661,7 @@ n\nShared from Soccer Daily Fan Zone`,
                   >
                     <Text style={styles.roomText}>{item.room}</Text>
                     <Text style={styles.roomSubtext}>
-                      {item.badge} • {following ? 'Following ✓ Tap to make main' : followedTeams.length >= 3 ? 'Follow + replace oldest →' : 'Follow + open room →'}
+                      {item.badge} • {following ? fanT.followingTapMain : followedTeams.length >= 3 ? fanT.followReplaceOldest : fanT.followOpenRoom}
                     </Text>
                   </Pressable>
                 );
@@ -2407,7 +2697,7 @@ n\nShared from Soccer Daily Fan Zone`,
                   >
                     <Text style={styles.roomText}>{room}</Text>
                     <Text style={styles.roomSubtext}>
-                      {following ? 'Following ✓ Tap to make main' : followedTeams.length >= 3 ? 'Follow + replace oldest →' : 'Follow + open room →'}
+                      {following ? fanT.followingTapMain : followedTeams.length >= 3 ? fanT.followReplaceOldest : fanT.followOpenRoom}
                     </Text>
                   </Pressable>
                 );
@@ -2445,7 +2735,7 @@ n\nShared from Soccer Daily Fan Zone`,
         <TextInput
           style={styles.input}
           onLayout={(event) => { createPostY.current = event.nativeEvent.layout.y; }}
-          placeholder={activeRoom ? `Post in ${activeRoom}...` : 'Write something for the common Fan Wall...'}
+          placeholder={activeRoom ? fanT.postInPlaceholder(activeRoom) : fanT.writeFanWallPlaceholder}
           placeholderTextColor="#718096"
           maxLength={FAN_POST_LIMIT}
           value={postText}
@@ -2554,7 +2844,22 @@ n\nShared from Soccer Daily Fan Zone`,
               <Text style={styles.emptyText}>Try another search or be the first fan to post.</Text>
             </View>
           ) : (
-            (!showClubPicker && !showComposer && !showFollowingList && !showFollowedTeamsList ? visiblePosts : []).map((post) => {
+            (!showClubPicker && !showComposer && !showFollowingList && !showFollowedTeamsList
+              ? visiblePosts
+              : []
+            )
+              .filter((post) => {
+                const cleanPostText = removeGifUrl(post.text || '').trim();
+
+                return Boolean(
+                  cleanPostText ||
+                  post.imageUrl ||
+                  post.videoUrl ||
+                  post.gifUrl ||
+                  extractGifUrl(post.text || '')
+                );
+              })
+              .map((post) => {
               const liked = post.likes?.includes(currentEmail);
               const likeCount = post.likes?.length || 0;
               const commentCount = (post.comments || []).filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here')).length;
@@ -2645,7 +2950,7 @@ n\nShared from Soccer Daily Fan Zone`,
                           followingUsers.includes(userFollowKey(post)) && styles.followingUserText,
                         ]}
                       >
-                        {followingUsers.includes(userFollowKey(post)) ? 'Following ✓' : 'Follow User +'}
+                        {followingUsers.includes(userFollowKey(post)) ? fanT.followingCheck : fanT.followUser}
                       </Text>
                     </Pressable>
                   ) : null}
@@ -2694,7 +2999,7 @@ n\nShared from Soccer Daily Fan Zone`,
                           </Text>
 
                           <Pressable onPress={() => translateToEnglish(`post-${post.id}`, removeGifUrl(post.text))}>
-                            <Text style={styles.translateText}>🌐 Translate to English</Text>
+                            <Text style={styles.translateText}>🌐 {fanT.translateToEnglish}</Text>
                           </Pressable>
 
 
@@ -2702,6 +3007,23 @@ n\nShared from Soccer Daily Fan Zone`,
                       ) : null}
                     </>
                   )}
+
+                  {post.imageUrl ? (
+                    <ExpoImage
+                      source={{ uri: post.imageUrl }}
+                      style={styles.postImage}
+                      contentFit="cover"
+                      transition={200}
+                      onError={(error) => {
+                        console.log(
+                          'Fan Zone post image failed:',
+                          post.id,
+                          post.imageUrl,
+                          error
+                        );
+                      }}
+                    />
+                  ) : null}
 
                   {post.videoUrl ? (
                     <Video
@@ -2722,30 +3044,49 @@ n\nShared from Soccer Daily Fan Zone`,
                   ) : null}
 
                   <View style={styles.actionRow}>
-                    <Pressable onPress={() => toggleLike(post)}>
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() => toggleLike(post)}
+                    >
                       <Text style={liked ? styles.likedAction : styles.action}>
-                        {liked ? '❤️' : '🤍'} {likeCount} Likes
+                        {liked ? '❤️' : '🤍'} {fanT.likeLabel(likeCount)}
                       </Text>
                     </Pressable>
 
-                    <Pressable onPress={() => setCommentPostId(commentPostId === post.id ? null : post.id)}>
-                      <Text style={styles.action}>💬 {commentCount} Comments</Text>
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() =>
+                        setCommentPostId(
+                          commentPostId === post.id ? null : post.id
+                        )
+                      }
+                    >
+                      <Text style={styles.action}>💬 {fanT.commentLabel(commentCount)}</Text>
                     </Pressable>
 
                     {isOwner ? (
                       <>
-                        <Pressable onPress={() => startEdit(post)}>
+                        <Pressable
+                          style={styles.actionButton}
+                          onPress={() => startEdit(post)}
+                        >
                           <Text style={styles.action}>✏️ Edit</Text>
                         </Pressable>
 
-                        <Pressable onPress={() => deletePost(post)}>
+                        <Pressable
+                          style={[styles.actionButton, styles.deleteActionButton]}
+                          onPress={() => deletePost(post)}
+                        >
                           <Text style={styles.deleteAction}>🗑 Delete</Text>
                         </Pressable>
                       </>
                     ) : null}
 
-                    <Pressable onPress={() => sharePost(post)}>
-                      <Text style={styles.action}>↗ Share</Text>
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() => sharePost(post)}
+                    >
+                      <Text style={styles.action}>↗ {fanT.share}</Text>
                     </Pressable>
 
                   </View>
@@ -2833,7 +3174,7 @@ n\nShared from Soccer Daily Fan Zone`,
 
                           {comment.text ? (
                             <Pressable onPress={() => translateToEnglish(`comment-${post.id}-${index}`, comment.text)}>
-                              <Text style={styles.translateText}>🌐 Translate to English</Text>
+                              <Text style={styles.translateText}>🌐 {fanT.translateToEnglish}</Text>
                             </Pressable>
                           ) : null}
                         </View>
@@ -2924,7 +3265,7 @@ n\nShared from Soccer Daily Fan Zone`,
                 <View style={styles.fullScreenActionRow}>
                   <Pressable style={styles.fullScreenActionButton} onPress={() => toggleFullScreenLike(fullScreenPost)}>
                     <Text style={fullScreenPost.likes?.includes(currentEmail) ? styles.fullScreenLikedText : styles.fullScreenActionText}>
-                      {fullScreenPost.likes?.includes(currentEmail) ? '❤️' : '🤍'} {fullScreenPost.likes?.length || 0} Likes
+                      {fullScreenPost.likes?.includes(currentEmail) ? '❤️' : '🤍'} {fanT.likeLabel(fullScreenPost.likes?.length || 0)}
                     </Text>
                   </Pressable>
 
@@ -2933,12 +3274,12 @@ n\nShared from Soccer Daily Fan Zone`,
                     onPress={() => setCommentPostId(commentPostId === fullScreenPost.id ? null : fullScreenPost.id)}
                   >
                     <Text style={styles.fullScreenActionText}>
-                      💬 {(fullScreenPost.comments || []).filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here')).length} Comments
+                      💬 {fanT.commentLabel((fullScreenPost.comments || []).filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here')).length)}
                     </Text>
                   </Pressable>
 
                   <Pressable style={styles.fullScreenActionButton} onPress={() => sharePost(fullScreenPost)}>
-                    <Text style={styles.fullScreenActionText}>↗ Share</Text>
+                    <Text style={styles.fullScreenActionText}>↗ {fanT.share}</Text>
                   </Pressable>
 
                   {(fullScreenPost.userEmail === currentEmail || fullScreenPost.userId === currentUid) ? (
@@ -2986,7 +3327,7 @@ n\nShared from Soccer Daily Fan Zone`,
 
                 {(fullScreenPost.comments || []).filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here')).length > 0 ? (
                   <View style={styles.fullScreenCommentsBox}>
-                    <Text style={styles.fullScreenCommentsTitle}>Comments</Text>
+                    <Text style={styles.fullScreenCommentsTitle}>{fanT.commentsTitle}</Text>
 
                     {(fullScreenPost.comments || [])
                       .filter((comment: any) => comment.type !== 'mention' && !String(comment.text || '').toLowerCase().includes('mentioned here'))
@@ -5055,11 +5396,13 @@ const styles = StyleSheet.create({
   },
   postImage: {
     width: '100%',
-    height: 230,
+    height: 300,
     borderRadius: 18,
-    marginTop: 8,
-    marginBottom: 12,
-    backgroundColor: '#F3F6FB',
+    marginTop: 10,
+    marginBottom: 14,
+    backgroundColor: '#071526',
+    borderWidth: 1,
+    borderColor: '#1E3A5F',
   },
   followingToggle: {
     backgroundColor: '#111C2E',
@@ -5674,7 +6017,39 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
   },
-  action: { color: '#A7B0C0', fontSize: 13, fontWeight: '800' },
+  actionButton: {
+    minHeight: 38,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#0B2442',
+    borderWidth: 1,
+    borderColor: '#234C78',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  deleteActionButton: {
+    borderColor: 'rgba(255, 107, 107, 0.55)',
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+  },
+
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1E3A5F',
+  },
+
+  action: {
+    color: '#C5D2E5',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   likedAction: { color: '#FFD166', fontSize: 13, fontWeight: '900' },
   deleteAction: { color: '#FF6B6B', fontSize: 13, fontWeight: '900' },
 
