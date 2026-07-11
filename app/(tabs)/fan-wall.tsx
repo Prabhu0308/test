@@ -511,6 +511,7 @@ export default function FanWallScreen() {
   const [postText, setPostText] = useState('');
   const [selectedGifUrl, setSelectedGifUrl] = useState('');
   const [selectedImageUri, setSelectedImageUri] = useState('');
+  const [selectedImageFile, setSelectedImageFile] = useState<Blob | null>(null);
   const [selectedVideoUri, setSelectedVideoUri] = useState('');
   const [selectedVideoDuration, setSelectedVideoDuration] = useState(0);
   const [uploadingPostVideo, setUploadingPostVideo] = useState(false);
@@ -934,7 +935,21 @@ export default function FanWallScreen() {
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
 
-      setSelectedImageUri(result.assets[0].uri);
+      const asset = result.assets[0];
+
+      setSelectedImageUri(asset.uri);
+
+      // Expo supplies the original browser File on web.
+      // Keep it so Firebase can upload it directly.
+      setSelectedImageFile(
+        Platform.OS === 'web'
+          ? ((asset as any).file ?? null)
+          : null
+      );
+
+      // A post should contain either a selected photo or video.
+      setSelectedVideoUri('');
+      setSelectedVideoDuration(0);
     } catch (error) {
       console.log('Pick Fan Zone photo error:', error);
       Alert.alert('Photo error', 'Could not choose photo.');
@@ -985,7 +1000,10 @@ async function uploadFanPostPhoto() {
     try {
       setUploadingPostPhoto(true);
 
-      const blob = await uriToBlob(selectedImageUri);
+      const blob =
+        Platform.OS === 'web' && selectedImageFile
+          ? selectedImageFile
+          : await uriToBlob(selectedImageUri);
 
       if (!blob || blob.size === 0) {
         throw new Error('Selected photo is empty.');
@@ -1051,6 +1069,7 @@ async function uploadFanPostPhoto() {
       }
 
       setSelectedImageUri('');
+      setSelectedImageFile(null);
       setSelectedVideoUri('');
       setSelectedVideoDuration(0);
       setSelectedVideoUri(asset.uri);
@@ -1129,6 +1148,7 @@ async function uploadFanPostPhoto() {
       setPostText('');
       setSelectedGifUrl('');
       setSelectedImageUri('');
+      setSelectedImageFile(null);
       setSelectedVideoUri('');
       setSelectedVideoDuration(0);
       setShowComposer(false);
@@ -2908,7 +2928,13 @@ n\nShared from Soccer Daily Fan Zone`,
           {selectedImageUri ? (
             <View style={styles.photoPreviewBox}>
               <ExpoImage source={{ uri: selectedImageUri }} style={styles.photoPreview} contentFit="cover" />
-              <Pressable style={styles.removePhotoButton} onPress={() => setSelectedImageUri('')}>
+              <Pressable
+                style={styles.removePhotoButton}
+                onPress={() => {
+                  setSelectedImageUri('');
+                  setSelectedImageFile(null);
+                }}
+              >
                 <Text style={styles.removePhotoText}>Remove Photo</Text>
               </Pressable>
             </View>
