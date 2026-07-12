@@ -376,6 +376,11 @@ export default function AdminPanel() {
           <Text style={styles.statNumber}>{heldPosts.length}</Text>
           <Text style={styles.statLabel}>On Hold</Text>
         </View>
+
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{resolvedReports.length}</Text>
+          <Text style={styles.statLabel}>Resolved</Text>
+        </View>
       </View>
 
       <Text style={styles.sectionTitle}>⏸️ Posts On Hold</Text>
