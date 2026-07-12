@@ -514,6 +514,8 @@ export default function FanWallScreen() {
   const [selectedImageFile, setSelectedImageFile] = useState<Blob | null>(null);
   const [selectedVideoUri, setSelectedVideoUri] = useState('');
   const [selectedVideoDuration, setSelectedVideoDuration] = useState(0);
+  const [selectedVideoMimeType, setSelectedVideoMimeType] = useState('');
+  const [selectedVideoFileName, setSelectedVideoFileName] = useState('');
   const [uploadingPostVideo, setUploadingPostVideo] = useState(false);
   const [uploadingPostPhoto, setUploadingPostPhoto] = useState(false);
   const [posts, setPosts] = useState<FanPost[]>([]);
@@ -1077,8 +1079,13 @@ async function uploadFanPostPhoto() {
       setSelectedImageFile(null);
       setSelectedVideoUri('');
       setSelectedVideoDuration(0);
+      setSelectedVideoMimeType('');
+      setSelectedVideoFileName('');
+
       setSelectedVideoUri(asset.uri);
       setSelectedVideoDuration(durationSeconds);
+      setSelectedVideoMimeType(asset.mimeType || '');
+      setSelectedVideoFileName(asset.fileName || '');
     } catch (error) {
       console.log('Pick video error:', error);
       Alert.alert('Error', 'Could not choose video.');
@@ -1099,9 +1106,48 @@ async function uploadFanPostPhoto() {
       const response = await fetch(selectedVideoUri);
       const blob = await response.blob();
 
-      const videoRef = ref(storage, `fan-wall/${currentUid}/${Date.now()}.mp4`);
+      if (!blob || blob.size === 0) {
+        throw new Error('Selected video is empty.');
+      }
+
+      const contentType = (
+        selectedVideoMimeType ||
+        blob.type ||
+        'video/mp4'
+      )
+        .toLowerCase()
+        .split(';')[0]
+        .trim();
+
+      const extensionFromMime: Record<string, string> = {
+        'video/mp4': 'mp4',
+        'video/quicktime': 'mov',
+        'video/x-m4v': 'm4v',
+        'video/webm': 'webm',
+        'video/3gpp': '3gp',
+      };
+
+      const originalExtension = selectedVideoFileName.includes('.')
+        ? selectedVideoFileName.split('.').pop()?.toLowerCase() || ''
+        : '';
+
+      const safeOriginalExtension = originalExtension.replace(
+        /[^a-z0-9]/g,
+        ''
+      );
+
+      const extension =
+        (safeOriginalExtension && safeOriginalExtension.length <= 5
+          ? safeOriginalExtension
+          : extensionFromMime[contentType]) || 'mp4';
+
+      const videoRef = ref(
+        storage,
+        `fan-wall/${currentUid}/${Date.now()}.${extension}`
+      );
+
       await uploadBytes(videoRef, blob, {
-        contentType: 'video/mp4',
+        contentType,
       });
 
       return await getDownloadURL(videoRef);
