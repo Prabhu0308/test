@@ -53,6 +53,8 @@ type ReportItem = {
   postImageUrl?: string;
   postVideoUrl?: string;
   postOwnerEmail?: string;
+  dismissedAt?: unknown;
+  resolution?: string;
 };
 
 function formatDate(value?: unknown) {
@@ -145,6 +147,11 @@ export default function AdminPanel() {
 
   const activeReports = useMemo(
     () => reports.filter((r) => r.status !== 'dismissed'),
+    [reports]
+  );
+
+  const resolvedReports = useMemo(
+    () => reports.filter((r) => r.status === 'dismissed'),
     [reports]
   );
 
@@ -479,6 +486,71 @@ export default function AdminPanel() {
                   </Pressable>
                 ) : null}
               </View>
+            </View>
+          );
+        })
+      )}
+
+      <Text style={styles.sectionTitle}>✅ Resolved Reports History</Text>
+
+      {resolvedReports.length === 0 ? (
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyText}>No resolved reports yet.</Text>
+        </View>
+      ) : (
+        resolvedReports.map((report) => {
+          const resolutionLabel =
+            report.resolution === 'post_deleted'
+              ? 'RESOLVED — POST DELETED'
+              : 'RESOLVED — DISMISSED';
+
+          return (
+            <View key={report.id} style={styles.reportCard}>
+              <Text style={styles.mediaType}>
+                {getMediaType(undefined, report)}
+              </Text>
+
+              <Text
+                style={
+                  report.resolution === 'post_deleted'
+                    ? styles.statusMissing
+                    : styles.statusActive
+                }
+              >
+                {resolutionLabel}
+              </Text>
+
+              <Text style={styles.label}>Reason</Text>
+              <Text style={styles.value}>
+                {report.reason || 'No reason added'}
+              </Text>
+
+              <Text style={styles.label}>Reported Post</Text>
+              <Text style={styles.postText}>
+                {report.postText || 'No text saved for this report.'}
+              </Text>
+
+              {renderMedia(report.postImageUrl, report.postVideoUrl)}
+
+              <Text style={styles.meta}>
+                Owner: {report.postOwnerEmail || 'Unknown owner'}
+              </Text>
+
+              <Text style={styles.meta}>
+                Reporter:{' '}
+                {report.reporterEmail ||
+                  report.reportedBy ||
+                  report.reporterId ||
+                  'Unknown reporter'}
+              </Text>
+
+              <Text style={styles.time}>
+                Reported: {formatDate(report.createdAt)}
+              </Text>
+
+              <Text style={styles.time}>
+                Resolved: {formatDate(report.dismissedAt)}
+              </Text>
             </View>
           );
         })
