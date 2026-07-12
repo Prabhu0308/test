@@ -41,3 +41,11 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Local backups and generated files
+*.bak
+*.before-*
+*.save
+*.broken-*
+backups/
+.netlify/
