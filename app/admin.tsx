@@ -106,6 +106,7 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<FanPost[]>([]);
   const [reports, setReports] = useState<ReportItem[]>([]);
+  const [showResolvedReports, setShowResolvedReports] = useState(false);
 
   useEffect(() => {
     const postsQuery = query(collection(db, 'fanWall'), orderBy('createdAt', 'desc'));
@@ -496,70 +497,89 @@ export default function AdminPanel() {
         })
       )}
 
-      <Text style={styles.sectionTitle}>✅ Resolved Reports History</Text>
-
-      {resolvedReports.length === 0 ? (
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>No resolved reports yet.</Text>
+      <Pressable
+        style={styles.historyHeader}
+        onPress={() => setShowResolvedReports((current) => !current)}
+      >
+        <View>
+          <Text style={styles.historyHeaderTitle}>
+            ✅ Resolved Reports History
+          </Text>
+          <Text style={styles.historyHeaderMeta}>
+            {resolvedReports.length} resolved report
+            {resolvedReports.length === 1 ? '' : 's'}
+          </Text>
         </View>
-      ) : (
-        resolvedReports.map((report) => {
-          const resolutionLabel =
-            report.resolution === 'post_deleted'
-              ? 'RESOLVED — POST DELETED'
-              : 'RESOLVED — DISMISSED';
 
-          return (
-            <View key={report.id} style={styles.reportCard}>
-              <Text style={styles.mediaType}>
-                {getMediaType(undefined, report)}
-              </Text>
+        <Text style={styles.historyArrow}>
+          {showResolvedReports ? '▲ Hide' : '▼ Show'}
+        </Text>
+      </Pressable>
 
-              <Text
-                style={
-                  report.resolution === 'post_deleted'
-                    ? styles.statusMissing
-                    : styles.statusActive
-                }
-              >
-                {resolutionLabel}
-              </Text>
+      {showResolvedReports ? (
+        resolvedReports.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>No resolved reports yet.</Text>
+          </View>
+        ) : (
+          resolvedReports.map((report) => {
+            const resolutionLabel =
+              report.resolution === 'post_deleted'
+                ? 'RESOLVED — POST DELETED'
+                : 'RESOLVED — DISMISSED';
 
-              <Text style={styles.label}>Reason</Text>
-              <Text style={styles.value}>
-                {report.reason || 'No reason added'}
-              </Text>
+            return (
+              <View key={report.id} style={styles.reportCard}>
+                <Text style={styles.mediaType}>
+                  {getMediaType(undefined, report)}
+                </Text>
 
-              <Text style={styles.label}>Reported Post</Text>
-              <Text style={styles.postText}>
-                {report.postText || 'No text saved for this report.'}
-              </Text>
+                <Text
+                  style={
+                    report.resolution === 'post_deleted'
+                      ? styles.statusMissing
+                      : styles.statusActive
+                  }
+                >
+                  {resolutionLabel}
+                </Text>
 
-              {renderMedia(report.postImageUrl, report.postVideoUrl)}
+                <Text style={styles.label}>Reason</Text>
+                <Text style={styles.value}>
+                  {report.reason || 'No reason added'}
+                </Text>
 
-              <Text style={styles.meta}>
-                Owner: {report.postOwnerEmail || 'Unknown owner'}
-              </Text>
+                <Text style={styles.label}>Reported Post</Text>
+                <Text style={styles.postText}>
+                  {report.postText || 'No text saved for this report.'}
+                </Text>
 
-              <Text style={styles.meta}>
-                Reporter:{' '}
-                {report.reporterEmail ||
-                  report.reportedBy ||
-                  report.reporterId ||
-                  'Unknown reporter'}
-              </Text>
+                {renderMedia(report.postImageUrl, report.postVideoUrl)}
 
-              <Text style={styles.time}>
-                Reported: {formatDate(report.createdAt)}
-              </Text>
+                <Text style={styles.meta}>
+                  Owner: {report.postOwnerEmail || 'Unknown owner'}
+                </Text>
 
-              <Text style={styles.time}>
-                Resolved: {formatDate(report.dismissedAt)}
-              </Text>
-            </View>
-          );
-        })
-      )}
+                <Text style={styles.meta}>
+                  Reporter:{' '}
+                  {report.reporterEmail ||
+                    report.reportedBy ||
+                    report.reporterId ||
+                    'Unknown reporter'}
+                </Text>
+
+                <Text style={styles.time}>
+                  Reported: {formatDate(report.createdAt)}
+                </Text>
+
+                <Text style={styles.time}>
+                  Resolved: {formatDate(report.dismissedAt)}
+                </Text>
+              </View>
+            );
+          })
+        )
+      ) : null}
     </ScrollView>
   );
 }
@@ -642,6 +662,35 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
     fontSize: 15,
     fontWeight: '800',
+  },
+  historyHeader: {
+    backgroundColor: '#0B1729',
+    borderWidth: 1,
+    borderColor: '#24344F',
+    borderRadius: 18,
+    padding: 16,
+    marginTop: 18,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  historyHeaderTitle: {
+    color: '#FFD166',
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  historyHeaderMeta: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  historyArrow: {
+    color: '#E5E7EB',
+    fontSize: 14,
+    fontWeight: '900',
   },
   sectionTitle: {
     color: '#FFD166',
