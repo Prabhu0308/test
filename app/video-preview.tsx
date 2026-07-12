@@ -1,4 +1,4 @@
-import { Video } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import * as MediaLibrary from 'expo-media-library';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -6,6 +6,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function VideoPreviewScreen() {
   const { uri } = useLocalSearchParams<{ uri: string }>();
+  const videoSource = typeof uri === 'string' ? uri : null;
+  const player = useVideoPlayer(videoSource);
 
   async function saveToPhotos() {
     if (!uri) return;
@@ -44,11 +46,11 @@ export default function VideoPreviewScreen() {
 
       {uri ? (
         <>
-          <Video
-            source={{ uri }}
+          <VideoView
+            player={player}
             style={styles.video}
-            useNativeControls
-            resizeMode="contain"
+            nativeControls
+            contentFit="contain"
           />
 
           <Pressable style={styles.button} onPress={saveToPhotos}>

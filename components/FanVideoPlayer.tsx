@@ -88,7 +88,7 @@ export default function FanVideoPlayer({
       player={player}
       style={style}
       nativeControls
-      allowsFullscreen
+      fullscreenOptions={{ enable: true }}
       contentFit={contentFit}
     />
   );

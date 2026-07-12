@@ -1,4 +1,4 @@
-import { ResizeMode, Video } from 'expo-av';
+import FanVideoPlayer from '../components/FanVideoPlayer';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import {
@@ -260,11 +260,10 @@ export default function AdminPanel() {
         {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.adminImage} /> : null}
 
         {videoUrl ? (
-          <Video
-            source={{ uri: videoUrl }}
+          <FanVideoPlayer
+            uri={videoUrl}
             style={styles.adminVideo}
-            useNativeControls
-            resizeMode={ResizeMode.CONTAIN}
+            contentFit="contain"
           />
         ) : null}
       </>
