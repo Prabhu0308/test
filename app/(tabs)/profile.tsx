@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { getAuth, signOut, updateProfile } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform } from 'react-native';
 import { SOCCER_DAILY_FACEBOOK, SOCCER_DAILY_INSTAGRAM } from '../../constants/socialLinks';
 import { db, storage } from '../../firebase/config';
@@ -12,6 +12,23 @@ import { db, storage } from '../../firebase/config';
 const ADMIN_EMAIL = 'prabhudevupadhyay@gmail.com';
 
 export default function ProfileScreen() {
+
+  const profileScrollRef = useRef<ScrollView | null>(null);
+
+  // PROFILE_SCROLL_TO_TOP_FIX
+  useFocusEffect(
+    useCallback(() => {
+      const frame = requestAnimationFrame(() => {
+        profileScrollRef.current?.scrollTo({
+          y: 0,
+          animated: false,
+        });
+      });
+
+      return () => cancelAnimationFrame(frame);
+    }, [])
+  );
+
   const [profileNotificationCount, setProfileNotificationCount] = useState(0);
   const auth = getAuth();
   const user = auth.currentUser;
@@ -468,7 +485,11 @@ export default function ProfileScreen() {
 
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      ref={profileScrollRef}
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
       <View style={styles.hero}>
         <Text style={styles.title}>Profile</Text>
         <Text style={styles.subtitle}>Your Soccer Daily account, tools, and testing shortcuts</Text>
