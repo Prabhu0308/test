@@ -70,7 +70,10 @@ export default function FanVideoPlayer({
       'statusChange',
       ({ status, error }) => {
         if (error) {
-          console.log('❌ Fan video playback error:', error);
+          console.log('❌ Fan video playback error:', {
+            uri,
+            error,
+          });
         } else {
           console.log('Fan video status:', status);
         }
