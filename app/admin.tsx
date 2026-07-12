@@ -2,12 +2,14 @@ import FanVideoPlayer from '../components/FanVideoPlayer';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
@@ -242,6 +244,51 @@ export default function AdminPanel() {
     return matchedPost?.docId || '';
   }
 
+  function resolvePostOwnerEmail(postId?: string, report?: ReportItem) {
+    if (report?.postOwnerEmail) return report.postOwnerEmail;
+
+    if (report) {
+      const matchedFromReport = findPost(report);
+      if (matchedFromReport?.userEmail) {
+        return matchedFromReport.userEmail;
+      }
+    }
+
+    const matchedPost = posts.find(
+      (post) => post.id === postId || post.docId === postId
+    );
+
+    return matchedPost?.userEmail || '';
+  }
+
+  async function createAdminNotification(
+    targetEmail: string,
+    title: string,
+    message: string,
+    type: string,
+    postId?: string
+  ) {
+    if (!targetEmail) return;
+
+    try {
+      await addDoc(collection(db, 'appNotifications'), {
+        targetEmail,
+        fromEmail: currentUser?.email || ADMIN_EMAIL,
+        fromUser: 'Soccer Daily Admin',
+        title,
+        message,
+        body: message,
+        type,
+        postId: postId || '',
+        screen: 'fan-wall',
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.log('Admin notification failed:', error);
+    }
+  }
+
   async function holdPost(postId?: string, report?: ReportItem) {
     const realPostDocId = resolvePostDocId(postId, report);
 
@@ -259,6 +306,14 @@ export default function AdminPanel() {
         heldAt: Date.now(),
         heldReason: 'Admin review',
       });
+      await createAdminNotification(
+        resolvePostOwnerEmail(postId, report),
+        '⏸️ Post under review',
+        'Your Fan Zone post was temporarily hidden while it is reviewed by the Soccer Daily moderation team.',
+        'moderation_hold',
+        realPostDocId
+      );
+
       Alert.alert('Held', 'Post is hidden from Fan Wall and under investigation.');
     } catch (error) {
       console.log('Hold post failed:', error);
@@ -280,6 +335,14 @@ export default function AdminPanel() {
         heldAt: null,
         heldReason: null,
       });
+      await createAdminNotification(
+        resolvePostOwnerEmail(postId, report),
+        '✅ Post restored',
+        'Your Fan Zone post was reviewed and is now visible again.',
+        'moderation_release',
+        realPostDocId
+      );
+
       Alert.alert('Released', 'Post is visible again.');
     } catch {
       Alert.alert('Error', 'Could not release this post.');
@@ -288,6 +351,7 @@ export default function AdminPanel() {
 
   async function deletePost(postId?: string, report?: ReportItem) {
     const realPostDocId = resolvePostDocId(postId, report);
+    const postOwnerEmail = resolvePostOwnerEmail(postId, report);
 
     const browserAlert = (
       globalThis as typeof globalThis & {
@@ -329,6 +393,14 @@ export default function AdminPanel() {
             // The post was deleted successfully even if report cleanup fails.
           }
         }
+
+        await createAdminNotification(
+          postOwnerEmail,
+          '🗑️ Post removed',
+          'Your Fan Zone post was removed after a moderation review.',
+          'moderation_delete',
+          realPostDocId
+        );
 
         showMessage('Deleted', 'The post and its active report were removed.');
       } catch {

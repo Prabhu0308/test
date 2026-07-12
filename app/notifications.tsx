@@ -33,6 +33,7 @@ export default function NotificationsScreen() {
       setLoading(true);
 
       const user = getAuth().currentUser;
+      const currentEmail = user?.email || '';
       const items: AppNotification[] = [];
 
       {
@@ -46,11 +47,17 @@ export default function NotificationsScreen() {
 
         snap.docs.forEach((d) => {
           const data: any = d.data();
+
+          const belongsToMe =
+            !data.targetEmail || data.targetEmail === currentEmail;
+
+          if (!belongsToMe) return;
+
           items.push({
             id: d.id,
             type: data.type,
             title: data.title,
-            message: data.message,
+            message: data.message || data.body || 'Notification',
             screen: data.screen,
             read: !!data.read,
             createdAt: data.createdAt || 0,
@@ -95,8 +102,17 @@ export default function NotificationsScreen() {
 
       const snap = await getDocs(q);
 
+      const user = getAuth().currentUser;
+      const currentEmail = user?.email || '';
+
+      const myNotificationDocs = snap.docs.filter((docSnap) => {
+        const data: any = docSnap.data();
+
+        return !data.targetEmail || data.targetEmail === currentEmail;
+      });
+
       await Promise.all(
-        snap.docs.map((docSnap) =>
+        myNotificationDocs.map((docSnap) =>
           updateDoc(doc(db, 'appNotifications', docSnap.id), {
             read: true,
           }).catch((error) => console.log('Mark read item error:', error))
