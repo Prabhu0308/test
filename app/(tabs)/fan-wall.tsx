@@ -537,6 +537,11 @@ export default function FanWallScreen() {
   const [searchText, setSearchText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activePostMenuId, setActivePostMenuId] = useState<string | null>(null);
+
+  // Mobile report reason modal state
+  const [reportPostTarget, setReportPostTarget] = useState<FanPost | null>(null);
+  const [selectedReportReason, setSelectedReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const [fanZoneLanguage, setFanZoneLanguage] = useState('en');
   const [editText, setEditText] = useState('');
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
@@ -1552,57 +1557,64 @@ function openAllPostsPanel() {
     }
   }
 
-  async function reportPost(post: FanPost) {
+  const reportReasons = [
+    'Harassment or hate',
+    'Spam or scam',
+    'Private information',
+    'Inappropriate content',
+    'TV match clip / copyright',
+    'Other',
+  ];
+
+  function showReportMessage(title: string, message: string) {
+    if (Platform.OS === 'web') {
+      (globalThis as any).alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  }
+
+  async function submitReport(post: FanPost, reason: string) {
     const currentUser = getAuth().currentUser;
 
-    const showReportMessage = (title: string, message: string) => {
-      if (Platform.OS === 'web') {
-        (globalThis as any).alert(`${title}\n\n${message}`);
-      } else {
-        Alert.alert(title, message);
-      }
-    };
+    if (!currentUser) {
+      showReportMessage('Login needed', 'Please login before reporting.');
+      return false;
+    }
+
+    try {
+      await addDoc(collection(db, 'reports'), {
+        postId: post.id,
+        postText: post.text || '',
+        postImageUrl: post.imageUrl || '',
+        postVideoUrl: post.videoUrl || '',
+        postGifUrl: post.gifUrl || '',
+        postOwnerEmail: post.userEmail || '',
+        postOwnerId: post.userId || '',
+        reporterEmail: currentUser.email || '',
+        reporterId: currentUser.uid,
+        reason,
+        status: 'active',
+        createdAt: serverTimestamp(),
+      });
+
+      return true;
+    } catch (error) {
+      console.log('Report error:', error);
+      showReportMessage('Error', 'Could not report this post.');
+      return false;
+    }
+  }
+
+  async function reportPost(post: FanPost) {
+    const currentUser = getAuth().currentUser;
 
     if (!currentUser) {
       showReportMessage('Login needed', 'Please login before reporting.');
       return;
     }
 
-    const reportReasons = [
-      'Harassment or hate',
-      'Spam or scam',
-      'Private information',
-      'Inappropriate content',
-      'TV match clip / copyright',
-      'Other',
-    ];
-
-    async function submitReport(reason: string) {
-      try {
-        await addDoc(collection(db, 'reports'), {
-          postId: post.id,
-          postText: post.text || '',
-          postImageUrl: post.imageUrl || '',
-          postVideoUrl: post.videoUrl || '',
-          postGifUrl: post.gifUrl || '',
-          postOwnerEmail: post.userEmail || '',
-          postOwnerId: post.userId || '',
-          reporterEmail: currentUser.email || '',
-          reporterId: currentUser.uid,
-          reason,
-          status: 'active',
-          createdAt: serverTimestamp(),
-        });
-
-        showReportMessage(
-          'Report submitted',
-          `Reason: ${reason}\n\nThanks. Our team will review this post.`
-        );
-      } catch (error) {
-        console.log('Report error:', error);
-        showReportMessage('Error', 'Could not report this post.');
-      }
-    }
+    setActivePostMenuId(null);
 
     if (Platform.OS === 'web') {
       const reasonList = reportReasons
@@ -1613,9 +1625,7 @@ function openAllPostsPanel() {
         `Why are you reporting this post?\n\n${reasonList}\n\nEnter a number from 1 to ${reportReasons.length}.`
       );
 
-      if (rawChoice === null || !String(rawChoice).trim()) {
-        return;
-      }
+      if (rawChoice === null || !String(rawChoice).trim()) return;
 
       const normalizedChoice = String(rawChoice).trim();
       const selectedIndex = Number(normalizedChoice) - 1;
@@ -1642,32 +1652,46 @@ function openAllPostsPanel() {
         `Submit this report?\n\nReason: ${selectedReason}`
       );
 
-      if (confirmed) {
-        await submitReport(selectedReason);
+      if (!confirmed) return;
+
+      const success = await submitReport(post, selectedReason);
+
+      if (success) {
+        showReportMessage(
+          'Report submitted',
+          `Reason: ${selectedReason}\n\nThanks. Our team will review this post.`
+        );
       }
 
       return;
     }
 
+    setSelectedReportReason('');
+    setReportPostTarget(post);
+  }
+
+  async function confirmMobileReport() {
+    if (!reportPostTarget || !selectedReportReason || reportSubmitting) {
+      return;
+    }
+
+    const post = reportPostTarget;
+    const reason = selectedReportReason;
+
+    setReportSubmitting(true);
+
+    const success = await submitReport(post, reason);
+
+    setReportSubmitting(false);
+
+    if (!success) return;
+
+    setReportPostTarget(null);
+    setSelectedReportReason('');
+
     Alert.alert(
-      'Why are you reporting this post?',
-      'Choose the closest reason.',
-      [
-        ...reportReasons.map((reason) => ({
-          text: reason,
-          onPress: () => {
-            Alert.alert('Submit report?', `Reason: ${reason}`, [
-              { text: 'Cancel', style: 'cancel' as const },
-              {
-                text: 'Submit',
-                style: 'destructive' as const,
-                onPress: () => submitReport(reason),
-              },
-            ]);
-          },
-        })),
-        { text: 'Cancel', style: 'cancel' as const },
-      ]
+      'Report submitted',
+      `Reason: ${reason}\n\nThanks. Our team will review this post.`
     );
   }
 
@@ -3495,6 +3519,86 @@ n\nShared from Soccer Daily Fan Zone`,
         </View>
       )}
 
+      {/* Mobile report reason modal */}
+      <Modal
+        visible={!!reportPostTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!reportSubmitting) {
+            setReportPostTarget(null);
+            setSelectedReportReason('');
+          }
+        }}
+      >
+        <View style={styles.reportModalOverlay}>
+          <View style={styles.reportModalCard}>
+            <Text style={styles.reportModalTitle}>
+              Why are you reporting this post?
+            </Text>
+
+            <Text style={styles.reportModalSubtitle}>
+              Choose the closest reason.
+            </Text>
+
+            {reportReasons.map((reason) => {
+              const selected = selectedReportReason === reason;
+
+              return (
+                <Pressable
+                  key={reason}
+                  style={[
+                    styles.reportReasonButton,
+                    selected && styles.reportReasonButtonSelected,
+                  ]}
+                  disabled={reportSubmitting}
+                  onPress={() => setSelectedReportReason(reason)}
+                >
+                  <Text
+                    style={[
+                      styles.reportReasonText,
+                      selected && styles.reportReasonTextSelected,
+                    ]}
+                  >
+                    {selected ? '✓ ' : ''}
+                    {reason}
+                  </Text>
+                </Pressable>
+              );
+            })}
+
+            <View style={styles.reportModalActions}>
+              <Pressable
+                style={styles.reportCancelButton}
+                disabled={reportSubmitting}
+                onPress={() => {
+                  setReportPostTarget(null);
+                  setSelectedReportReason('');
+                }}
+              >
+                <Text style={styles.reportCancelText}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.reportSubmitButton,
+                  (!selectedReportReason || reportSubmitting) &&
+                    styles.reportSubmitButtonDisabled,
+                ]}
+                disabled={!selectedReportReason || reportSubmitting}
+                onPress={() => void confirmMobileReport()}
+              >
+                {reportSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.reportSubmitText}>Submit Report</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={!!fullScreenPost}
         animationType="slide"
@@ -3749,6 +3853,86 @@ n\nShared from Soccer Daily Fan Zone`,
 }
 
 const styles = StyleSheet.create({
+  reportModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  reportModalCard: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: '#0B1729',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 22,
+    padding: 20,
+  },
+  reportModalTitle: {
+    color: '#FFD166',
+    fontSize: 23,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  reportModalSubtitle: {
+    color: '#CBD5E1',
+    fontSize: 15,
+    marginBottom: 16,
+  },
+  reportReasonButton: {
+    backgroundColor: '#132238',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 13,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    marginBottom: 9,
+  },
+  reportReasonButtonSelected: {
+    backgroundColor: '#26344A',
+    borderColor: '#FFD166',
+  },
+  reportReasonText: {
+    color: '#E5E7EB',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  reportReasonTextSelected: {
+    color: '#FFD166',
+  },
+  reportModalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  reportCancelButton: {
+    flex: 1,
+    backgroundColor: '#334155',
+    borderRadius: 13,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  reportCancelText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+  reportSubmitButton: {
+    flex: 1.35,
+    backgroundColor: '#EF4444',
+    borderRadius: 13,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportSubmitButtonDisabled: {
+    opacity: 0.45,
+  },
+  reportSubmitText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+
   postOptionsButtonWebFix: {
     alignItems: 'center',
     justifyContent: 'center',
