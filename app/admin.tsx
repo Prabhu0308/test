@@ -55,9 +55,27 @@ type ReportItem = {
   postOwnerEmail?: string;
 };
 
-function formatDate(value?: number) {
+function formatDate(value?: unknown) {
   if (!value) return 'Unknown time';
-  return new Date(value).toLocaleString();
+
+  let date: Date;
+
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === 'number' || typeof value === 'string') {
+    date = new Date(value);
+  } else if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof (value as { toDate?: unknown }).toDate === 'function'
+  ) {
+    date = (value as { toDate: () => Date }).toDate();
+  } else {
+    return 'Unknown time';
+  }
+
+  return Number.isNaN(date.getTime()) ? 'Unknown time' : date.toLocaleString();
 }
 
 function getMediaType(post?: Partial<FanPost>, report?: Partial<ReportItem>) {
