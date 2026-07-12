@@ -24,6 +24,7 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [acceptedGuidelines, setAcceptedGuidelines] = useState(false);
   const [acceptedFanZoneRules, setAcceptedFanZoneRules] = useState(false);
@@ -54,9 +55,44 @@ export default function LoginScreen() {
       return;
     }
 
-    if (cleanPassword.length < 6) {
-      Alert.alert('Password too short', 'Password must be at least 6 characters.');
-      return;
+    if (mode === 'signup') {
+      const passwordProblems: string[] = [];
+
+      if (cleanPassword.length < 10) {
+        passwordProblems.push('at least 10 characters');
+      }
+
+      if (!/[A-Z]/.test(cleanPassword)) {
+        passwordProblems.push('one uppercase letter');
+      }
+
+      if (!/[a-z]/.test(cleanPassword)) {
+        passwordProblems.push('one lowercase letter');
+      }
+
+      if (!/[0-9]/.test(cleanPassword)) {
+        passwordProblems.push('one number');
+      }
+
+      if (!/[^A-Za-z0-9]/.test(cleanPassword)) {
+        passwordProblems.push('one symbol');
+      }
+
+      if (passwordProblems.length > 0) {
+        Alert.alert(
+          'Create a stronger password',
+          `Your password still needs:\n\n• ${passwordProblems.join('\n• ')}`
+        );
+        return;
+      }
+
+      if (cleanPassword !== confirmPassword.trim()) {
+        Alert.alert(
+          'Passwords do not match',
+          'Please enter the same password in both password fields.'
+        );
+        return;
+      }
     }
 
     setBusy(true);
@@ -122,7 +158,8 @@ export default function LoginScreen() {
       }
 
       if (error?.code === 'auth/weak-password') {
-        message = 'Password is too weak. Use at least 6 characters.';
+        message =
+          'Password must have at least 10 characters, uppercase, lowercase, a number, and a symbol.';
       }
 
       Alert.alert('Login error', message);
@@ -192,15 +229,39 @@ export default function LoginScreen() {
 
         <TextInput
           style={styles.input}
-          placeholder="Password - minimum 6 characters"
+          placeholder={
+            mode === 'signup'
+              ? 'Create a strong password'
+              : 'Password'
+          }
           placeholderTextColor="#94A3B8"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           autoCapitalize="none"
+          autoCorrect={false}
         />
 
-        
+        {mode === 'signup' ? (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm password"
+              placeholderTextColor="#94A3B8"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <Text style={styles.passwordRequirements}>
+              Password must have 10+ characters, uppercase, lowercase,
+              number, and symbol.
+            </Text>
+          </>
+        ) : null}
+
           {mode === 'signup' ? (
             <View style={styles.signupSafetyCard}>
               <Text style={styles.signupSafetyTitle}>Required before opening account</Text>
@@ -251,7 +312,7 @@ export default function LoginScreen() {
         </Pressable>
 
         <Text style={styles.note}>
-          Testing note: new testers should choose Create Account first. Password must be at least 6 characters.
+          Testing note: new testers should choose Create Account first. Use a unique, strong password and never share it.
         </Text>
       </View>
     </KeyboardAvoidingView>
@@ -259,6 +320,15 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+
+  passwordRequirements: {
+    color: '#CBD5E1',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: -4,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
 
   signupSafetyCard: {
     marginTop: 14,
