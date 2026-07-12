@@ -1202,7 +1202,26 @@ async function uploadFanPostPhoto() {
       setSelectedImageFile(null);
       setSelectedVideoUri('');
       setSelectedVideoDuration(0);
-      setShowComposer(false);
+      setSelectedVideoMimeType('');
+      setSelectedVideoFileName('');
+
+      // Keep the writing section open after a successful post.
+      setShowComposer(true);
+      setActiveFanHub('write');
+      setBookPageHint('createPost');
+
+      setTimeout(() => {
+        if (Platform.OS === 'web') {
+          (globalThis as any).alert(
+            'Posted successfully!\n\nYour post is now live in Fan Zone.'
+          );
+        } else {
+          Alert.alert(
+            'Posted successfully',
+            'Your post is now live in Fan Zone.'
+          );
+        }
+      }, 300);
     } catch (error) {
       console.log('Submit post error:', error);
       Alert.alert('Error', 'Could not submit post.');
