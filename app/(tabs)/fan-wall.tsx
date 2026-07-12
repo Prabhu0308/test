@@ -1553,13 +1553,29 @@ function openAllPostsPanel() {
   }
 
   async function reportPost(post: FanPost) {
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
+    const currentUser = getAuth().currentUser;
+
+    const showReportMessage = (title: string, message: string) => {
+      if (Platform.OS === 'web') {
+        (globalThis as any).alert(`${title}\n\n${message}`);
+      } else {
+        Alert.alert(title, message);
+      }
+    };
 
     if (!currentUser) {
-      Alert.alert('Login needed', 'Please login before reporting.');
+      showReportMessage('Login needed', 'Please login before reporting.');
       return;
     }
+
+    const reportReasons = [
+      'Harassment or hate',
+      'Spam or scam',
+      'Private information',
+      'Inappropriate content',
+      'TV match clip / copyright',
+      'Other',
+    ];
 
     async function submitReport(reason: string) {
       try {
@@ -1567,6 +1583,8 @@ function openAllPostsPanel() {
           postId: post.id,
           postText: post.text || '',
           postImageUrl: post.imageUrl || '',
+          postVideoUrl: post.videoUrl || '',
+          postGifUrl: post.gifUrl || '',
           postOwnerEmail: post.userEmail || '',
           postOwnerId: post.userId || '',
           reporterEmail: currentUser.email || '',
@@ -1576,67 +1594,123 @@ function openAllPostsPanel() {
           createdAt: serverTimestamp(),
         });
 
-        Alert.alert('Report submitted', 'Thanks. Our team will review this post.');
+        showReportMessage(
+          'Report submitted',
+          `Reason: ${reason}\n\nThanks. Our team will review this post.`
+        );
       } catch (error) {
         console.log('Report error:', error);
-        Alert.alert('Error', 'Could not report this post.');
+        showReportMessage('Error', 'Could not report this post.');
       }
     }
 
-    function confirmReport(reason: string) {
-      Alert.alert('Submit report?', `Reason: ${reason}`, [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Submit',
-          style: 'destructive',
-          onPress: () => submitReport(reason),
-        },
-      ]);
+    if (Platform.OS === 'web') {
+      const reasonList = reportReasons
+        .map((reason, index) => `${index + 1}. ${reason}`)
+        .join('\n');
+
+      const rawChoice = (globalThis as any).prompt(
+        `Why are you reporting this post?\n\n${reasonList}\n\nEnter a number from 1 to ${reportReasons.length}.`
+      );
+
+      if (rawChoice === null || !String(rawChoice).trim()) {
+        return;
+      }
+
+      const normalizedChoice = String(rawChoice).trim();
+      const selectedIndex = Number(normalizedChoice) - 1;
+
+      const selectedReason =
+        Number.isInteger(selectedIndex) &&
+        selectedIndex >= 0 &&
+        selectedIndex < reportReasons.length
+          ? reportReasons[selectedIndex]
+          : reportReasons.find(
+              (reason) =>
+                reason.toLowerCase() === normalizedChoice.toLowerCase()
+            );
+
+      if (!selectedReason) {
+        showReportMessage(
+          'Choose a report reason',
+          `Please enter a number from 1 to ${reportReasons.length}.`
+        );
+        return;
+      }
+
+      const confirmed = (globalThis as any).confirm(
+        `Submit this report?\n\nReason: ${selectedReason}`
+      );
+
+      if (confirmed) {
+        await submitReport(selectedReason);
+      }
+
+      return;
     }
 
-    Alert.alert('Post options', 'Choose an action for this post.', [
-      {
-        text: 'Report post',
-        style: 'destructive',
-        onPress: () => {
-          Alert.alert('Why are you reporting this post?', 'Choose the closest reason.', [
-            { text: 'Harassment or hate', onPress: () => confirmReport('Harassment or hate') },
-            { text: 'Spam or scam', onPress: () => confirmReport('Spam or scam') },
-            { text: 'Private information', onPress: () => confirmReport('Private information') },
-            { text: 'Inappropriate content', onPress: () => confirmReport('Inappropriate content') },
-            { text: 'TV match clip / copyright', onPress: () => confirmReport('TV match clip / copyright') },
-            { text: 'Other', onPress: () => confirmReport('Other') },
-            { text: 'Cancel', style: 'cancel' },
-          ]);
-        },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    Alert.alert(
+      'Why are you reporting this post?',
+      'Choose the closest reason.',
+      [
+        ...reportReasons.map((reason) => ({
+          text: reason,
+          onPress: () => {
+            Alert.alert('Submit report?', `Reason: ${reason}`, [
+              { text: 'Cancel', style: 'cancel' as const },
+              {
+                text: 'Submit',
+                style: 'destructive' as const,
+                onPress: () => submitReport(reason),
+              },
+            ]);
+          },
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]
+    );
   }
 
-  
   async function addMentionToPost(post: FanPost, rawMention: string) {
     const cleanMention = rawMention.trim().replace(/^@+/, '');
 
+    const showTagMessage = (title: string, message: string) => {
+      if (Platform.OS === 'web') {
+        (globalThis as any).alert(`${title}\n\n${message}`);
+      } else {
+        Alert.alert(title, message);
+      }
+    };
+
     if (!cleanMention) {
-      Alert.alert('Tag someone', 'Please choose a username to tag.');
+      showTagMessage('Tag someone', 'Please choose a username to tag.');
       return;
     }
 
     if (!currentEmail) {
-      Alert.alert('Login required', 'Please login first.');
+      showTagMessage('Login required', 'Please login first.');
       return;
     }
 
     const currentTaggedUsers = post.taggedUsers || [];
 
-    if (currentTaggedUsers.includes(cleanMention)) {
-      Alert.alert('Already tagged', `@${cleanMention} is already tagged on this post.`);
+    if (
+      currentTaggedUsers.some(
+        (name) => name.toLowerCase() === cleanMention.toLowerCase()
+      )
+    ) {
+      showTagMessage(
+        'Already tagged',
+        `@${cleanMention} is already tagged on this post.`
+      );
       return;
     }
 
     if (currentTaggedUsers.length >= 10) {
-      Alert.alert('Tag limit reached', 'You can tag up to 10 people in one post.');
+      showTagMessage(
+        'Tag limit reached',
+        'You can tag up to 10 people in one post.'
+      );
       return;
     }
 
@@ -1645,43 +1719,96 @@ function openAllPostsPanel() {
         taggedUsers: arrayUnion(cleanMention),
         updatedAt: serverTimestamp(),
       });
+
+      showTagMessage(
+        'Person tagged',
+        `@${cleanMention} was added to this post.`
+      );
     } catch (error) {
       console.log('Tag someone error:', error);
-      Alert.alert('Tag failed', 'Could not tag this person.');
+      showTagMessage('Tag failed', 'Could not tag this person.');
     }
   }
 
-  function openTagSomeonePrompt(post: FanPost) {
+  async function openTagSomeonePrompt(post: FanPost) {
+    if (!currentEmail) {
+      if (Platform.OS === 'web') {
+        (globalThis as any).alert(
+          'Login required\n\nPlease login before tagging someone.'
+        );
+      } else {
+        Alert.alert('Login required', 'Please login before tagging someone.');
+      }
+      return;
+    }
+
     const candidateMap = new Map<string, string>();
 
     visiblePosts.forEach((item) => {
       const key = userFollowKey(item);
       const name = userDisplayName(item);
-      if (key && key !== currentUid && key !== currentEmail) {
-        candidateMap.set(name, name);
+
+      if (key && key !== currentUid && key !== currentEmail && name) {
+        candidateMap.set(name.toLowerCase(), name);
       }
     });
 
     followingUsers.forEach((item) => {
-      const name = String(item).replace('email:', '').replace('uid:', '').split('@')[0];
-      if (name && name !== currentEmail.split('@')[0]) {
-        candidateMap.set(name, name);
+      const name = String(item)
+        .replace('email:', '')
+        .replace('uid:', '')
+        .split('@')[0];
+
+      if (
+        name &&
+        name.toLowerCase() !== currentEmail.split('@')[0].toLowerCase()
+      ) {
+        candidateMap.set(name.toLowerCase(), name);
       }
     });
 
     const suggestions = Array.from(candidateMap.values()).slice(0, 10);
 
+    if (Platform.OS === 'web') {
+      const suggestionList = suggestions.length
+        ? suggestions
+            .map((name, index) => `${index + 1}. @${name}`)
+            .join('\n')
+        : 'No suggested fans are available yet.';
+
+      const rawChoice = (globalThis as any).prompt(
+        `Tag Someone @\n\n${suggestionList}\n\nEnter a number above or type a username.`
+      );
+
+      if (rawChoice === null || !String(rawChoice).trim()) {
+        return;
+      }
+
+      const normalizedChoice = String(rawChoice).trim();
+      const selectedIndex = Number(normalizedChoice) - 1;
+
+      const selectedName =
+        Number.isInteger(selectedIndex) &&
+        selectedIndex >= 0 &&
+        selectedIndex < suggestions.length
+          ? suggestions[selectedIndex]
+          : normalizedChoice.replace(/^@+/, '');
+
+      await addMentionToPost(post, selectedName);
+      return;
+    }
+
     if (!suggestions.length) {
       Alert.alert(
         'Tag Someone',
-        'No suggested fans yet. You can still type @username in a comment for now.'
+        'No suggested fans yet. You can still type @username in a comment.'
       );
       return;
     }
 
     Alert.alert(
       'Tag Someone @',
-      'Choose up to one fan to mention on this post.',
+      'Choose one fan to mention on this post.',
       [
         ...suggestions.map((name) => ({
           text: `@${name}`,
@@ -1689,13 +1816,12 @@ function openAllPostsPanel() {
         })),
         {
           text: 'Cancel',
-          style: 'cancel',
+          style: 'cancel' as const,
         },
       ]
     );
   }
 
-  
   async function setFixedPostTag(post: FanPost, tag: string) {
     const isOwner = post.userEmail === currentEmail || post.userId === currentUid;
 
