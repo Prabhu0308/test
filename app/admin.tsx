@@ -88,7 +88,7 @@ export default function AdminPanel() {
   const [reports, setReports] = useState<ReportItem[]>([]);
 
   useEffect(() => {
-    const postsQuery = query(collection(db, 'fanPosts'), orderBy('createdAt', 'desc'));
+    const postsQuery = query(collection(db, 'fanWall'), orderBy('createdAt', 'desc'));
     const reportsQuery = query(collection(db, 'reports'), orderBy('createdAt', 'desc'));
 
     const unsubPosts = onSnapshot(
@@ -183,7 +183,7 @@ export default function AdminPanel() {
     }
 
     try {
-      await updateDoc(doc(db, 'fanPosts', realPostDocId), {
+      await updateDoc(doc(db, 'fanWall', realPostDocId), {
         moderationStatus: 'under_investigation',
         status: 'held',
         hidden: true,
@@ -204,7 +204,7 @@ export default function AdminPanel() {
     if (!realPostDocId) return;
 
     try {
-      await updateDoc(doc(db, 'fanPosts', realPostDocId), {
+      await updateDoc(doc(db, 'fanWall', realPostDocId), {
         moderationStatus: 'active',
         status: 'active',
         hidden: false,
@@ -233,7 +233,7 @@ export default function AdminPanel() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteDoc(doc(db, 'fanPosts', realPostDocId));
+            await deleteDoc(doc(db, 'fanWall', realPostDocId));
             Alert.alert('Deleted', 'Post deleted.');
           } catch {
             Alert.alert('Error', 'Could not delete post.');
