@@ -19,6 +19,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { db } from '../firebase/config';
@@ -107,6 +108,7 @@ export default function AdminPanel() {
   const [posts, setPosts] = useState<FanPost[]>([]);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [showResolvedReports, setShowResolvedReports] = useState(false);
+  const [reportSearch, setReportSearch] = useState('');
 
   useEffect(() => {
     const postsQuery = query(collection(db, 'fanWall'), orderBy('createdAt', 'desc'));
@@ -160,6 +162,46 @@ export default function AdminPanel() {
     () => posts.filter((p) => p.moderationStatus === 'under_investigation'),
     [posts]
   );
+
+  const filteredActiveReports = useMemo(() => {
+    const search = normalizeText(reportSearch);
+
+    if (!search) return activeReports;
+
+    return activeReports.filter((report) => {
+      const post = findPost(report);
+
+      return [
+        report.reason,
+        report.postText,
+        report.postOwnerEmail,
+        report.reporterEmail,
+        report.reportedBy,
+        report.reporterId,
+        post?.text,
+        post?.userEmail,
+        post?.displayName,
+      ].some((value) => normalizeText(value).includes(search));
+    });
+  }, [activeReports, posts, reportSearch]);
+
+  const filteredResolvedReports = useMemo(() => {
+    const search = normalizeText(reportSearch);
+
+    if (!search) return resolvedReports;
+
+    return resolvedReports.filter((report) => {
+      return [
+        report.reason,
+        report.postText,
+        report.postOwnerEmail,
+        report.reporterEmail,
+        report.reportedBy,
+        report.reporterId,
+        report.resolution,
+      ].some((value) => normalizeText(value).includes(search));
+    });
+  }, [resolvedReports, reportSearch]);
 
   function normalizeText(value?: string) {
     return String(value || '').trim().toLowerCase();
@@ -384,6 +426,27 @@ export default function AdminPanel() {
         </View>
       </View>
 
+      <View style={styles.searchCard}>
+        <Text style={styles.searchLabel}>Search reports</Text>
+
+        <TextInput
+          style={styles.searchInput}
+          value={reportSearch}
+          onChangeText={setReportSearch}
+          placeholder="Reason, post, owner, or reporter"
+          placeholderTextColor="#64748B"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        {reportSearch.trim() ? (
+          <Text style={styles.searchResults}>
+            {filteredActiveReports.length} active ·{' '}
+            {filteredResolvedReports.length} resolved
+          </Text>
+        ) : null}
+      </View>
+
       <Text style={styles.sectionTitle}>⏸️ Posts On Hold</Text>
 
       {heldPosts.length === 0 ? (
@@ -418,12 +481,16 @@ export default function AdminPanel() {
 
       <Text style={styles.sectionTitle}>🚩 Reported Content</Text>
 
-      {activeReports.length === 0 ? (
+      {filteredActiveReports.length === 0 ? (
         <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>No active reports.</Text>
+          <Text style={styles.emptyText}>
+            {reportSearch.trim()
+              ? 'No active reports match your search.'
+              : 'No active reports.'}
+          </Text>
         </View>
       ) : (
-        activeReports.map((report) => {
+        filteredActiveReports.map((report) => {
           const post = findPost(report);
 
           const imageUrl = report.postImageUrl || post?.imageUrl || '';
@@ -506,8 +573,15 @@ export default function AdminPanel() {
             ✅ Resolved Reports History
           </Text>
           <Text style={styles.historyHeaderMeta}>
-            {resolvedReports.length} resolved report
-            {resolvedReports.length === 1 ? '' : 's'}
+            {reportSearch.trim()
+              ? filteredResolvedReports.length
+              : resolvedReports.length}{' '}
+            resolved report
+            {(reportSearch.trim()
+              ? filteredResolvedReports.length
+              : resolvedReports.length) === 1
+              ? ''
+              : 's'}
           </Text>
         </View>
 
@@ -517,12 +591,16 @@ export default function AdminPanel() {
       </Pressable>
 
       {showResolvedReports ? (
-        resolvedReports.length === 0 ? (
+        filteredResolvedReports.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>No resolved reports yet.</Text>
+            <Text style={styles.emptyText}>
+              {reportSearch.trim()
+                ? 'No resolved reports match your search.'
+                : 'No resolved reports yet.'}
+            </Text>
           </View>
         ) : (
-          resolvedReports.map((report) => {
+          filteredResolvedReports.map((report) => {
             const resolutionLabel =
               report.resolution === 'post_deleted'
                 ? 'RESOLVED — POST DELETED'
@@ -691,6 +769,36 @@ const styles = StyleSheet.create({
     color: '#E5E7EB',
     fontSize: 14,
     fontWeight: '900',
+  },
+  searchCard: {
+    backgroundColor: '#0B1729',
+    borderWidth: 1,
+    borderColor: '#24344F',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 18,
+  },
+  searchLabel: {
+    color: '#E5E7EB',
+    fontSize: 15,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  searchInput: {
+    backgroundColor: '#07111F',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 12,
+    color: '#FFFFFF',
+    fontSize: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  searchResults: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 9,
   },
   sectionTitle: {
     color: '#FFD166',
