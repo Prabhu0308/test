@@ -5,7 +5,7 @@ import {collection, doc, getDoc, getDocs, limit, orderBy, query} from 'firebase/
 import { useCallback, useRef, useState } from 'react';
 import { db } from '../../firebase/config';
 import { SOCCER_DAILY_FACEBOOK, SOCCER_DAILY_THREADS, SOCCER_DAILY_X, SOCCER_DAILY_YOUTUBE } from '../../constants/socialLinks';
-import { Image, ImageBackground, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, ImageBackground, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 
 const languages = [
   { code: 'en', label: 'English' },
@@ -40,6 +40,11 @@ const text: any = {
     prediction: 'Prediction Wheel',
     fanWall: 'Fan Zone',
     tv: 'Soccer Daily TV',
+    studioTitle: 'Soccer Studio',
+    studioSub: 'Create • Edit • Go Live',
+    studioBadge: '✦ NEW',
+    studioButton: 'Studio Tools',
+    studioAlert: 'Soccer Studio is opening step by step. Teleprompter, scripts, video ideas, and creator tools are coming soon.',
     studio: 'Studio',
     stats: 'Stats Center',
     featured: 'Featured Match',
@@ -71,6 +76,11 @@ const text: any = {
     prediction: 'Rueda de predicción',
     fanWall: 'Muro de fans',
     tv: 'Soccer Daily TV',
+    studioTitle: 'Soccer Studio',
+    studioSub: 'Crear • Editar • En vivo',
+    studioBadge: '✦ NUEVO',
+    studioButton: 'Herramientas Studio',
+    studioAlert: 'Soccer Studio se abrirá paso a paso. Teleprompter, guiones, ideas de video y herramientas para creadores vienen pronto.',
     studio: 'Estudio',
     stats: 'Centro de estadísticas',
     featured: 'Partido destacado',
@@ -103,6 +113,11 @@ const text: any = {
     prediction: 'भविष्यवाणी चक्का',
     fanWall: 'फ्यान वाल',
     tv: 'Soccer Daily TV',
+    studioTitle: 'Soccer Studio',
+    studioSub: 'बनाउनुहोस् • सम्पादन • लाइभ',
+    studioBadge: '✦ नयाँ',
+    studioButton: 'Studio Tools',
+    studioAlert: 'Soccer Studio चरणबद्ध रूपमा खुल्दैछ। Teleprompter, scripts, video ideas र creator tools चाँडै आउँदैछन्।',
     studio: 'स्टुडियो',
     stats: 'स्टाट्स सेन्टर',
     featured: 'विशेष म्याच',
@@ -135,6 +150,11 @@ const text: any = {
     prediction: 'प्रेडिक्शन व्हील',
     fanWall: 'फैन वॉल',
     tv: 'Soccer Daily TV',
+    studioTitle: 'Soccer Studio',
+    studioSub: 'बनाएं • एडिट करें • लाइव',
+    studioBadge: '✦ नया',
+    studioButton: 'Studio Tools',
+    studioAlert: 'Soccer Studio धीरे-धीरे खुल रहा है। Teleprompter, scripts, video ideas और creator tools जल्द आएंगे।',
     studio: 'स्टूडियो',
     stats: 'स्टैट्स सेंटर',
     featured: 'विशेष मैच',
@@ -167,6 +187,11 @@ const text: any = {
     prediction: 'Roda de previsão',
     fanWall: 'Mural dos fãs',
     tv: 'Soccer Daily TV',
+    studioTitle: 'Soccer Studio',
+    studioSub: 'Criar • Editar • Ao vivo',
+    studioBadge: '✦ NOVO',
+    studioButton: 'Ferramentas Studio',
+    studioAlert: 'Soccer Studio será aberto por etapas. Teleprompter, roteiros, ideias de vídeo e ferramentas de criação chegam em breve.',
     studio: 'Estúdio',
     stats: 'Centro de estatísticas',
     featured: 'Jogo em destaque',
@@ -199,6 +224,11 @@ const text: any = {
     prediction: 'Roue de prédiction',
     fanWall: 'Mur des fans',
     tv: 'Soccer Daily TV',
+    studioTitle: 'Soccer Studio',
+    studioSub: 'Créer • Modifier • En direct',
+    studioBadge: '✦ NOUVEAU',
+    studioButton: 'Outils Studio',
+    studioAlert: 'Soccer Studio ouvrira étape par étape. Téléprompteur, scripts, idées vidéo et outils créateurs arrivent bientôt.',
     studio: 'Studio',
     stats: 'Centre de statistiques',
     featured: 'Match vedette',
@@ -231,6 +261,11 @@ const text: any = {
     prediction: 'عجلة التوقع',
     fanWall: 'حائط المشجعين',
     tv: 'Soccer Daily TV',
+    studioTitle: 'Soccer Studio',
+    studioSub: 'إنشاء • تحرير • بث مباشر',
+    studioBadge: '✦ جديد',
+    studioButton: 'أدوات الاستوديو',
+    studioAlert: 'سيتم فتح Soccer Studio خطوة بخطوة. التلقين، النصوص، أفكار الفيديو وأدوات المبدعين قادمة قريبًا.',
     studio: 'الاستوديو',
     stats: 'مركز الإحصائيات',
     featured: 'مباراة مميزة',
@@ -738,6 +773,35 @@ export default function HomeScreen() {
       </View>
 
 
+
+      <Pressable
+        style={styles.studioKeyCard}
+        onPress={() => router.push('/studio' as any)}
+      >
+        <View pointerEvents="none" style={styles.studioKeyFacetLeft} />
+        <View pointerEvents="none" style={styles.studioKeyFacetRight} />
+        <View pointerEvents="none" style={styles.studioKeyShine} />
+
+        <View style={styles.studioIconCluster}>
+          <Text style={styles.studioClapIcon}>🎬</Text>
+          <Text style={styles.studioMicIcon}>🎙️</Text>
+        </View>
+
+        <View style={styles.studioTextBlock}>
+          <View style={styles.studioBadge}>
+            <Text style={styles.studioBadgeText}>{t.studioBadge}</Text>
+          </View>
+
+          <Text style={styles.studioKeyTitle}>{t.studioTitle}</Text>
+          <Text style={styles.studioKeySub}>{t.studioSub}</Text>
+
+          <View style={styles.studioToolPill}>
+            <Text style={styles.studioToolText}>✨ {t.studioButton}</Text>
+            <Text style={styles.studioToolArrow}>›</Text>
+          </View>
+        </View>
+      </Pressable>
+
       <View style={styles.tvGlowCard}>
         <View style={styles.tvTopRow}>
           <View style={styles.tvIconCircle}>
@@ -1139,6 +1203,128 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+  },
+
+
+  studioKeyCard: {
+    minHeight: 142,
+    marginBottom: 16,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#FFD166',
+    backgroundColor: '#0B1729',
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    shadowColor: '#FFD166',
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 12,
+  },
+  studioKeyFacetLeft: {
+    position: 'absolute',
+    left: -46,
+    top: 18,
+    width: 120,
+    height: 120,
+    backgroundColor: 'rgba(255, 209, 102, 0.13)',
+    transform: [{ rotate: '45deg' }],
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.45)',
+  },
+  studioKeyFacetRight: {
+    position: 'absolute',
+    right: -52,
+    top: 14,
+    width: 130,
+    height: 130,
+    backgroundColor: 'rgba(96, 165, 250, 0.13)',
+    transform: [{ rotate: '45deg' }],
+    borderWidth: 1,
+    borderColor: 'rgba(147, 197, 253, 0.35)',
+  },
+  studioKeyShine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 52,
+    backgroundColor: 'rgba(255,255,255,0.055)',
+  },
+  studioIconCluster: {
+    width: 92,
+    height: 92,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 209, 102, 0.55)',
+    backgroundColor: 'rgba(7, 17, 31, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  studioClapIcon: {
+    fontSize: 38,
+    marginBottom: -6,
+  },
+  studioMicIcon: {
+    fontSize: 30,
+    marginTop: -4,
+  },
+  studioTextBlock: {
+    flex: 1,
+  },
+  studioBadge: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 6,
+    backgroundColor: 'rgba(255, 209, 102, 0.12)',
+  },
+  studioBadgeText: {
+    color: '#FFD166',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  studioKeyTitle: {
+    color: '#FFD166',
+    fontSize: 29,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  studioKeySub: {
+    color: '#EAF2FF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 3,
+    marginBottom: 12,
+  },
+  studioToolPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FFD166',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(255, 209, 102, 0.09)',
+  },
+  studioToolText: {
+    color: '#FFD166',
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  studioToolArrow: {
+    color: '#FFD166',
+    fontWeight: '900',
+    fontSize: 22,
+    marginLeft: 9,
+    marginTop: -2,
   },
 
   tvGlowCard: {
