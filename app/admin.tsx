@@ -239,8 +239,62 @@ export default function AdminPanel() {
   async function deletePost(postId?: string, report?: ReportItem) {
     const realPostDocId = resolvePostDocId(postId, report);
 
+    const browserAlert = (
+      globalThis as typeof globalThis & {
+        alert?: (message: string) => void;
+      }
+    ).alert;
+
+    const browserConfirm = (
+      globalThis as typeof globalThis & {
+        confirm?: (message: string) => boolean;
+      }
+    ).confirm;
+
+    const showMessage = (title: string, message: string) => {
+      if (typeof browserAlert === 'function') {
+        browserAlert(`${title}\n\n${message}`);
+      } else {
+        Alert.alert(title, message);
+      }
+    };
+
     if (!realPostDocId) {
-      Alert.alert('Missing post', 'This post cannot be found.');
+      showMessage('Missing post', 'This post cannot be found.');
+      return;
+    }
+
+    const performDelete = async () => {
+      try {
+        await deleteDoc(doc(db, 'fanWall', realPostDocId));
+
+        if (report?.id) {
+          try {
+            await updateDoc(doc(db, 'reports', report.id), {
+              status: 'dismissed',
+              dismissedAt: Date.now(),
+              resolution: 'post_deleted',
+            });
+          } catch {
+            // The post was deleted successfully even if report cleanup fails.
+          }
+        }
+
+        showMessage('Deleted', 'The post and its active report were removed.');
+      } catch {
+        showMessage('Error', 'Could not delete this post.');
+      }
+    };
+
+    if (typeof browserConfirm === 'function') {
+      const confirmed = browserConfirm(
+        'Delete this post permanently? This action cannot be undone.'
+      );
+
+      if (confirmed) {
+        await performDelete();
+      }
+
       return;
     }
 
@@ -249,13 +303,8 @@ export default function AdminPanel() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteDoc(doc(db, 'fanWall', realPostDocId));
-            Alert.alert('Deleted', 'Post deleted.');
-          } catch {
-            Alert.alert('Error', 'Could not delete post.');
-          }
+        onPress: () => {
+          void performDelete();
         },
       },
     ]);
