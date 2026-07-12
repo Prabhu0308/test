@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { ResizeMode, Video } from 'expo-av';
+import FanVideoPlayer from '../../components/FanVideoPlayer';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, getDoc } from 'firebase/firestore';
@@ -2950,12 +2950,10 @@ n\nShared from Soccer Daily Fan Zone`,
 
           {selectedVideoUri ? (
             <View style={styles.videoPreviewBox}>
-              <Video
-                source={{ uri: selectedVideoUri }}
+              <FanVideoPlayer
+                uri={selectedVideoUri}
                 style={styles.videoPreview}
-                useNativeControls
-                resizeMode={ResizeMode.COVER}
-                isLooping={false}
+                contentFit="cover"
               />
               <Text style={styles.videoLimitText}>
                 {selectedVideoDuration ? `${Math.round(selectedVideoDuration)}s selected` : 'Video selected'}
@@ -3211,12 +3209,10 @@ n\nShared from Soccer Daily Fan Zone`,
                   ) : null}
 
                   {post.videoUrl ? (
-                    <Video
-                      source={{ uri: post.videoUrl }}
+                    <FanVideoPlayer
+                      uri={post.videoUrl}
                       style={styles.postVideo}
-                      useNativeControls
-                      resizeMode={ResizeMode.COVER}
-                      isLooping={false}
+                      contentFit="cover"
                     />
                   ) : null}
 
@@ -3438,12 +3434,10 @@ n\nShared from Soccer Daily Fan Zone`,
                 ) : null}
 
                 {fullScreenPost.videoUrl ? (
-                  <Video
-                    source={{ uri: fullScreenPost.videoUrl }}
+                  <FanVideoPlayer
+                    uri={fullScreenPost.videoUrl}
                     style={styles.fullScreenVideo}
-                    useNativeControls
-                    resizeMode={ResizeMode.CONTAIN}
-                    isLooping={false}
+                    contentFit="contain"
                   />
                 ) : null}
 
