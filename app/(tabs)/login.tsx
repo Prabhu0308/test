@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import {
   createUserWithEmailAndPassword,
   getAuth,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
@@ -168,6 +169,39 @@ export default function LoginScreen() {
     }
   }
 
+  async function handleForgotPassword() {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      Alert.alert(
+        'Email required',
+        'Enter your email address first, then tap Forgot Password.'
+      );
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(getAuth(), cleanEmail);
+
+      Alert.alert(
+        'Reset email sent',
+        'Check your email for instructions to create a new password.'
+      );
+    } catch (error: any) {
+      let message = 'Could not send the password reset email.';
+
+      if (error?.code === 'auth/invalid-email') {
+        message = 'Please enter a valid email address.';
+      }
+
+      if (error?.code === 'auth/too-many-requests') {
+        message = 'Too many attempts. Please wait and try again later.';
+      }
+
+      Alert.alert('Reset failed', message);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -306,6 +340,16 @@ export default function LoginScreen() {
             </Text>
           )}
         </Pressable>
+
+        {mode === 'login' ? (
+          <Pressable
+            style={styles.backButton}
+            onPress={handleForgotPassword}
+            disabled={busy}
+          >
+            <Text style={styles.backText}>Forgot Password?</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable style={styles.backButton} onPress={() => router.replace('/' as any)}>
           <Text style={styles.backText}>Back to Home</Text>
