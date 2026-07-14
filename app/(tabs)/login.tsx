@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import {
   createUserWithEmailAndPassword,
   getAuth,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   updateProfile,
@@ -126,9 +127,29 @@ export default function LoginScreen() {
           displayName: cleanName,
         });
 
+        let verificationEmailSent = false;
+
+        try {
+          await sendEmailVerification(result.user);
+          verificationEmailSent = true;
+        } catch (verificationError) {
+          console.log(
+            'Email verification send error:',
+            verificationError
+          );
+        }
+
         await saveLocalUser(cleanName, cleanEmail);
 
-        Alert.alert('Account created', 'You are logged in now.');
+        Alert.alert(
+          verificationEmailSent
+            ? 'Verify your email'
+            : 'Account created',
+          verificationEmailSent
+            ? 'We sent a verification link to your email. Check your inbox and spam folder.'
+            : 'Your account was created, but the verification email could not be sent. You can request another one from your profile.'
+        );
+
         router.replace('/profile' as any);
       } else {
         const result = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
