@@ -518,6 +518,7 @@ export default function FanWallScreen() {
   const [selectedVideoFileName, setSelectedVideoFileName] = useState('');
   const [uploadingPostVideo, setUploadingPostVideo] = useState(false);
   const [uploadingPostPhoto, setUploadingPostPhoto] = useState(false);
+  const [posting, setPosting] = useState(false);
   const [posts, setPosts] = useState<FanPost[]>([]);
   const [accounts, setAccounts] = useState<FanAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1161,6 +1162,10 @@ async function uploadFanPostPhoto() {
   }
 
   async function submitPost() {
+    if (posting) return;
+
+    setPosting(true);
+
     const finalGifUrl = selectedGifUrl || extractGifUrl(postText);
     const cleanText = removeGifUrl(postText).trim();
 
@@ -1225,6 +1230,8 @@ async function uploadFanPostPhoto() {
     } catch (error) {
       console.log('Submit post error:', error);
       Alert.alert('Error', 'Could not submit post.');
+    } finally {
+      setPosting(false);
     }
   }
 
@@ -3213,8 +3220,22 @@ n\nShared from Soccer Daily Fan Zone`,
           ) : null}
         </View>
 
-        <Pressable style={styles.postButton} onPress={submitPost}>
-          <Text style={styles.postButtonText}>Post</Text>
+        <Pressable
+          style={[
+            styles.postButton,
+            posting && { opacity: 0.6 },
+          ]}
+          disabled={posting}
+          onPress={() => void submitPost()}
+        >
+          {posting ? (
+            <>
+              <ActivityIndicator color="#FFFFFF" size="small" />
+              <Text style={styles.postButtonText}>Posting...</Text>
+            </>
+          ) : (
+            <Text style={styles.postButtonText}>Post</Text>
+          )}
         </Pressable>
       </View>
       ) : null}
