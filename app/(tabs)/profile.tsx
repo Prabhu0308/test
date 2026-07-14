@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
 import {
+  deleteUser,
   getAuth,
   sendEmailVerification,
   signOut,
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
   const [photoUrl, setPhotoUrl] = useState('');
   const [coverPhotoUrl, setCoverPhotoUrl] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const displayName =
     user?.displayName ||
@@ -296,6 +298,97 @@ export default function ProfileScreen() {
         text: 'Log Out',
         style: 'destructive',
         onPress: performLogout,
+      },
+    ]);
+  }
+
+  async function performDeleteAccount() {
+    const currentUser = getAuth().currentUser;
+
+    if (!currentUser) {
+      Alert.alert('Login required', 'Please log in again first.');
+      return;
+    }
+
+    try {
+      setDeletingAccount(true);
+
+      const uid = currentUser.uid;
+
+      await deleteUser(currentUser);
+
+      await AsyncStorage.multiRemove([
+        'soccerDailyUser',
+        'soccerDailyManualLogout',
+        'soccerDailyCommunityGuidelinesAccepted',
+        'soccerDailyDateOfBirth',
+        `soccerDailyDateOfBirth:${uid}`,
+        `profilePhotoUrl:${uid}`,
+        `coverPhotoUrl:${uid}`,
+        `homeCoverPhotoUrl:${uid}`,
+        'profilePhotoUrl',
+        'coverPhotoUrl',
+        'homeCoverPhotoUrl',
+        'soccerDailyProfilePhoto',
+        'soccerDailyCoverPhoto',
+        'homePhotoUrl',
+      ]);
+
+      if (Platform.OS === 'web') {
+        (globalThis as any).alert(
+          'Account deleted. Your Soccer Daily login account has been permanently removed.'
+        );
+      } else {
+        Alert.alert(
+          'Account deleted',
+          'Your Soccer Daily login account has been permanently removed.'
+        );
+      }
+
+      router.replace('/login' as any);
+    } catch (error: any) {
+      console.log('Delete account error:', error);
+
+      const message =
+        error?.code === 'auth/requires-recent-login'
+          ? 'For security, please log out, log in again, and then delete your account.'
+          : 'Could not delete your account. Please try again.';
+
+      if (Platform.OS === 'web') {
+        (globalThis as any).alert(`Delete account failed\n\n${message}`);
+      } else {
+        Alert.alert('Delete account failed', message);
+      }
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    const warning =
+      'This permanently deletes your Soccer Daily login account. This action cannot be undone.';
+
+    if (Platform.OS === 'web') {
+      const confirmed = (globalThis as any).confirm(
+        `Delete Account?\n\n${warning}`
+      );
+
+      if (confirmed) {
+        await performDeleteAccount();
+      }
+
+      return;
+    }
+
+    Alert.alert('Delete Account?', warning, [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Delete Permanently',
+        style: 'destructive',
+        onPress: () => void performDeleteAccount(),
       },
     ]);
   }
@@ -705,7 +798,24 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <Pressable style={styles.logoutButton} onPress={handleLogout}>
+      <Pressable
+        style={[
+          styles.deleteAccountButton,
+          deletingAccount && styles.disabledAccountButton,
+        ]}
+        onPress={handleDeleteAccount}
+        disabled={deletingAccount}
+      >
+        <Text style={styles.deleteAccountText}>
+          {deletingAccount ? 'Deleting Account...' : 'Delete Account'}
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={styles.logoutButton}
+        onPress={handleLogout}
+        disabled={deletingAccount}
+      >
         <Text style={styles.logoutText}>Log Out</Text>
       </Pressable>
     </ScrollView>
@@ -727,6 +837,25 @@ const styles = StyleSheet.create({
 
 
     },
+
+  deleteAccountButton: {
+    marginTop: 18,
+    marginBottom: 10,
+    backgroundColor: '#7F1D1D',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  deleteAccountText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  disabledAccountButton: {
+    opacity: 0.55,
+  },
 
   verificationCard: {
     marginTop: 14,
