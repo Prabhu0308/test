@@ -1,7 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
-import { getAuth, signOut, updateProfile } from 'firebase/auth';
+import {
+  getAuth,
+  sendEmailVerification,
+  signOut,
+  updateProfile,
+} from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useCallback, useState, useEffect, useRef } from 'react';
@@ -524,6 +529,70 @@ export default function ProfileScreen() {
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{displayName}</Text>
             <Text style={styles.profileSub}>Soccer Daily Fan</Text>
+
+            <View
+              style={[
+                styles.verificationCard,
+                user?.emailVerified
+                  ? styles.verificationCardVerified
+                  : styles.verificationCardUnverified,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.verificationStatus,
+                  user?.emailVerified
+                    ? styles.verificationStatusVerified
+                    : styles.verificationStatusUnverified,
+                ]}
+              >
+                {user?.emailVerified
+                  ? '✅ Email Verified'
+                  : '⚠️ Email Not Verified'}
+              </Text>
+
+              {!user?.emailVerified ? (
+                <>
+                  <Text style={styles.verificationText}>
+                    Verify your email before posting, commenting,
+                    uploading media, or reporting content.
+                  </Text>
+
+                  <Pressable
+                    style={styles.verificationButton}
+                    onPress={async () => {
+                      try {
+                        if (!user) {
+                          Alert.alert(
+                            'Login required',
+                            'Please log in first.'
+                          );
+                          return;
+                        }
+
+                        await sendEmailVerification(user);
+
+                        Alert.alert(
+                          'Verification sent',
+                          'Please check your inbox and spam folder.'
+                        );
+                      } catch (error: any) {
+                        const message =
+                          error?.code === 'auth/too-many-requests'
+                            ? 'Too many requests. Please wait and try again.'
+                            : 'Could not send the verification email.';
+
+                        Alert.alert('Verification failed', message);
+                      }
+                    }}
+                  >
+                    <Text style={styles.verificationButtonText}>
+                      Resend Verification Email
+                    </Text>
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
           </View>
         </View>
 
@@ -658,6 +727,48 @@ const styles = StyleSheet.create({
 
 
     },
+
+  verificationCard: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  verificationCardVerified: {
+    backgroundColor: '#123524',
+    borderColor: '#22C55E',
+  },
+  verificationCardUnverified: {
+    backgroundColor: '#3A2A00',
+    borderColor: '#F59E0B',
+  },
+  verificationStatus: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  verificationStatusVerified: {
+    color: '#4ADE80',
+  },
+  verificationStatusUnverified: {
+    color: '#FFD166',
+  },
+  verificationText: {
+    color: '#E2E8F0',
+    marginTop: 6,
+    lineHeight: 19,
+  },
+  verificationButton: {
+    marginTop: 10,
+    backgroundColor: '#FFD166',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  verificationButtonText: {
+    color: '#000000',
+    fontWeight: '900',
+  },
 
   container: {
     flex: 1,
