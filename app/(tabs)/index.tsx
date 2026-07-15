@@ -1,7 +1,7 @@
 import { getAuth } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
-import {collection, doc, getDoc, getDocs, limit, orderBy, query} from 'firebase/firestore';
+import {collection, doc, getDoc, getDocs, limit, orderBy, query, where} from 'firebase/firestore';
 import { useCallback, useRef, useState } from 'react';
 import { db } from '../../firebase/config';
 import { SOCCER_DAILY_FACEBOOK, SOCCER_DAILY_THREADS, SOCCER_DAILY_X, SOCCER_DAILY_YOUTUBE } from '../../constants/socialLinks';
@@ -481,29 +481,33 @@ export default function HomeScreen() {
 
   async function loadHomeProfile() {
     try {
-      const q = query(
-        collection(db, 'appNotifications'),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-
-      const snap = await getDocs(q);
-      let unreadCount = 0;
-
       const user = getAuth().currentUser;
-      const currentEmail = user?.email || '';
+      const currentEmail =
+        user?.email?.trim().toLowerCase() || '';
 
-      snap.docs.forEach((docSnap) => {
-        const data: any = docSnap.data();
-        const belongsToMe =
-          !data.targetEmail || data.targetEmail === currentEmail;
+      if (!currentEmail) {
+        setNotificationBadgeCount(0);
+      } else {
+        const q = query(
+          collection(db, 'appNotifications'),
+          where('targetEmail', '==', currentEmail),
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        );
 
-        if (!data.read && belongsToMe) {
-          unreadCount += 1;
-        }
-      });
+        const snap = await getDocs(q);
+        let unreadCount = 0;
 
-      setNotificationBadgeCount(unreadCount);
+        snap.docs.forEach((docSnap) => {
+          const data: any = docSnap.data();
+
+          if (!data.read) {
+            unreadCount += 1;
+          }
+        });
+
+        setNotificationBadgeCount(unreadCount);
+      }
     } catch (error) {
       console.log('Home notification count error:', error);
       setNotificationBadgeCount(0);

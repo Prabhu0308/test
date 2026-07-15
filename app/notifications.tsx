@@ -9,6 +9,7 @@ import {
   orderBy,
   query,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -36,9 +37,10 @@ export default function NotificationsScreen() {
       const currentEmail = user?.email || '';
       const items: AppNotification[] = [];
 
-      {
+      if (currentEmail) {
         const q = query(
           collection(db, 'appNotifications'),
+          where('targetEmail', '==', currentEmail),
           orderBy('createdAt', 'desc'),
           limit(50)
         );
@@ -47,11 +49,6 @@ export default function NotificationsScreen() {
 
         snap.docs.forEach((d) => {
           const data: any = d.data();
-
-          const belongsToMe =
-            !data.targetEmail || data.targetEmail === currentEmail;
-
-          if (!belongsToMe) return;
 
           items.push({
             id: d.id,
@@ -94,22 +91,21 @@ export default function NotificationsScreen() {
 
   async function markAllRead() {
     try {
+      const user = getAuth().currentUser;
+      const currentEmail =
+        user?.email?.trim().toLowerCase() || '';
+
+      if (!currentEmail) return;
+
       const q = query(
         collection(db, 'appNotifications'),
+        where('targetEmail', '==', currentEmail),
         orderBy('createdAt', 'desc'),
         limit(100)
       );
 
       const snap = await getDocs(q);
-
-      const user = getAuth().currentUser;
-      const currentEmail = user?.email || '';
-
-      const myNotificationDocs = snap.docs.filter((docSnap) => {
-        const data: any = docSnap.data();
-
-        return !data.targetEmail || data.targetEmail === currentEmail;
-      });
+      const myNotificationDocs = snap.docs;
 
       await Promise.all(
         myNotificationDocs.map((docSnap) =>

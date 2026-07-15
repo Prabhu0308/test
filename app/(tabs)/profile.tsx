@@ -8,7 +8,7 @@ import {
   signOut,
   updateProfile,
 } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, serverTimestamp, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform } from 'react-native';
@@ -48,6 +48,9 @@ export default function ProfileScreen() {
   const [coverPhotoUrl, setCoverPhotoUrl] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(
+    emailVerified || false
+  );
 
   const displayName =
     user?.displayName ||
@@ -63,6 +66,18 @@ export default function ProfileScreen() {
   async function loadProfile() {
     const auth = getAuth();
     const currentUser = auth.currentUser;
+
+    if (currentUser) {
+      try {
+        await currentUser.reload();
+        setEmailVerified(currentUser.emailVerified);
+      } catch (error) {
+        console.log('Refresh email verification status failed:', error);
+        setEmailVerified(currentUser.emailVerified);
+      }
+    } else {
+      setEmailVerified(false);
+    }
 
     const club = await AsyncStorage.getItem('favoriteClubTeam');
     const clubAlt = await AsyncStorage.getItem('soccerDailyFavoriteClub');
@@ -395,8 +410,17 @@ export default function ProfileScreen() {
 
   async function loadProfileNotificationCount() {
     try {
+      const currentEmail =
+        getAuth().currentUser?.email?.trim().toLowerCase() || '';
+
+      if (!currentEmail) {
+        setProfileNotificationCount(0);
+        return;
+      }
+
       const q = query(
         collection(db, 'appNotifications'),
+        where('targetEmail', '==', currentEmail),
         orderBy('createdAt', 'desc'),
         limit(50)
       );
@@ -406,6 +430,7 @@ export default function ProfileScreen() {
 
       snap.docs.forEach((docSnap) => {
         const data: any = docSnap.data();
+
         if (!data.read) {
           unreadCount += 1;
         }
@@ -626,7 +651,7 @@ export default function ProfileScreen() {
             <View
               style={[
                 styles.verificationCard,
-                user?.emailVerified
+                emailVerified
                   ? styles.verificationCardVerified
                   : styles.verificationCardUnverified,
               ]}
@@ -634,17 +659,17 @@ export default function ProfileScreen() {
               <Text
                 style={[
                   styles.verificationStatus,
-                  user?.emailVerified
+                  emailVerified
                     ? styles.verificationStatusVerified
                     : styles.verificationStatusUnverified,
                 ]}
               >
-                {user?.emailVerified
+                {emailVerified
                   ? '✅ Email Verified'
                   : '⚠️ Email Not Verified'}
               </Text>
 
-              {!user?.emailVerified ? (
+              {!emailVerified ? (
                 <>
                   <Text style={styles.verificationText}>
                     Verify your email before posting, commenting,
