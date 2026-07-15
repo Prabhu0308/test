@@ -907,16 +907,21 @@ export default function FanWallScreen() {
   }
 
   async function createAppNotification(targetEmail: string, title: string, body: string, type: string, postId?: string) {
-    if (!targetEmail || targetEmail === currentEmail) return;
+    const cleanTargetEmail = targetEmail.trim().toLowerCase();
+    const cleanCurrentEmail = currentEmail.trim().toLowerCase();
+
+    if (!cleanTargetEmail || cleanTargetEmail === cleanCurrentEmail) return;
 
     try {
       await addDoc(collection(db, 'appNotifications'), {
-        targetEmail,
-        fromEmail: currentEmail,
-        fromUser: currentEmail.split('@')[0],
+        targetEmail: cleanTargetEmail,
+        fromEmail: cleanCurrentEmail,
+        fromUser: cleanCurrentEmail.split('@')[0],
         title,
         body,
+        message: body,
         type,
+        screen: 'fan-wall',
         postId: postId || '',
         read: false,
         createdAt: serverTimestamp(),
