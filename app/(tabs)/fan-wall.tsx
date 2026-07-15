@@ -1163,8 +1163,7 @@ async function uploadFanPostPhoto() {
 
   async function submitPost() {
     if (posting) return;
-
-    setPosting(true);
+    if (!requireVerifiedCommunityUser('creating posts')) return;
 
     const finalGifUrl = selectedGifUrl || extractGifUrl(postText);
     const cleanText = removeGifUrl(postText).trim();
@@ -1179,12 +1178,21 @@ async function uploadFanPostPhoto() {
       return;
     }
 
+    setPosting(true);
+
     const badge = activeRoom || savedFanBadge || 'General Fan Wall';
     const uploadedImageUrl = await uploadFanPostPhoto();
     const uploadedVideoUrl = await uploadFanPostVideo();
 
-    if (selectedImageUri && !uploadedImageUrl) return;
-    if (selectedVideoUri && !uploadedVideoUrl) return;
+    if (selectedImageUri && !uploadedImageUrl) {
+      setPosting(false);
+      return;
+    }
+
+    if (selectedVideoUri && !uploadedVideoUrl) {
+      setPosting(false);
+      return;
+    }
 
     try {
       await addDoc(collection(db, 'fanWall'), {
@@ -1415,7 +1423,39 @@ async function uploadFanPostPhoto() {
     };
   }, [visiblePosts, publicProfileByUserId]);
 
+  function requireVerifiedCommunityUser(action: string) {
+    const currentUser = getAuth().currentUser;
+
+    if (!currentUser) {
+      const message = `Please log in before ${action}.`;
+
+      if (Platform.OS === 'web') {
+        (globalThis as any).alert(`Login required\n\n${message}`);
+      } else {
+        Alert.alert('Login required', message);
+      }
+
+      return false;
+    }
+
+    if (!currentUser.emailVerified) {
+      const message =
+        'Please verify your email first. Open Profile and tap Resend Verification Email if needed.';
+
+      if (Platform.OS === 'web') {
+        (globalThis as any).alert(`Email verification required\n\n${message}`);
+      } else {
+        Alert.alert('Email verification required', message);
+      }
+
+      return false;
+    }
+
+    return true;
+  }
+
   async function toggleLike(post: FanPost) {
+    if (!requireVerifiedCommunityUser('liking posts')) return;
     const postRef = doc(db, 'fanWall', post.id);
     const likes = post.likes || [];
 
@@ -1439,6 +1479,8 @@ async function uploadFanPostPhoto() {
   }
 
   async function submitComment(post: FanPost) {
+    if (!requireVerifiedCommunityUser('commenting')) return;
+
     if (!commentText.trim()) {
       Alert.alert('Empty Comment', 'Please write a comment.');
       return;
@@ -1683,6 +1725,11 @@ function openAllPostsPanel() {
 
     if (!currentUser) {
       showReportMessage('Login needed', 'Please login before reporting.');
+      return;
+    }
+
+    if (!requireVerifiedCommunityUser('reporting posts')) {
+      setActivePostMenuId(null);
       return;
     }
 

@@ -250,6 +250,10 @@ export default function PredictionScreen() {
   const [spinning, setSpinning] = useState(false);
   const [tarotCard, setTarotCard] = useState<(typeof fanTarotCards)[number] | null>(null);
   const [showChasers, setShowChasers] = useState(false);
+  const [showLeague, setShowLeague] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showMatchDropdown, setShowMatchDropdown] = useState(false);
+  const [predictionMethod, setPredictionMethod] = useState<'wheel' | 'tarot'>('wheel');
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pointerAngleRef = useRef(0);
@@ -501,222 +505,131 @@ export default function PredictionScreen() {
         Choose a match, spin the pro soccer selector, and save your fan prediction.
       </Text>
 
-      <View style={styles.topLeagueCard}>
-        <Text style={styles.topLeagueTitle}>🏆 Weekly Predictor League</Text>
-        <Text style={styles.topLeagueSub}>
-          One GOAT only. Weekly reset Monday 00:00 UTC. Tie-breakers: points, accuracy, correct picks, difficulty, early picks, streak, then first to reach score.
-        </Text>
-
-        <View style={styles.goatFeatureBox}>
-          <Text style={styles.goatCrown}>🐐 GOAT Predictor</Text>
-
-          {topPredictorSlots[0]?.row?.photoUrl ? (
-            <ExpoImage source={{ uri: topPredictorSlots[0].row.photoUrl }} style={styles.goatAvatarImage} contentFit="cover" />
-          ) : (
-            <View style={styles.goatAvatarFallback}>
-              <Text style={styles.goatAvatarText}>
-                {topPredictorSlots[0]?.row ? topPredictorSlots[0].row.name.charAt(0).toUpperCase() : '?'}
-              </Text>
-            </View>
-          )}
-
-          <Text style={styles.goatName}>
-            {topPredictorSlots[0]?.row ? topPredictorSlots[0].row.name : 'Open GOAT spot'}
-          </Text>
-
-          <View style={styles.goatXpPill}>
-            <Text style={styles.goatXpText}>
-              {topPredictorSlots[0]?.row ? `${topPredictorSlots[0].row.xp} XP` : 'Climb here'}
-            </Text>
-          </View>
-
-          <Text style={styles.goatRule}>Only Rank #1 can be GOAT this week</Text>
-        </View>
-
-        <View style={styles.diamondGoldRow}>
-          {[topPredictorSlots[1], topPredictorSlots[2]].map((slot) => (
-            <View
-              key={slot.index}
-              style={[
-                styles.smallPodiumBox,
-                slot.index === 1 && styles.diamondPodiumBox,
-                slot.index === 2 && styles.goldPodiumBox,
-              ]}
-            >
-              <Text style={styles.smallPodiumRank}>{slot.title}</Text>
-
-              {slot.row?.photoUrl ? (
-                <ExpoImage source={{ uri: slot.row.photoUrl }} style={styles.smallPodiumAvatarImage} contentFit="cover" />
-              ) : (
-                <View style={styles.smallPodiumAvatarFallback}>
-                  <Text style={styles.smallPodiumAvatarText}>
-                    {slot.row ? slot.row.name.charAt(0).toUpperCase() : '?'}
-                  </Text>
-                </View>
-              )}
-
-              <Text style={styles.smallPodiumName}>
-                {slot.row ? slot.row.name : 'Open spot'}
-              </Text>
-
-              <Text style={styles.smallPodiumXp}>
-                {slot.row ? `${slot.row.xp} XP` : 'Climb here'}
-              </Text>
-
-              <Text style={styles.smallPodiumTiny}>
-                {slot.index === 1 ? 'Rank #2' : 'Rank #3'}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-
-        <Pressable style={styles.chaserToggleBox} onPress={() => setShowChasers(!showChasers)}>
-          <View style={styles.chaserMiniGrid}>
-            <View style={styles.chaserMiniBox}>
-              <Text style={styles.chaserMiniEmoji}>🔥</Text>
-              <Text style={styles.chaserMiniTitle}>Super</Text>
-              <Text style={styles.chaserMiniSub}>#4–10</Text>
-            </View>
-
-            <View style={styles.chaserMiniBox}>
-              <Text style={styles.chaserMiniEmoji}>⭐</Text>
-              <Text style={styles.chaserMiniTitle}>Rising</Text>
-              <Text style={styles.chaserMiniSub}>#11–25</Text>
-            </View>
-
-            <View style={styles.chaserMiniBox}>
-              <Text style={styles.chaserMiniEmoji}>⚽</Text>
-              <Text style={styles.chaserMiniTitle}>Fan</Text>
-              <Text style={styles.chaserMiniSub}>All users</Text>
-            </View>
-          </View>
-
-          <Text style={styles.chaserToggleSub}>
-            Tap to {showChasers ? 'hide' : 'open'} predictor list #{4} and below {showChasers ? '▲' : '▼'}
-          </Text>
-        </Pressable>
-
-        {showChasers ? (
-          <View style={styles.chaserListBox}>
-            {otherPredictors.length > 0 ? (
-              otherPredictors.map((row, index) => {
-                const realIndex = index + 3;
-                return (
-                  <View key={row.id} style={styles.chaserRow}>
-                    <Text style={styles.chaserRank}>#{realIndex + 1}</Text>
-
-                    {row.photoUrl ? (
-                      <ExpoImage source={{ uri: row.photoUrl }} style={styles.chaserAvatarImage} contentFit="cover" />
-                    ) : (
-                      <View style={styles.chaserAvatarFallback}>
-                        <Text style={styles.chaserAvatarText}>{row.name.charAt(0).toUpperCase()}</Text>
-                      </View>
-                    )}
-
-                    <View style={styles.chaserInfo}>
-                      <Text style={styles.chaserName}>{row.name}</Text>
-                      <Text style={styles.chaserBadge}>{predictorRankTitle(realIndex, row.xp)}</Text>
-                      <Text style={styles.chaserStats}>
-                        Points: {row.xp} • Pending: {row.pending} • Picks: {row.total}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })
-            ) : (
-              <View style={styles.emptyChaserBox}>
-                <Text style={styles.emptyChaserText}>
-                  More predictors will appear here as users join. Everyone can still see their own points above.
-                </Text>
-              </View>
-            )}
-          </View>
-        ) : null}
-
-
-        <View style={styles.leagueRuleStrip}>
-          <Text style={styles.leagueRuleText}>Cycle: {currentCycleId}</Text>
-          <Text style={styles.leagueRuleText}>Next reset: {nextResetLabel}</Text>
-          <Text style={styles.leagueRuleSmall}>
-            Points count only after match final. Live games at reset count next cycle.
-          </Text>
-        </View>
-
-        <View style={styles.myPointsBox}>
-          <Text style={styles.myPointsTitle}>📍 My Predictor Points</Text>
-          <Text style={styles.myPointsBig}>{visibleUserPoints} pts</Text>
-          <Text style={styles.myPointsSmall}>
-            Scored: {scoredXp} • Participation: {participationPoints} • Pending potential: {pendingPotentialPoints}
-          </Text>
-          <Text style={styles.myPointsNote}>
-            Every participant can see their points, even outside GOAT, Diamond, Gold, Super, or Rising groups.
-          </Text>
-        </View>
-
-          <Pressable style={styles.rulesLinkButton} onPress={() => router.push('/prediction-rules' as any)}>
-            <Text style={styles.rulesLinkText}>📘 Scoring & Rules Book</Text>
-            <Text style={styles.rulesLinkSub}>{scientificPointRuleSummary()}</Text>
-          </Pressable>
-
+      <View style={styles.quickGuide}>
+        <Text style={styles.quickGuideTitle}>Make Your Prediction</Text>
+        <Text style={styles.quickGuideStep}>1. Choose a match</Text>
+        <Text style={styles.quickGuideStep}>2. Pick the winner or draw</Text>
+        <Text style={styles.quickGuideStep}>3. Set confidence and save</Text>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>⚽ Choose Match</Text>
+        <Text style={styles.cardTitle}>1. Choose Match</Text>
 
-        {matches.map((match) => (
+        <Pressable
+          style={styles.dropdownButton}
+          onPress={() => setShowMatchDropdown(!showMatchDropdown)}
+        >
+          <View>
+            <Text style={styles.dropdownMainText}>{selectedMatch.title}</Text>
+            <Text style={styles.dropdownSubText}>{selectedMatch.date}</Text>
+          </View>
+
+          <Text style={styles.dropdownArrow}>
+            {showMatchDropdown ? '▲' : '▼'}
+          </Text>
+        </Pressable>
+
+        {showMatchDropdown ? (
+          <View style={styles.dropdownList}>
+            {matches.map((match) => (
+              <Pressable
+                key={match.id}
+                style={[
+                  styles.dropdownOption,
+                  selectedMatch.id === match.id && styles.activeDropdownOption,
+                ]}
+                onPress={() => {
+                  chooseMatch(match);
+                  setShowMatchDropdown(false);
+                }}
+              >
+                <Text style={styles.dropdownOptionTitle}>{match.title}</Text>
+                <Text style={styles.dropdownOptionSub}>{match.date}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>2. Choose Prediction Method</Text>
+
+        <View style={styles.methodRow}>
           <Pressable
-            key={match.id}
             style={[
-              styles.matchButton,
-              selectedMatch.id === match.id && styles.activeMatchButton,
+              styles.methodButton,
+              predictionMethod === 'wheel' && styles.activeMethodButton,
             ]}
-            onPress={() => chooseMatch(match)}
+            onPress={() => setPredictionMethod('wheel')}
           >
             <Text
               style={[
-                styles.matchText,
-                selectedMatch.id === match.id && styles.activeMatchText,
+                styles.methodButtonText,
+                predictionMethod === 'wheel' && styles.activeMethodButtonText,
               ]}
             >
-              {match.title}
-            </Text>
-
-            <Text
-              style={[
-                styles.matchSubText,
-                selectedMatch.id === match.id && styles.activeMatchText,
-              ]}
-            >
-              {match.date}
+              Soccer Wheel
             </Text>
           </Pressable>
-        ))}
+
+          <Pressable
+            style={[
+              styles.methodButton,
+              predictionMethod === 'tarot' && styles.activeMethodButton,
+            ]}
+            onPress={() => setPredictionMethod('tarot')}
+          >
+            <Text
+              style={[
+                styles.methodButtonText,
+                predictionMethod === 'tarot' && styles.activeMethodButtonText,
+              ]}
+            >
+              Fan Tarot
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
+      {predictionMethod === 'tarot' ? (
+        <View style={styles.tarotCardBox}>
+          <Text style={styles.cardTitle}>Fan Tarot Pick</Text>
+          <Text style={styles.tarotIntro}>
+            Draw a soccer-style tarot card for fun and turn it into a fan prediction.
+          </Text>
 
-      <View style={styles.tarotCardBox}>
-        <Text style={styles.cardTitle}>🔮 Fan Tarot Pick</Text>
-        <Text style={styles.tarotIntro}>
-          Draw a soccer-style tarot card for fun and turn it into a fan prediction.
-        </Text>
+          <View style={styles.scoreboard}>
+            <View style={styles.scoreTeam}>
+              <Text style={styles.scoreTeamText}>{m.teamA}</Text>
+            </View>
 
-        <Pressable style={styles.tarotButton} onPress={drawFanTarot}>
-          <Text style={styles.tarotButtonText}>🔮 Draw Fan Tarot</Text>
-        </Pressable>
+            <Text style={styles.vsText}>VS</Text>
 
-        {tarotCard && (
-          <View style={styles.tarotResult}>
-            <Text style={styles.tarotName}>{tarotCard.name}</Text>
-            <Text style={styles.tarotMeaning}>{tarotCard.meaning}</Text>
-            <Text style={styles.tarotPick}>Pick: {pick}</Text>
-            <Text style={styles.tarotPick}>Confidence: {confidence}%</Text>
+            <View style={styles.scoreTeam}>
+              <Text style={styles.scoreTeamText}>{m.teamB}</Text>
+            </View>
           </View>
-        )}
 
-        <Text style={styles.tarotDisclaimer}>For fun only. Not betting advice.</Text>
-      </View>
+          <Pressable style={styles.tarotButton} onPress={drawFanTarot}>
+            <Text style={styles.tarotButtonText}>Draw Fan Tarot</Text>
+          </Pressable>
 
+          {tarotCard ? (
+            <View style={styles.tarotResult}>
+              <Text style={styles.tarotName}>{tarotCard.name}</Text>
+              <Text style={styles.tarotMeaning}>{tarotCard.meaning}</Text>
+              <Text style={styles.tarotPick}>Pick: {pick}</Text>
+              <Text style={styles.tarotPick}>Confidence: {confidence}%</Text>
+            </View>
+          ) : null}
+
+          <Text style={styles.tarotDisclaimer}>
+            For fun only. Not betting advice.
+          </Text>
+        </View>
+      ) : null}
+
+      {predictionMethod === 'wheel' ? (
       <View style={styles.wheelCard}>
         <Text style={styles.cardTitle}>🎡 Soccer Prediction Wheel</Text>
 
@@ -884,6 +797,7 @@ export default function PredictionScreen() {
           </View>
         ) : null}
       </View>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>🧠 Match Insight</Text>
@@ -983,34 +897,226 @@ export default function PredictionScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.historyHeader}>
-          <Text style={styles.cardTitle}>🏆 Prediction History</Text>
+      <Pressable
+        style={styles.sectionToggle}
+        onPress={() => setShowHistory(!showHistory)}
+      >
+        <Text style={styles.sectionToggleTitle}>Prediction History</Text>
+        <Text style={styles.sectionToggleText}>
+          {history.length} saved prediction{history.length === 1 ? '' : 's'} {showHistory ? '▲' : '▼'}
+        </Text>
+      </Pressable>
 
-          {history.length > 0 && (
-            <Pressable onPress={clearHistory}>
-              <Text style={styles.clearText}>Clear</Text>
-            </Pressable>
+      {showHistory ? (
+        <View style={styles.card}>
+          <View style={styles.historyHeader}>
+            <Text style={styles.cardTitle}>Recent Predictions</Text>
+
+            {history.length > 0 && (
+              <Pressable onPress={clearHistory}>
+                <Text style={styles.clearText}>Clear</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {history.length === 0 ? (
+            <Text style={styles.emptyText}>
+              No predictions yet. Spin the wheel or save your first prediction.
+            </Text>
+          ) : (
+            history.slice(0, 3).map((item) => (
+              <View key={item.id} style={styles.historyItem}>
+                <Text style={styles.historyMatch}>{item.match}</Text>
+                <Text style={styles.line}>Pick: {item.pick}</Text>
+                <Text style={styles.line}>Confidence: {item.confidence}%</Text>
+                <Text style={styles.line}>Reason: {item.reason}</Text>
+                <Text style={styles.xpText}>+{item.xp} XP</Text>
+                <Text style={styles.dateText}>{item.createdAt}</Text>
+              </View>
+            ))
           )}
+
+          {history.length > 3 ? (
+            <Text style={styles.emptyText}>
+              Showing the latest 3 of {history.length} predictions.
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      <Text style={styles.secondarySectionLabel}>League and Rankings</Text>
+      <Pressable
+        style={styles.sectionToggle}
+        onPress={() => setShowLeague(!showLeague)}
+      >
+        <Text style={styles.sectionToggleTitle}>Weekly Predictor League</Text>
+        <Text style={styles.sectionToggleText}>
+          Rankings, points and rewards {showLeague ? '▲' : '▼'}
+        </Text>
+      </Pressable>
+
+      {showLeague ? (
+      <View style={styles.topLeagueCard}>
+        <Text style={styles.topLeagueTitle}>Weekly Predictor League</Text>
+        <Text style={styles.topLeagueSub}>
+          One GOAT only. Weekly reset Monday 00:00 UTC. Tie-breakers: points, accuracy, correct picks, difficulty, early picks, streak, then first to reach score.
+        </Text>
+
+        <View style={styles.goatFeatureBox}>
+          <Text style={styles.goatCrown}>🐐 GOAT Predictor</Text>
+
+          {topPredictorSlots[0]?.row?.photoUrl ? (
+            <ExpoImage source={{ uri: topPredictorSlots[0].row.photoUrl }} style={styles.goatAvatarImage} contentFit="cover" />
+          ) : (
+            <View style={styles.goatAvatarFallback}>
+              <Text style={styles.goatAvatarText}>
+                {topPredictorSlots[0]?.row ? topPredictorSlots[0].row.name.charAt(0).toUpperCase() : '?'}
+              </Text>
+            </View>
+          )}
+
+          <Text style={styles.goatName}>
+            {topPredictorSlots[0]?.row ? topPredictorSlots[0].row.name : 'Open GOAT spot'}
+          </Text>
+
+          <View style={styles.goatXpPill}>
+            <Text style={styles.goatXpText}>
+              {topPredictorSlots[0]?.row ? `${topPredictorSlots[0].row.xp} XP` : 'Climb here'}
+            </Text>
+          </View>
+
+          <Text style={styles.goatRule}>Only Rank #1 can be GOAT this week</Text>
         </View>
 
-        {history.length === 0 ? (
-          <Text style={styles.emptyText}>
-            No predictions yet. Spin the wheel or save your first prediction.
-          </Text>
-        ) : (
-          history.map((item) => (
-            <View key={item.id} style={styles.historyItem}>
-              <Text style={styles.historyMatch}>{item.match}</Text>
-              <Text style={styles.line}>Pick: {item.pick}</Text>
-              <Text style={styles.line}>Confidence: {item.confidence}%</Text>
-              <Text style={styles.line}>Reason: {item.reason}</Text>
-              <Text style={styles.xpText}>+{item.xp} XP</Text>
-              <Text style={styles.dateText}>{item.createdAt}</Text>
+        <View style={styles.diamondGoldRow}>
+          {[topPredictorSlots[1], topPredictorSlots[2]].map((slot) => (
+            <View
+              key={slot.index}
+              style={[
+                styles.smallPodiumBox,
+                slot.index === 1 && styles.diamondPodiumBox,
+                slot.index === 2 && styles.goldPodiumBox,
+              ]}
+            >
+              <Text style={styles.smallPodiumRank}>{slot.title}</Text>
+
+              {slot.row?.photoUrl ? (
+                <ExpoImage source={{ uri: slot.row.photoUrl }} style={styles.smallPodiumAvatarImage} contentFit="cover" />
+              ) : (
+                <View style={styles.smallPodiumAvatarFallback}>
+                  <Text style={styles.smallPodiumAvatarText}>
+                    {slot.row ? slot.row.name.charAt(0).toUpperCase() : '?'}
+                  </Text>
+                </View>
+              )}
+
+              <Text style={styles.smallPodiumName}>
+                {slot.row ? slot.row.name : 'Open spot'}
+              </Text>
+
+              <Text style={styles.smallPodiumXp}>
+                {slot.row ? `${slot.row.xp} XP` : 'Climb here'}
+              </Text>
+
+              <Text style={styles.smallPodiumTiny}>
+                {slot.index === 1 ? 'Rank #2' : 'Rank #3'}
+              </Text>
             </View>
-          ))
-        )}
+          ))}
+        </View>
+
+
+        <Pressable style={styles.chaserToggleBox} onPress={() => setShowChasers(!showChasers)}>
+          <View style={styles.chaserMiniGrid}>
+            <View style={styles.chaserMiniBox}>
+              <Text style={styles.chaserMiniEmoji}>🔥</Text>
+              <Text style={styles.chaserMiniTitle}>Super</Text>
+              <Text style={styles.chaserMiniSub}>#4–10</Text>
+            </View>
+
+            <View style={styles.chaserMiniBox}>
+              <Text style={styles.chaserMiniEmoji}>⭐</Text>
+              <Text style={styles.chaserMiniTitle}>Rising</Text>
+              <Text style={styles.chaserMiniSub}>#11–25</Text>
+            </View>
+
+            <View style={styles.chaserMiniBox}>
+              <Text style={styles.chaserMiniEmoji}>⚽</Text>
+              <Text style={styles.chaserMiniTitle}>Fan</Text>
+              <Text style={styles.chaserMiniSub}>All users</Text>
+            </View>
+          </View>
+
+          <Text style={styles.chaserToggleSub}>
+            Tap to {showChasers ? 'hide' : 'open'} predictor list #{4} and below {showChasers ? '▲' : '▼'}
+          </Text>
+        </Pressable>
+
+        {showChasers ? (
+          <View style={styles.chaserListBox}>
+            {otherPredictors.length > 0 ? (
+              otherPredictors.map((row, index) => {
+                const realIndex = index + 3;
+                return (
+                  <View key={row.id} style={styles.chaserRow}>
+                    <Text style={styles.chaserRank}>#{realIndex + 1}</Text>
+
+                    {row.photoUrl ? (
+                      <ExpoImage source={{ uri: row.photoUrl }} style={styles.chaserAvatarImage} contentFit="cover" />
+                    ) : (
+                      <View style={styles.chaserAvatarFallback}>
+                        <Text style={styles.chaserAvatarText}>{row.name.charAt(0).toUpperCase()}</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.chaserInfo}>
+                      <Text style={styles.chaserName}>{row.name}</Text>
+                      <Text style={styles.chaserBadge}>{predictorRankTitle(realIndex, row.xp)}</Text>
+                      <Text style={styles.chaserStats}>
+                        Points: {row.xp} • Pending: {row.pending} • Picks: {row.total}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={styles.emptyChaserBox}>
+                <Text style={styles.emptyChaserText}>
+                  More predictors will appear here as users join. Everyone can still see their own points above.
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : null}
+
+
+        <View style={styles.leagueRuleStrip}>
+          <Text style={styles.leagueRuleText}>Cycle: {currentCycleId}</Text>
+          <Text style={styles.leagueRuleText}>Next reset: {nextResetLabel}</Text>
+          <Text style={styles.leagueRuleSmall}>
+            Points count only after match final. Live games at reset count next cycle.
+          </Text>
+        </View>
+
+        <View style={styles.myPointsBox}>
+          <Text style={styles.myPointsTitle}>📍 My Predictor Points</Text>
+          <Text style={styles.myPointsBig}>{visibleUserPoints} pts</Text>
+          <Text style={styles.myPointsSmall}>
+            Scored: {scoredXp} • Participation: {participationPoints} • Pending potential: {pendingPotentialPoints}
+          </Text>
+          <Text style={styles.myPointsNote}>
+            Every participant can see their points, even outside GOAT, Diamond, Gold, Super, or Rising groups.
+          </Text>
+        </View>
+
+          <Pressable style={styles.rulesLinkButton} onPress={() => router.push('/prediction-rules' as any)}>
+            <Text style={styles.rulesLinkText}>📘 Scoring & Rules Book</Text>
+            <Text style={styles.rulesLinkSub}>{scientificPointRuleSummary()}</Text>
+          </Pressable>
+
       </View>
+      ) : null}
+
     </ScrollView>
   );
 }
@@ -1036,6 +1142,127 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     marginTop: 8,
     marginBottom: 20,
+  },
+  quickGuide: {
+    backgroundColor: '#111C2D',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+  },
+  quickGuideTitle: {
+    color: '#FFD166',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  quickGuideStep: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    lineHeight: 25,
+  },
+  secondarySectionLabel: {
+    color: '#A7B0C0',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 20,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  dropdownButton: {
+    backgroundColor: '#0B1626',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 12,
+    padding: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownMainText: {
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  dropdownSubText: {
+    color: '#A7B0C0',
+    fontSize: 13,
+    marginTop: 3,
+  },
+  dropdownArrow: {
+    color: '#FFD166',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  dropdownList: {
+    backgroundColor: '#0B1626',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 12,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  dropdownOption: {
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#263447',
+  },
+  activeDropdownOption: {
+    backgroundColor: '#173A2B',
+  },
+  dropdownOptionTitle: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  dropdownOptionSub: {
+    color: '#A7B0C0',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  methodRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  methodButton: {
+    flex: 1,
+    backgroundColor: '#0B1626',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  activeMethodButton: {
+    backgroundColor: '#FFD166',
+    borderColor: '#FFD166',
+  },
+  methodButtonText: {
+    color: '#CBD5E1',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  activeMethodButtonText: {
+    color: '#07111F',
+  },
+  sectionToggle: {
+    backgroundColor: '#111C2D',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 14,
+  },
+  sectionToggleTitle: {
+    color: '#F8FAFC',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  sectionToggleText: {
+    color: '#A7B0C0',
+    fontSize: 13,
+    marginTop: 4,
   },
   topLeagueCard: {
     backgroundColor: '#061322',
