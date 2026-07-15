@@ -268,12 +268,15 @@ export default function AdminPanel() {
     type: string,
     postId?: string
   ) {
-    if (!targetEmail) return;
+    const cleanTargetEmail = targetEmail.trim().toLowerCase();
+    const cleanFromEmail = (currentUser?.email || ADMIN_EMAIL).trim().toLowerCase();
+
+    if (!cleanTargetEmail) return;
 
     try {
       await addDoc(collection(db, 'appNotifications'), {
-        targetEmail,
-        fromEmail: currentUser?.email || ADMIN_EMAIL,
+        targetEmail: cleanTargetEmail,
+        fromEmail: cleanFromEmail,
         fromUser: 'Soccer Daily Admin',
         title,
         message,
