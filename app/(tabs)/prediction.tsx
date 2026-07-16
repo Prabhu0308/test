@@ -419,6 +419,41 @@ export default function PredictionScreen() {
     setHistory(updated);
     await AsyncStorage.setItem('predictionHistory', JSON.stringify(updated));
 
+    const user = getAuth().currentUser;
+    let savedToFirestore = false;
+
+    if (user) {
+      try {
+        await addDoc(collection(db, 'predictions'), {
+          predictionId: newPrediction.id,
+          userId: user.uid,
+          userEmail: user.email?.trim().toLowerCase() || '',
+          displayName:
+            user.displayName ||
+            user.email?.split('@')[0] ||
+            'Soccer Fan',
+          photoUrl: user.photoURL || '',
+          matchId: selectedMatch.id,
+          match: selectedMatch.title,
+          teamA: selectedMatch.teamA,
+          teamB: selectedMatch.teamB,
+          pick: newPrediction.pick,
+          confidence: newPrediction.confidence,
+          reason: newPrediction.reason,
+          potentialXp: newPrediction.potentialXp || xp,
+          pointsAwarded: 0,
+          status: 'pending',
+          cycleId: getUtcWeekCycleId(now),
+          createdAt: serverTimestamp(),
+          createdAtUtc: newPrediction.createdAtUtc,
+        });
+
+        savedToFirestore = true;
+      } catch (error) {
+        console.log('Save prediction to Firestore error:', error);
+      }
+    }
+
     const postedToFanZone = await postPredictionToFanZone(newPrediction);
 
     setPick('');
@@ -426,7 +461,14 @@ export default function PredictionScreen() {
     setConfidence(60);
     setSpinResult('');
 
-    Alert.alert('Prediction Saved', postedToFanZone ? `Prediction saved as pending. Potential XP: ${xp}. Points count after the match is final.` : `Prediction saved as pending. Potential XP: ${xp}. Fan Zone post could not be created.`);
+    Alert.alert(
+      'Prediction Saved',
+      savedToFirestore
+        ? postedToFanZone
+          ? `Prediction saved to the global league as pending. Potential XP: ${xp}. Points count after the match is final.`
+          : `Prediction saved to the global league as pending. Potential XP: ${xp}. Fan Zone post could not be created.`
+        : `Prediction saved on this device. Potential XP: ${xp}. Global league save could not be completed.`
+    );
   }
 
   async function clearHistory() {
