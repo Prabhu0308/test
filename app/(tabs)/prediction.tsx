@@ -2,7 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image as ExpoImage } from 'expo-image';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../firebase/config';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -107,6 +115,24 @@ const fanTarotCards = [
     confidence: 74,
   },
 ];
+
+type GlobalPrediction = {
+  id: string;
+  predictionId?: string;
+  userId?: string;
+  userEmail?: string;
+  displayName?: string;
+  photoUrl?: string;
+  matchId?: string;
+  match?: string;
+  pick?: string;
+  confidence?: number;
+  potentialXp?: number;
+  pointsAwarded?: number;
+  status?: string;
+  cycleId?: string;
+  createdAtUtc?: string;
+};
 
 type PredictionItem = {
   id: string;
@@ -246,6 +272,8 @@ export default function PredictionScreen() {
   const [confidence, setConfidence] = useState(60);
   const [reason, setReason] = useState('');
   const [history, setHistory] = useState<PredictionItem[]>([]);
+  const [globalPredictions, setGlobalPredictions] = useState<GlobalPrediction[]>([]);
+  const [globalPredictionsLoading, setGlobalPredictionsLoading] = useState(false);
   const [spinResult, setSpinResult] = useState('');
   const [spinning, setSpinning] = useState(false);
   const [tarotCard, setTarotCard] = useState<(typeof fanTarotCards)[number] | null>(null);
@@ -262,7 +290,35 @@ export default function PredictionScreen() {
 
   useEffect(() => {
     loadHistory();
+    loadGlobalPredictions();
   }, []);
+
+  async function loadGlobalPredictions() {
+    try {
+      setGlobalPredictionsLoading(true);
+
+      const globalQuery = query(
+        collection(db, 'predictions'),
+        orderBy('createdAt', 'desc'),
+        limit(500)
+      );
+
+      const snapshot = await getDocs(globalQuery);
+
+      const items: GlobalPrediction[] = snapshot.docs.map((predictionDoc) => ({
+        id: predictionDoc.id,
+        ...(predictionDoc.data() as Omit<GlobalPrediction, 'id'>),
+      }));
+
+      setGlobalPredictions(items);
+      console.log(`Loaded ${items.length} global predictions.`);
+    } catch (error) {
+      console.log('Load global predictions error:', error);
+      setGlobalPredictions([]);
+    } finally {
+      setGlobalPredictionsLoading(false);
+    }
+  }
 
   async function loadHistory() {
     const saved = await AsyncStorage.getItem('predictionHistory');
