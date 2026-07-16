@@ -551,42 +551,114 @@ export default function PredictionScreen() {
   const displayName = authUser?.displayName || authUser?.email?.split('@')[0] || 'You';
   const profilePhotoUrl = authUser?.photoURL || '';
 
-  const scoredPredictions = history.filter((item) => item.status === 'scored');
-  const pendingPredictions = history.filter((item) => item.status !== 'scored');
+  const weeklyGlobalPredictions = globalPredictions.filter(
+    (item) => !item.cycleId || item.cycleId === currentCycleId
+  );
 
-  const scoredXp = scoredPredictions.reduce(
+  const predictorMap = new Map<string, any>();
+
+  weeklyGlobalPredictions.forEach((item) => {
+    const userKey =
+      item.userId ||
+      item.userEmail?.trim().toLowerCase() ||
+      item.displayName ||
+      item.id;
+
+    if (!predictorMap.has(userKey)) {
+      predictorMap.set(userKey, {
+        id: userKey,
+        name:
+          item.displayName ||
+          item.userEmail?.split('@')[0] ||
+          'Soccer Fan',
+        photoUrl: item.photoUrl || '',
+        xp: 0,
+        scoredXp: 0,
+        participationPoints: 0,
+        pendingPotentialPoints: 0,
+        pending: 0,
+        total: 0,
+        accuracy: 0,
+        correctPicks: 0,
+        scoredCount: 0,
+        underdogPoints: 0,
+        earlyPickPoints: 0,
+        streak: 0,
+        reachedScoreAtUtc: '',
+      });
+    }
+
+    const row = predictorMap.get(userKey);
+    const isScored = item.status === 'scored';
+    const awardedPoints = Number(item.pointsAwarded || 0);
+    const potentialPoints = Number(item.potentialXp || 0);
+
+    row.total += 1;
+    row.participationPoints += 2;
+
+    if (isScored) {
+      row.scoredCount += 1;
+      row.scoredXp += awardedPoints;
+
+      if (awardedPoints > 0) {
+        row.correctPicks += 1;
+      }
+
+      if (!row.reachedScoreAtUtc && item.createdAtUtc) {
+        row.reachedScoreAtUtc = item.createdAtUtc;
+      }
+    } else {
+      row.pending += 1;
+      row.pendingPotentialPoints += potentialPoints;
+    }
+  });
+
+  const predictorRows = Array.from(predictorMap.values())
+    .map((row) => ({
+      ...row,
+      xp: row.scoredXp + row.participationPoints,
+      accuracy:
+        row.scoredCount > 0
+          ? Math.round((row.correctPicks / row.scoredCount) * 100)
+          : 0,
+    }))
+    .sort(comparePredictorRows);
+
+  const currentUserKey =
+    authUser?.uid ||
+    authUser?.email?.trim().toLowerCase() ||
+    'current-user';
+
+  const currentUserGlobalRow = predictorRows.find(
+    (row) => row.id === currentUserKey
+  );
+
+  const localScoredPredictions = history.filter(
+    (item) => item.status === 'scored'
+  );
+  const localPendingPredictions = history.filter(
+    (item) => item.status !== 'scored'
+  );
+
+  const localScoredXp = localScoredPredictions.reduce(
     (total, item) => total + (item.pointsAwarded ?? item.xp ?? 0),
     0
   );
-
-  // Small activity points keep users interested even before match final.
-  // Big ranking points still depend on final match result.
-  const participationPoints = history.length * 2;
-  const pendingPotentialPoints = pendingPredictions.reduce(
+  const localParticipationPoints = history.length * 2;
+  const localPendingPotentialPoints = localPendingPredictions.reduce(
     (total, item) => total + (item.potentialXp ?? item.xp ?? 0),
     0
   );
-  const visibleUserPoints = scoredXp + participationPoints;
 
-  const predictorRows = [
-    {
-      id: 'current-user',
-      name: displayName,
-      photoUrl: profilePhotoUrl,
-      xp: visibleUserPoints,
-      scoredXp,
-      participationPoints,
-      pendingPotentialPoints,
-      pending: pendingPredictions.length,
-      total: history.length,
-      accuracy: scoredPredictions.length > 0 ? 100 : 0,
-      correctPicks: scoredPredictions.length,
-      underdogPoints: 0,
-      earlyPickPoints: 0,
-      streak: 0,
-      reachedScoreAtUtc: scoredPredictions[0]?.matchFinalAtUtc || scoredPredictions[0]?.createdAtUtc || '',
-    },
-  ].sort(comparePredictorRows);
+  const scoredXp = currentUserGlobalRow?.scoredXp ?? localScoredXp;
+  const participationPoints =
+    currentUserGlobalRow?.participationPoints ?? localParticipationPoints;
+  const pendingPotentialPoints =
+    currentUserGlobalRow?.pendingPotentialPoints ??
+    localPendingPotentialPoints;
+  const visibleUserPoints =
+    currentUserGlobalRow?.xp ??
+    localScoredXp + localParticipationPoints;
 
   const topPredictorSlots = [0, 1, 2].map((index) => ({
     index,
